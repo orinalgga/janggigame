@@ -1,0 +1,18 @@
+:root {
+  /* 장기판 테마. 유료 테마는 이 변수들을 바꿔 끼우는 방식으로 만든다. */
+  --board-bg: #e8c98f;
+  --board-line: #5b3a1a;
+  --cho-color: #1f6f43;
+  --han-color: #b3261e;
+  --piece-bg: #fdf6e3;
+  --highlight: rgba(31, 111, 67, 0.35);
+  --page-bg: #f5f1ea;
+  --text: #222;
+  font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  color: var(--text);
+  background: var(--page-bg);
+}
+
+body {
+  margin: 0;
+}
