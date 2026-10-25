@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "서버",
+      "request": "launch",
+      "mainClass": "com.janggi.server.JanggiServerApplication",
+      "projectName": "server"
+    },
+    {
+      // 루트의 .env(.env.example을 복사해 만듦)에서 구글 키를 읽는다.
+      "type": "java",
+      "name": "서버 (구글 로그인)",
+      "request": "launch",
+      "mainClass": "com.janggi.server.JanggiServerApplication",
+      "projectName": "server",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "type": "chrome",
+      "name": "웹 (Chrome)",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/web",
+      "preLaunchTask": "웹 개발 서버"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "서버 + 웹",
+      "configurations": ["서버", "웹 (Chrome)"],
+      "stopAll": true
+    },
+    {
+      "name": "서버 (구글 로그인) + 웹",
+      "configurations": ["서버 (구글 로그인)", "웹 (Chrome)"],
+      "stopAll": true
+    }
+  ]
+}

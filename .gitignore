@@ -3,7 +3,12 @@ build/
 out/
 .idea/
 *.iml
-.vscode/
+.vscode/*
+# 팀이 같이 쓰는 VS Code 설정만 올린다.
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
 node_modules/
 dist/
 .env

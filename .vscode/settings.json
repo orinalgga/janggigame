@@ -1,0 +1,21 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.gradle.enabled": true,
+  // 웹은 프로젝트에 설치된 TypeScript를 쓴다.
+  "typescript.tsdk": "web/node_modules/typescript/lib",
+  "files.exclude": {
+    "**/.gradle": true,
+    "**/build": true,
+    "web/dist": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/build": true
+  },
+  "[java]": {
+    "editor.tabSize": 4
+  },
+  "[vue][typescript][css][json][jsonc]": {
+    "editor.tabSize": 2
+  }
+}

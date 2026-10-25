@@ -1,0 +1,9 @@
+{
+  // 처음 열면 VS Code가 설치를 권합니다.
+  "recommendations": [
+    "vscjava.vscode-java-pack",
+    "vmware.vscode-boot-dev-pack",
+    "vscjava.vscode-gradle",
+    "Vue.volar"
+  ]
+}
