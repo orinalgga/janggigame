@@ -1,0 +1,44 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "웹 의존성 설치",
+      "type": "shell",
+      "command": "npm install",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "problemMatcher": []
+    },
+    {
+      // 디버그 구성 "웹 (Chrome)"이 먼저 띄운다. Vite가 준비되면 완료로 본다.
+      "label": "웹 개발 서버",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": { "regexp": "^x{100}$" },
+        "background": {
+          "activeBegins": true,
+          "beginsPattern": "VITE",
+          "endsPattern": "Local:"
+        }
+      }
+    },
+    {
+      "label": "서버 실행 (Gradle)",
+      "type": "shell",
+      "command": "./gradlew :server:bootRun",
+      "windows": { "command": ".\\gradlew.bat :server:bootRun" },
+      "problemMatcher": []
+    },
+    {
+      "label": "전체 빌드와 테스트",
+      "type": "shell",
+      "command": "./gradlew build && cd web && npm run build",
+      "windows": { "command": ".\\gradlew.bat build; if ($?) { cd web; npm run build }" },
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -26,6 +26,16 @@ npm run dev
 
 테스트는 `./gradlew build`로 돌립니다.
 
+### VS Code에서
+
+1. Java 21(JDK)과 Node 22를 설치하고 저장소 폴더를 VS Code로 엽니다.
+2. 오른쪽 아래에 뜨는 추천 확장(Java, Spring Boot, Gradle, Vue)을 설치합니다. Java 프로젝트를 불러오는 데 처음엔 1~2분 걸립니다.
+3. 터미널 → 작업 실행 → `웹 의존성 설치`를 한 번 돌립니다.
+4. 실행 및 디버그(Ctrl+Shift+D)에서 `서버 + 웹`을 고르고 F5를 누르면 서버와 웹이 함께 뜨고 Chrome이 열립니다. 서버 코드에 중단점을 걸 수 있습니다.
+5. 구글 로그인까지 쓰려면 `.env.example`을 `.env`로 복사해 키를 채우고 `서버 (구글 로그인) + 웹`으로 실행합니다. 온라인 대전은 로그인한 계정 두 개(일반 창과 시크릿 창)로 시험합니다.
+
+전체 빌드와 테스트는 Ctrl+Shift+B가 아니라 터미널 → 작업 실행 → `전체 빌드와 테스트`, 또는 명령 팔레트의 `Tasks: Run Test Task`로 돌립니다.
+
 로컬에서는 메모리 DB(H2)를 쓰므로 서버를 끄면 기보가 사라집니다. Postgres에 남기려면 `DB_URL`, `DB_USER`, `DB_PASSWORD` 환경변수를 넣고 실행합니다. 스키마는 Flyway(`server/src/main/resources/db/migration`)가 만듭니다.
 
 ## 규칙 엔진 좌표
