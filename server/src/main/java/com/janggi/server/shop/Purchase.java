@@ -89,6 +89,14 @@ public class Purchase {
         return provider;
     }
 
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public OffsetDateTime getPaidAt() {
+        return paidAt;
+    }
+
     public Status getStatus() {
         return status;
     }

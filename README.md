@@ -97,6 +97,14 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 - 결제 흐름: `POST /api/shop/orders`로 주문을 만들고, 결제창에서 받은 키로 `POST /api/shop/orders/{orderId}/confirm`을 부르면 서버가 결제사에 승인받은 뒤 상품을 넣어 준다. 금액은 서버의 주문 금액을 쓴다.
 - 지금 결제사는 돈이 오가지 않는 `test`뿐이다(`JANGGI_PAYMENTS_PROVIDER`). 실제 결제사(토스페이먼츠 등)는 `PaymentGateway`를 구현해 붙인다.
 
+## 관리자
+
+`.env`의 `JANGGI_ADMIN_EMAILS`에 구글 메일을 적고(쉼표로 여러 개) 그 메일로 로그인하면 로비 오른쪽 위에 **관리자** 버튼이 생긴다.
+
+- 현황: 전체·오늘 가입자, 오늘 대국 수, 진행 중인 온라인 대국과 상대를 찾는 사람 수, 매출(오늘은 한국 시간 기준).
+- 회원: 닉네임·메일·회원 번호로 검색, 닉네임 강제 변경, 테마 지급, 이용 정지와 해제. 정지된 회원은 자기 정보만 볼 수 있고 대국·채팅·상점은 막힌다. 관리자는 정지할 수 없다.
+- 주문: 최근 100건.
+
 ## 모바일 앱
 
 웹 화면을 Capacitor로 감싸 안드로이드·iOS 앱으로 만든다(`web/android`, `web/ios`). 앱 id는 `com.janggi.app`.

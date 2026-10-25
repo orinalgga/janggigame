@@ -40,6 +40,10 @@ public class AuthIdentity {
         this.email = email;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
     public User getUser() {
         return user;
     }

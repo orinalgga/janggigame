@@ -31,6 +31,13 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    /** 관리자가 이용을 정지한 때. null이면 정상. */
+    @Column(name = "banned_at")
+    private OffsetDateTime bannedAt;
+
+    @Column(name = "ban_reason")
+    private String banReason;
+
     /** 장착한 장기판 테마(상점 상품 id). */
     @Column(name = "board_theme", nullable = false)
     private String boardTheme = "board.classic";
@@ -63,6 +70,28 @@ public class User {
     void rename(String nickname, boolean chosen) {
         this.nickname = nickname;
         this.nicknameChosen = chosen;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public boolean isBanned() {
+        return bannedAt != null;
+    }
+
+    public String getBanReason() {
+        return banReason;
+    }
+
+    public void ban(String reason, OffsetDateTime at) {
+        this.bannedAt = at;
+        this.banReason = reason;
+    }
+
+    public void unban() {
+        this.bannedAt = null;
+        this.banReason = null;
     }
 
     public int getRating() {
