@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import ChatPanel from './components/ChatPanel.vue'
 import JanggiBoard from './components/JanggiBoard.vue'
+import LobbyView from './components/LobbyView.vue'
 import PlayerClocks from './components/PlayerClocks.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
@@ -10,26 +12,13 @@ import {
   type EndReason,
   type Formation,
   type GameDto,
-  type Level,
   type MatchStatus,
   type Me,
   type Side,
   type SquareDto,
 } from './api'
 import { Live } from './live'
-
-const FORMATIONS: { value: Formation; label: string }[] = [
-  { value: 'MA_SANG_MA_SANG', label: '마상마상' },
-  { value: 'SANG_MA_SANG_MA', label: '상마상마' },
-  { value: 'MA_SANG_SANG_MA', label: '마상상마' },
-  { value: 'SANG_MA_MA_SANG', label: '상마마상' },
-]
-
-const LEVELS: { value: Level; label: string }[] = [
-  { value: 'BEGINNER', label: '초급' },
-  { value: 'INTERMEDIATE', label: '중급' },
-  { value: 'ADVANCED', label: '상급' },
-]
+import { PERSONAS, type StartOptions } from './options'
 
 const END_REASON: Record<EndReason, string> = {
   CHECKMATE: '외통',
@@ -38,14 +27,14 @@ const END_REASON: Record<EndReason, string> = {
   TIMEOUT: '시간패',
 }
 
-/** HUMAN이면 한 화면에서 둘이 두고, ONLINE이면 매칭된 회원과 두고, 아니면 그 진영을 AI가 둔다. */
-const opponent = ref<'HUMAN' | 'ONLINE' | Side>('HAN')
-const level = ref<Level>('INTERMEDIATE')
+/** 로비에서 마지막으로 고른 설정. 대국이 끝나면 '한 판 더'에 쓴다. */
+const lastOptions = ref<StartOptions | null>(null)
 const thinking = ref(false)
 /** 수를 보내고 응답을 기다리는 중. 이때 누른 칸은 무시해서 옛 국면 기준으로 알이 골라지지 않게 한다. */
 const busy = ref(false)
 const replayId = ref<string | null>(null)
 const recent = ref<InstanceType<typeof RecentGames> | null>(null)
+const chat = ref<InstanceType<typeof ChatPanel> | null>(null)
 const me = ref<Me | null>(null)
 const providers = ref<string[]>([])
 
@@ -67,11 +56,9 @@ function logout() {
   live = null
   auth.clear()
   me.value = null
-  if (opponent.value === 'ONLINE') opponent.value = 'HAN'
+  if (game.value?.online) game.value = null
   recent.value?.refresh()
 }
-const choFormation = ref<Formation>('MA_SANG_MA_SANG')
-const hanFormation = ref<Formation>('MA_SANG_MA_SANG')
 const game = ref<GameDto | null>(null)
 const selected = ref<SquareDto | null>(null)
 const error = ref('')
@@ -102,31 +89,55 @@ const canPass = computed(() => game.value?.legalMoves.some((m) => m.from === nul
 
 const flipped = computed(() => (game.value?.online ? mySide.value === 'HAN' : game.value?.aiSide === 'CHO'))
 
+/** 내가 두는 진영. 온라인은 매칭된 쪽, AI 대국은 AI의 반대쪽, 같은 화면 2인은 없다. */
+const playerSide = computed<Side | null>(() => {
+  const g = game.value
+  if (!g) return null
+  if (g.online) return mySide.value
+  return g.aiSide ? (g.aiSide === 'CHO' ? 'HAN' : 'CHO') : null
+})
+
 const status = computed(() => {
   const g = game.value
   if (!g) return ''
   if (thinking.value) return 'AI가 생각하는 중…'
   const turn = g.sideToMove === 'CHO' ? '초' : '한'
+  const me = playerSide.value
   if (g.result !== 'ONGOING') {
     const how = g.endReason ? END_REASON[g.endReason] : ''
     if (g.result === 'DRAW') return `${how}: 무승부입니다.`
     const winner: Side = g.result === 'CHO_WIN' ? 'CHO' : 'HAN'
-    if (mySide.value) return `${how}: ${winner === mySide.value ? '이겼습니다!' : '졌습니다.'}`
+    if (me) return `${how}: ${winner === me ? '이겼습니다!' : '졌습니다.'}`
     return `${how}: ${winner === 'CHO' ? '초' : '한'}가 이겼습니다.`
   }
-  const whose = mySide.value ? (g.sideToMove === mySide.value ? '내 차례' : '상대 차례') : `${turn} 차례`
+  const whose = me ? (g.sideToMove === me ? '내 차례' : g.online ? '상대 차례' : 'AI 차례') : `${turn} 차례`
   return g.check ? `장군! ${whose}` : whose
 })
 
-async function start() {
-  if (opponent.value === 'ONLINE') return findMatch()
+/** 채팅 상대. 같은 화면 2인 대국에는 채팅이 없다. */
+const chatKind = computed<'ai' | 'online' | null>(() =>
+  game.value?.online ? 'online' : game.value?.aiSide ? 'ai' : null,
+)
+const persona = computed(() => (game.value?.aiLevel ? PERSONAS[game.value.aiLevel] : null))
+const chatTitle = computed(() => {
+  const g = game.value
+  if (!g) return ''
+  if (!g.online) return persona.value?.name ?? 'AI'
+  const other = mySide.value === 'CHO' ? g.han : g.cho
+  return other?.nickname ?? '상대'
+})
+const ongoing = computed(() => game.value?.result === 'ONGOING')
+
+async function start(options: StartOptions) {
+  lastOptions.value = options
+  if (options.mode === 'ONLINE') return findMatch(options.choFormation)
   leaveOnline()
   error.value = ''
   selected.value = null
   try {
-    const aiSide = opponent.value === 'HUMAN' ? null : opponent.value
+    const aiSide: Side | null = options.mode === 'HUMAN' ? null : options.mySide === 'CHO' ? 'HAN' : 'CHO'
     thinking.value = aiSide === 'CHO'
-    game.value = await api.newGame(choFormation.value, hanFormation.value, aiSide, level.value)
+    game.value = await api.newGame(options.choFormation, options.hanFormation, aiSide, options.level)
     replayId.value = null
     recent.value?.refresh()
   } catch (e) {
@@ -136,7 +147,28 @@ async function start() {
   }
 }
 
-async function findMatch() {
+/** 대국을 접고 로비로 돌아간다. 진행 중인 온라인 대국에서는 쓰지 않는다. */
+function toLobby() {
+  leaveOnline()
+  game.value = null
+  selected.value = null
+  error.value = ''
+  recent.value?.refresh()
+}
+
+/** 최근 대국 목록에서 끝나지 않은 AI·2인 대국을 이어서 둔다. */
+async function resume(id: string) {
+  leaveOnline()
+  error.value = ''
+  selected.value = null
+  try {
+    game.value = await api.game(id)
+  } catch (e) {
+    error.value = (e as Error).message
+  }
+}
+
+async function findMatch(formation: Formation) {
   leaveOnline()
   error.value = ''
   selected.value = null
@@ -156,7 +188,7 @@ async function findMatch() {
     if (m.gameId) void openOnline(m.gameId)
   })
   try {
-    const r = await api.match(choFormation.value)
+    const r = await api.match(formation)
     if (r.status === 'MATCHED' && r.gameId) await openOnline(r.gameId)
   } catch (e) {
     searching.value = false
@@ -245,6 +277,7 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
       await new Promise((r) => setTimeout(r, 350))
     }
     game.value = await sent
+    if (game.value.aiComment) chat.value?.push(game.value.aiComment)
     error.value = ''
     if (game.value.result !== 'ONGOING') void gameEnded()
   } catch (e) {
@@ -264,157 +297,291 @@ async function gameEnded() {
 </script>
 
 <template>
-  <main>
-    <header>
-      <h1>장기</h1>
+  <main :class="{ wide: game && chatKind }">
+    <header class="top">
+      <button v-if="game || replayId" type="button" class="brand link" :disabled="game?.online && ongoing" @click="replayId ? (replayId = null) : toLobby()">
+        장기
+      </button>
+      <span v-else class="brand">장기</span>
       <div v-if="me" class="me">
-        {{ me.nickname }} · {{ me.rating }}
-        <button @click="logout">로그아웃</button>
+        <span class="avatar" aria-hidden="true">{{ me.nickname.slice(0, 1) }}</span>
+        <span>{{ me.nickname }}</span>
+        <span class="rating">{{ me.rating }}</span>
+        <button type="button" class="text-button" @click="logout">로그아웃</button>
       </div>
       <a v-else-if="providers.includes('google')" class="login" :href="auth.loginUrl('google')">구글로 로그인</a>
     </header>
-    <section class="controls">
-      <label>
-        상대
-        <select v-model="opponent">
-          <option value="HAN">AI (내가 초)</option>
-          <option value="CHO">AI (내가 한)</option>
-          <option value="HUMAN">같은 화면 2인</option>
-          <option v-if="me" value="ONLINE">온라인 대전</option>
-        </select>
-      </label>
-      <label v-if="opponent === 'CHO' || opponent === 'HAN'">
-        난이도
-        <select v-model="level">
-          <option v-for="l in LEVELS" :key="l.value" :value="l.value">{{ l.label }}</option>
-        </select>
-      </label>
-      <label v-if="opponent === 'ONLINE'">
-        내 상차림
-        <select v-model="choFormation">
-          <option v-for="f in FORMATIONS" :key="f.value" :value="f.value">{{ f.label }}</option>
-        </select>
-      </label>
-      <label v-if="opponent !== 'ONLINE'">
-        초 상차림
-        <select v-model="choFormation">
-          <option v-for="f in FORMATIONS" :key="f.value" :value="f.value">{{ f.label }}</option>
-        </select>
-      </label>
-      <label v-if="opponent !== 'ONLINE'">
-        한 상차림
-        <select v-model="hanFormation">
-          <option v-for="f in FORMATIONS" :key="f.value" :value="f.value">{{ f.label }}</option>
-        </select>
-      </label>
-      <button v-if="!searching" @click="start">{{ opponent === 'ONLINE' ? '상대 찾기' : '새 대국' }}</button>
-    </section>
-    <p v-if="!me && providers.length" class="hint">로그인하면 다른 사람과 온라인 대전을 할 수 있습니다.</p>
-
-    <p v-if="searching" class="searching">
-      상대를 찾는 중…
-      <button @click="cancelMatch">취소</button>
-    </p>
-
-    <p v-if="error" class="error">{{ error }}</p>
 
     <ReplayView v-if="replayId" :key="replayId" :game-id="replayId" @close="replayId = null" />
 
-    <template v-else-if="game">
-      <PlayerClocks
-        v-if="game.online && game.clock"
-        :clock="game.clock"
-        :cho="game.cho"
-        :han="game.han"
-        :bottom="mySide ?? 'CHO'"
-        :rating-change="game.ratingChange"
-      />
-      <p class="status">
-        {{ status }}
-        <span class="score">초 {{ game.choScore }} · 한 {{ game.hanScore }}</span>
-      </p>
-      <JanggiBoard
-        :pieces="game.pieces"
-        :legal-moves="game.legalMoves"
-        :selected="selected"
-        :last-move="game.lastMove"
-        :flipped="flipped"
-        @select="onSelect"
-      />
-      <div class="actions">
-        <button :disabled="!canPass || !canAct" @click="pass">한수쉼</button>
-        <template v-if="game.online && mySide && game.result === 'ONGOING'">
-          <button v-if="!confirmResign" @click="confirmResign = true">기권</button>
-          <span v-else class="confirm">
-            정말 기권할까요?
-            <button class="danger" @click="resign">기권</button>
-            <button @click="confirmResign = false">계속 두기</button>
-          </span>
-        </template>
+    <section v-else-if="game" class="game-screen">
+      <div class="topbar">
+        <button v-if="!(game.online && ongoing)" type="button" class="back" @click="toLobby">‹ 로비</button>
+        <div v-if="!game.online" class="opponent">
+          <template v-if="persona">
+            <span class="badge han" aria-hidden="true">{{ persona.badge }}</span>
+            <span class="who">
+              <b>{{ persona.name }}</b>
+              <span class="level">AI {{ persona.level }}</span>
+            </span>
+          </template>
+          <span v-else class="who"><b>같은 화면 2인</b></span>
+        </div>
+        <span class="pill" :class="{ check: game.check && ongoing, over: !ongoing, thinking }">{{ status }}</span>
       </div>
-    </template>
 
-    <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" />
+      <div class="layout">
+        <div class="board-col">
+          <PlayerClocks
+            v-if="game.online && game.clock"
+            :clock="game.clock"
+            :cho="game.cho"
+            :han="game.han"
+            :bottom="mySide ?? 'CHO'"
+            :rating-change="game.ratingChange"
+          />
+          <JanggiBoard
+            :pieces="game.pieces"
+            :legal-moves="game.legalMoves"
+            :selected="selected"
+            :last-move="game.lastMove"
+            :flipped="flipped"
+            @select="onSelect"
+          />
+          <div class="actions">
+            <span class="score"><b class="cho-text">초</b> {{ game.choScore }} · <b class="han-text">한</b> {{ game.hanScore }}</span>
+            <button type="button" :disabled="!canPass || !canAct" @click="pass">한수쉼</button>
+            <template v-if="game.online && mySide && ongoing">
+              <button v-if="!confirmResign" type="button" @click="confirmResign = true">기권</button>
+              <span v-else class="confirm">
+                정말 기권할까요?
+                <button type="button" class="danger" @click="resign">기권</button>
+                <button type="button" @click="confirmResign = false">계속 두기</button>
+              </span>
+            </template>
+            <button v-if="!ongoing && lastOptions" type="button" class="again" @click="start(lastOptions)">
+              {{ game.online ? '새 상대 찾기' : '한 판 더' }}
+            </button>
+          </div>
+          <p v-if="error" class="error">{{ error }}</p>
+        </div>
+        <ChatPanel
+          v-if="chatKind"
+          ref="chat"
+          :key="game.id"
+          class="chat-col"
+          :game-id="game.id"
+          :kind="chatKind"
+          :my-side="playerSide ?? 'CHO'"
+          :title="chatTitle"
+          :live="live"
+        />
+      </div>
+    </section>
+
+    <template v-else>
+      <LobbyView :me="me" :providers="providers" :searching="searching" :error="error" @start="start" @cancel="cancelMatch" />
+      <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" @resume="resume" />
+    </template>
   </main>
 </template>
 
 <style scoped>
-header {
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 16px 32px;
+}
+main.wide {
+  max-width: 940px;
+}
+.top {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 4px 0 16px;
 }
-.me,
+.brand {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--accent-deep);
+}
+.brand.link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.brand.link:disabled {
+  cursor: default;
+}
+.me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--accent);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.rating {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+.text-button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
 .login {
   font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
 }
-main {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 16px;
-}
-.controls {
+.topbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 12px;
 }
-.status {
-  display: flex;
-  justify-content: space-between;
+.back {
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  cursor: pointer;
   font-weight: 600;
 }
-.score {
-  font-weight: 400;
+.opponent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.error {
+.who {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.level {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.badge {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  font-family: 'Noto Serif KR', serif;
+  font-weight: 900;
+  background: var(--piece-light);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  box-shadow: inset 0 0 0 3px var(--piece-edge);
+}
+.badge.han {
   color: var(--han-color);
 }
-.hint,
-.searching {
-  font-size: 0.9rem;
+.pill {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
 }
-.searching {
-  font-weight: 600;
+.pill.check {
+  color: #fff;
+  background: var(--han-color);
+  border-color: var(--han-color);
+}
+.pill.over {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pill.thinking {
+  color: var(--muted);
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+main.wide .layout {
+  grid-template-columns: minmax(0, 1fr) 340px;
 }
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  margin-top: 10px;
+}
+.actions button {
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  cursor: pointer;
+}
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.actions .again {
+  color: #fff;
+  font-weight: 700;
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.score {
+  margin-right: auto;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.cho-text {
+  color: var(--cho-color);
+}
+.han-text {
+  color: var(--han-color);
 }
 .confirm {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 8px;
 }
-.danger {
+.actions .danger {
+  color: var(--han-color);
+  border-color: var(--han-color);
+}
+.error {
   color: var(--han-color);
 }
-button {
-  padding: 6px 14px;
-  margin-top: 8px;
+@media (max-width: 860px) {
+  main.wide {
+    max-width: 720px;
+  }
+  main.wide .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

@@ -40,6 +40,18 @@ export interface GameDto {
   han: Player | null
   clock: ClockDto | null
   ratingChange: { cho: number; han: number } | null
+  /** AI 대국에서 이번 수에 AI가 한 말. 없으면 null. */
+  aiComment: ChatMessage | null
+}
+
+/** 대국 채팅 한 줄. id는 대국 안에서 늘어나는 번호라 같은 말을 두 번 받으면 걸러 낸다. */
+export interface ChatMessage {
+  id: number
+  side: Side
+  nickname: string
+  ai: boolean
+  text: string
+  at: number
 }
 
 export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT'
@@ -159,6 +171,9 @@ export const api = {
   resign: (id: string) => request<GameDto>(`/api/games/${id}/resign`, {}),
   match: (formation: Formation) => request<MatchStatus>('/api/match', { formation }),
   cancelMatch: () => request<MatchStatus>('/api/match', undefined, 'DELETE'),
+  chat: (id: string) => request<ChatMessage[]>(`/api/games/${id}/chat`),
+  /** 새로 생긴 말을 돌려준다. AI 대국이면 내 말과 AI의 답이다. */
+  say: (id: string, text: string) => request<ChatMessage[]>(`/api/games/${id}/chat`, { text }),
 }
 
 /** 실시간 알림(STOMP) 주소. API와 같은 서버의 /ws. */

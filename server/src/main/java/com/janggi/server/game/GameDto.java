@@ -6,6 +6,7 @@ import com.janggi.core.GameState;
 import com.janggi.core.Move;
 import com.janggi.core.Side;
 import com.janggi.core.Square;
+import com.janggi.server.chat.ChatMessage;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,7 +29,8 @@ public record GameDto(
         PlayerDto cho,
         PlayerDto han,
         ClockDto clock,
-        RatingChange ratingChange) {
+        RatingChange ratingChange,
+        ChatMessage aiComment) {
 
     /** rating은 대국을 시작할 때의 레이팅. */
     public record PlayerDto(long id, String nickname, int rating) {
@@ -97,7 +99,14 @@ public record GameDto(
                 session.players().cho(),
                 session.players().han(),
                 ClockDto.from(session.clock()),
-                session.ratingChange());
+                session.ratingChange(),
+                null);
+    }
+
+    /** AI 대국에서 이번 수에 AI가 한 말을 붙인다. */
+    GameDto withAiComment(ChatMessage comment) {
+        return new GameDto(id, pieces, sideToMove, legalMoves, check, checkmate, bikjang, result, choScore, hanScore,
+                aiSide, aiLevel, lastMove, endReason, online, cho, han, clock, ratingChange, comment);
     }
 
     static List<PieceDto> pieces(GameState state) {

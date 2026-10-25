@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.janggi.server.chat.ChatService;
 import com.janggi.server.game.GameService;
 import com.janggi.server.record.GameRecorder;
 import com.janggi.server.user.UserService;
@@ -101,6 +102,9 @@ class GameControllerTest {
     @Autowired
     SimpMessagingTemplate messaging;
 
+    @Autowired
+    ChatService chat;
+
     private void playFirstMove(String id) throws Exception {
         mvc.perform(post("/api/games/" + id + "/moves")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -130,7 +134,7 @@ class GameControllerTest {
         playFirstMove(id);
 
         // 메모리가 빈 새 서비스 = 서버를 다시 켠 상황.
-        GameService fresh = new GameService(recorder, users, messaging, 600, 10);
+        GameService fresh = new GameService(recorder, users, messaging, chat, 600, 10);
         var restored = fresh.get(id);
         assertEquals("HAN", restored.sideToMove().name());
         assertEquals(1, restored.lastMove().to().x());
