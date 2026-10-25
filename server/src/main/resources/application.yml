@@ -25,6 +25,8 @@ janggi:
   # 소셜 로그인이 끝나면 돌아갈 웹 주소.
   web-base-url: ${JANGGI_WEB_BASE_URL:http://localhost:5173}
   # 앱에서 로그인하면 돌아갈 앱 주소. 앱의 AndroidManifest·Info.plist에 등록한 주소와 같아야 한다.
+  # 관리자 페이지를 쓸 수 있는 구글 메일. 쉼표로 여러 개.
+  admin-emails: ${JANGGI_ADMIN_EMAILS:}
   app-redirect-url: ${JANGGI_APP_REDIRECT_URL:com.janggi.app://auth}
   jwt:
     # 운영에서는 반드시 JANGGI_JWT_SECRET에 32자 이상 임의 문자열을 넣는다.

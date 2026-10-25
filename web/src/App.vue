@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import ChatPanel from './components/ChatPanel.vue'
 import JanggiBoard from './components/JanggiBoard.vue'
+import AdminView from './components/AdminView.vue'
 import LobbyView from './components/LobbyView.vue'
 import NicknameDialog from './components/NicknameDialog.vue'
 import PlayerClocks from './components/PlayerClocks.vue'
@@ -42,6 +43,7 @@ const chat = ref<InstanceType<typeof ChatPanel> | null>(null)
 const me = ref<Me | null>(null)
 const providers = ref<string[]>([])
 const shopOpen = ref(false)
+const adminOpen = ref(false)
 /** 처음 로그인해 임시 닉네임이면 저절로 열리고, 머리글의 닉네임을 눌러도 열린다. */
 const nicknameOpen = ref(false)
 
@@ -70,6 +72,7 @@ function logout() {
   live = null
   auth.clear()
   me.value = null
+  adminOpen.value = false
   setEquipped(undefined, undefined)
   if (game.value?.online) game.value = null
   recent.value?.refresh()
@@ -155,6 +158,7 @@ async function start(options: StartOptions) {
     game.value = await api.newGame(options.choFormation, options.hanFormation, aiSide, options.level)
     replayId.value = null
     shopOpen.value = false
+    adminOpen.value = false
     recent.value?.refresh()
   } catch (e) {
     error.value = `서버에 연결할 수 없습니다: ${(e as Error).message}`
@@ -314,13 +318,16 @@ async function gameEnded() {
 </script>
 
 <template>
-  <main :class="{ wide: (game && chatKind) || (shopOpen && !game && !replayId) }">
+  <main :class="{ wide: (game && chatKind) || ((shopOpen || adminOpen) && !game && !replayId) }">
     <header class="top">
-      <button v-if="game || replayId || shopOpen" type="button" class="brand link" :disabled="game?.online && ongoing" @click="replayId ? (replayId = null) : game ? toLobby() : (shopOpen = false)">
+      <button v-if="game || replayId || shopOpen || adminOpen" type="button" class="brand link" :disabled="game?.online && ongoing" @click="replayId ? (replayId = null) : game ? toLobby() : ((shopOpen = false), (adminOpen = false))">
         장기
       </button>
       <span v-else class="brand">장기</span>
-      <button v-if="!game && !replayId && !shopOpen" type="button" class="shop-link" @click="shopOpen = true">상점</button>
+      <template v-if="!game && !replayId && !shopOpen && !adminOpen">
+        <button type="button" class="shop-link" @click="shopOpen = true">상점</button>
+        <button v-if="me?.admin" type="button" class="shop-link admin-link" @click="adminOpen = true">관리자</button>
+      </template>
       <div v-if="me" class="me">
         <span class="avatar" aria-hidden="true">{{ me.nickname.slice(0, 1) }}</span>
         <button type="button" class="nickname" title="닉네임 바꾸기" @click="nicknameOpen = true">{{ me.nickname }}</button>
@@ -336,6 +343,11 @@ async function gameEnded() {
       @saved="(m) => ((me = m), (nicknameOpen = false))"
       @close="nicknameOpen = false"
     />
+
+    <p v-if="me?.banned" class="banned" role="alert">
+      이용이 정지된 계정이에요. 사유: {{ me.banReason }}<br />
+      잘못된 정지라고 생각되면 운영자에게 문의해 주세요.
+    </p>
 
     <ReplayView v-if="replayId" :key="replayId" :game-id="replayId" @close="replayId = null" />
 
@@ -406,6 +418,8 @@ async function gameEnded() {
       </div>
     </section>
 
+    <AdminView v-else-if="adminOpen && me?.admin" @close="adminOpen = false" />
+
     <ShopView v-else-if="shopOpen" :me="me" :providers="providers" @close="shopOpen = false" />
 
     <template v-else>
@@ -465,6 +479,21 @@ main.wide {
   font-weight: 700;
   font-size: 0.88rem;
   cursor: pointer;
+}
+.admin-link {
+  margin-left: 0;
+  color: #fff;
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+}
+.banned {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--han-color);
+  font-weight: 600;
+  line-height: 1.5;
 }
 .me {
   display: flex;

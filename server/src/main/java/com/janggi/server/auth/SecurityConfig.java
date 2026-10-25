@@ -1,5 +1,6 @@
 package com.janggi.server.auth;
 
+import com.janggi.server.user.UserRepository;
 import com.janggi.server.user.UserService;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwt, UserService users,
+    SecurityFilterChain filterChain(HttpSecurity http, JwtService jwt, UserService users, UserRepository userRepository,
             OAuthProviders providers, @Value("${janggi.web-base-url}") String webBaseUrl,
             @Value("${janggi.app-redirect-url}") String appRedirectUrl)
             throws Exception {
@@ -38,10 +39,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         // 상품 목록은 누구나 본다. 사기와 장착은 로그인해야 한다.
                         .requestMatchers(HttpMethod.GET, "/api/shop").permitAll()
-                        .requestMatchers("/api/me", "/api/me/**", "/api/match", "/api/shop/**").authenticated()
+                        .requestMatchers("/api/me", "/api/me/**", "/api/match", "/api/shop/**", "/api/admin/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(new JwtAuthFilter(jwt), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new BanFilter(userRepository), JwtAuthFilter.class)
                 .addFilterBefore(new AppLoginFilter(), OAuth2AuthorizationRequestRedirectFilter.class);
         if (!providers.registrations().isEmpty()) {
             http.oauth2Login(o -> o

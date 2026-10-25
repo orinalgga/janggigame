@@ -110,6 +110,56 @@ export interface Me {
   /** 장착한 테마의 상점 상품 id. */
   boardTheme: string
   pieceTheme: string
+  /** 관리자 페이지를 쓸 수 있는 회원. */
+  admin: boolean
+  /** 정지된 회원은 자기 정보 말고는 아무것도 할 수 없다. */
+  banned: boolean
+  banReason: string | null
+}
+
+export interface AdminStats {
+  users: number
+  usersToday: number
+  gamesToday: number
+  onlinePlaying: number
+  waiting: number
+  paidOrders: number
+  revenueTotal: number
+  revenueToday: number
+}
+
+export interface AdminUser {
+  id: number
+  nickname: string
+  nicknameChosen: boolean
+  rating: number
+  createdAt: string
+  emails: string[]
+  banned: boolean
+  banReason: string | null
+  /** 산 테마(무료 제외)의 상품 id. */
+  items: string[]
+  admin: boolean
+}
+
+export interface AdminUserPage {
+  users: AdminUser[]
+  page: number
+  totalPages: number
+  total: number
+}
+
+export interface AdminOrder {
+  orderId: string
+  userId: number
+  nickname: string
+  itemId: string
+  itemTitle: string
+  amount: number
+  provider: string
+  status: 'PENDING' | 'PAID' | 'FAILED'
+  createdAt: string
+  paidAt: string | null
 }
 
 export type ShopSlot = 'BOARD' | 'PIECES'
@@ -219,6 +269,16 @@ export const api = {
   confirmOrder: (orderId: string, paymentKey: string) =>
     request<ShopItem[]>(`/api/shop/orders/${orderId}/confirm`, { paymentKey }),
   equip: (itemId: string) => request<ShopItem[]>('/api/shop/equipped', { itemId }, 'PUT'),
+  admin: {
+    stats: () => request<AdminStats>('/api/admin/stats'),
+    users: (q: string, page: number) =>
+      request<AdminUserPage>(`/api/admin/users?q=${encodeURIComponent(q)}&page=${page}`),
+    rename: (id: number, nickname: string) => request<AdminUser>(`/api/admin/users/${id}/nickname`, { nickname }, 'PUT'),
+    ban: (id: number, reason: string) => request<AdminUser>(`/api/admin/users/${id}/ban`, { reason }),
+    unban: (id: number) => request<AdminUser>(`/api/admin/users/${id}/ban`, undefined, 'DELETE'),
+    grant: (id: number, itemId: string) => request<AdminUser>(`/api/admin/users/${id}/items`, { itemId }),
+    orders: () => request<AdminOrder[]>('/api/admin/orders'),
+  },
 }
 
 /** 실시간 알림(STOMP) 주소. API와 같은 서버의 /ws. */

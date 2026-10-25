@@ -1,5 +1,6 @@
 package com.janggi.server.user;
 
+import com.janggi.server.admin.AdminService;
 import com.janggi.server.auth.CurrentUser;
 import com.janggi.server.auth.OAuthProviders;
 import java.util.List;
@@ -19,14 +20,14 @@ public class MeController {
 
     /**
      * nicknameChosen이 false면 아직 임시 닉네임(장기꾼+번호)이라 웹이 닉네임을 정하라고 묻는다.
-     * boardTheme, pieceTheme은 장착한 테마의 상점 상품 id.
+     * boardTheme, pieceTheme은 장착한 테마의 상점 상품 id. banReason은 정지된 회원일 때만 있다.
      */
     public record MeDto(long id, String nickname, boolean nicknameChosen, int rating, String boardTheme,
-            String pieceTheme) {
+            String pieceTheme, boolean admin, boolean banned, String banReason) {
 
-        static MeDto of(User u) {
+        static MeDto of(User u, boolean admin) {
             return new MeDto(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(), u.getBoardTheme(),
-                    u.getPieceTheme());
+                    u.getPieceTheme(), admin, u.isBanned(), u.getBanReason());
         }
     }
 
@@ -38,10 +39,12 @@ public class MeController {
     }
 
     private final UserService users;
+    private final AdminService admins;
     private final List<String> providers;
 
-    public MeController(UserService users, OAuthProviders providers) {
+    public MeController(UserService users, AdminService admins, OAuthProviders providers) {
         this.users = users;
+        this.admins = admins;
         this.providers = providers.names();
     }
 
@@ -52,13 +55,13 @@ public class MeController {
             return ResponseEntity.status(401).build();
         }
         return users.find(id)
-                .map(u -> ResponseEntity.ok(MeDto.of(u)))
+                .map(u -> ResponseEntity.ok(MeDto.of(u, admins.isAdmin(u.getId()))))
                 .orElse(ResponseEntity.status(401).build());
     }
 
     @PutMapping("/api/me/nickname")
     public MeDto nickname(@RequestBody NicknameRequest request) {
-        return MeDto.of(users.changeNickname(CurrentUser.id(), request.nickname()));
+        return MeDto.of(users.changeNickname(CurrentUser.id(), request.nickname()), admins.isAdmin(CurrentUser.id()));
     }
 
     /** 같은 닉네임을 거의 동시에 정한 경우. 유일 인덱스가 막는다. */

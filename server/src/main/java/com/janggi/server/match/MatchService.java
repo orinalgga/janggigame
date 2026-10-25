@@ -56,6 +56,11 @@ public class MatchService {
         return matched;
     }
 
+    /** 지금 상대를 기다리는 사람 수. */
+    public synchronized int waitingCount() {
+        return waiting.size();
+    }
+
     public synchronized void leave(long userId) {
         waiting.remove(userId);
     }
