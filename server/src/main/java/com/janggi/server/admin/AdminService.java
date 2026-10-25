@@ -52,7 +52,8 @@ public class AdminService {
 
     public record UserRow(long id, String nickname, boolean nicknameChosen, int rating, String grade,
             OffsetDateTime createdAt,
-            List<String> emails, boolean banned, String banReason, List<String> items, boolean admin, int coins) {
+            List<String> emails, boolean banned, String banReason, List<String> items, boolean admin, int coins,
+            int freeCoins) {
     }
 
     public record UserPage(List<UserRow> users, int page, int totalPages, long total) {
@@ -176,7 +177,7 @@ public class AdminService {
         return row(user);
     }
 
-    /** 엽전을 넣거나(양수) 뺀다(음수). 사유는 회원의 엽전 기록에도 남는다. */
+    /** 운영자 엽전을 넣거나(양수) 뺀다(음수). 충전한 엽전은 뺄 수 없다. 사유는 회원의 엽전 기록에도 남는다. */
     @Transactional
     public UserRow giveCoins(long adminId, long userId, int amount, String memo) {
         User user = user(userId);
@@ -185,8 +186,14 @@ public class AdminService {
         }
         String m = memo == null || memo.isBlank() ? (amount > 0 ? "운영자 지급" : "운영자 회수") : memo.strip();
         m = m.length() > MAX_REASON ? m.substring(0, MAX_REASON) : m;
-        int balance = coins.change(userId, amount, CoinService.Kind.ADMIN, "admin:" + adminId, m);
-        log(adminId, AdminLog.Action.COINS, userId, (amount > 0 ? "+" : "") + amount + "닢 (잔액 " + balance + ") " + m);
+        CoinService.Wallet w;
+        try {
+            w = coins.change(userId, amount, CoinService.Kind.ADMIN, "admin:" + adminId, m);
+        } catch (ShopException e) {
+            throw new AdminException.BadRequest(e.getMessage());
+        }
+        log(adminId, AdminLog.Action.COINS, userId,
+                (amount > 0 ? "+" : "") + amount + "닢 (운영자 엽전 " + w.free() + ", 전체 " + w.total() + ") " + m);
         return row(user);
     }
 
@@ -256,8 +263,10 @@ public class AdminService {
         List<AuthIdentity> ids = identities.findByUserId(u.getId());
         List<String> emails = ids.stream().map(AuthIdentity::getEmail).filter(Objects::nonNull).toList();
         List<String> items = owned.findByUserId(u.getId()).stream().map(OwnedItem::getItemId).toList();
+        CoinService.Wallet wallet = coins.wallet(u.getId());
         return new UserRow(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(), Grade.name(u.getRating()),
                 u.getCreatedAt(),
-                emails, u.isBanned(), u.getBanReason(), items, isAdmin(ids), coins.balance(u.getId()));
+                emails, u.isBanned(), u.getBanReason(), items, isAdmin(ids), wallet.total(),
+                wallet.free());
     }
 }

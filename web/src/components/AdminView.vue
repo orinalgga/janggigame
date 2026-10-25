@@ -181,7 +181,7 @@ const grant = (u: AdminUser) =>
 const giveCoins = (u: AdminUser) => {
   const n = coinAmount.value ?? 0
   return run(() => api.admin.coins(u.id, n, coinMemo.value.trim())).then((r) => {
-    replace(r, `엽전 ${Math.abs(n)}닢을 ${n > 0 ? '넣었' : '뺐'}어요. 잔액 ${r?.coins}닢.`)
+    replace(r, `엽전 ${Math.abs(n)}닢을 ${n > 0 ? '넣었' : '뺐'}어요. 잔액 ${r?.coins}닢(운영자 지급 ${r?.freeCoins}닢).`)
     if (r) coinAmount.value = null
   })
 }
@@ -257,7 +257,7 @@ const cards = computed(() => {
           </button>
           <div v-if="open === u.id" class="detail">
             <p class="meta">
-              가입 {{ date(u.createdAt) }} · 엽전 {{ u.coins.toLocaleString('ko-KR') }}닢 · 산 테마 {{ u.items.length ? u.items.map(title).join(', ') : '없음' }}
+              가입 {{ date(u.createdAt) }} · 엽전 {{ u.coins.toLocaleString('ko-KR') }}닢(운영자 지급 {{ u.freeCoins.toLocaleString('ko-KR') }}닢) · 산 테마 {{ u.items.length ? u.items.map(title).join(', ') : '없음' }}
               <template v-if="u.banned"><br />정지 사유: {{ u.banReason }}</template>
             </p>
             <div class="field">
@@ -274,10 +274,11 @@ const cards = computed(() => {
               <button type="button" class="ghost" :disabled="busy || !grantItem" @click="grant(u)">테마 지급</button>
             </div>
             <div class="field">
-              <input v-model.number="coinAmount" type="number" step="1" placeholder="엽전(빼려면 -)" aria-label="넣거나 뺄 엽전" />
+              <input v-model.number="coinAmount" type="number" step="1" placeholder="엽전(빼려면 -)" aria-label="넣거나 뺄 엽전" :title="`운영자가 준 엽전만 뺄 수 있어요. 지금 ${u.freeCoins}닢`" />
               <input v-model="coinMemo" maxlength="200" placeholder="사유(회원 내역에 보여요)" aria-label="엽전 사유" />
               <button type="button" class="ghost" :disabled="busy || !coinAmount" @click="giveCoins(u)">엽전 넣기·빼기</button>
             </div>
+            <p class="hint">넣은 엽전은 운영자 지급분이 되고, 빼기는 운영자 지급분({{ u.freeCoins }}닢)에서만 돼요. 회원이 충전한 엽전은 뺄 수 없어요.</p>
             <div class="field">
               <template v-if="!u.banned">
                 <input v-model="reason" maxlength="200" placeholder="정지 사유(비우면 '운영 정책 위반')" aria-label="정지 사유" />
@@ -484,6 +485,11 @@ small {
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+.hint {
+  margin: -2px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 .users {
   list-style: none;

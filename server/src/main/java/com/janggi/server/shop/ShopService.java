@@ -26,8 +26,8 @@ public class ShopService {
     public record PackDto(String id, String title, int coins, int price) {
     }
 
-    /** coins는 로그인하지 않았으면 null. */
-    public record ShopDto(Integer coins, List<ItemDto> items, List<PackDto> packs) {
+    /** coins는 전체 엽전, freeCoins는 그중 운영자가 준 엽전. 로그인하지 않았으면 둘 다 null. */
+    public record ShopDto(Integer coins, Integer freeCoins, List<ItemDto> items, List<PackDto> packs) {
     }
 
     public record OrderDto(String orderId, String packId, String title, int coins, int amount, String provider) {
@@ -64,7 +64,8 @@ public class ShopService {
                         i.free() || mine.contains(i.id()),
                         i.id().equals(board) || i.id().equals(pieces)))
                 .toList();
-        return new ShopDto(user == null ? null : coins.balance(user.getId()), items, PACKS);
+        CoinService.Wallet wallet = user == null ? null : coins.wallet(user.getId());
+        return new ShopDto(wallet == null ? null : wallet.total(), wallet == null ? null : wallet.free(), items, PACKS);
     }
 
     /** 엽전 충전 결제를 시작한다. 결제창에는 여기서 받은 orderId와 금액을 그대로 넘긴다. */
