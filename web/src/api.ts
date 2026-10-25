@@ -28,12 +28,35 @@ export interface GameDto {
   check: boolean
   checkmate: boolean
   bikjang: boolean
-  result: 'ONGOING' | 'CHO_WIN' | 'HAN_WIN' | 'DRAW'
+  result: Result
   choScore: number
   hanScore: number
   aiSide: Side | null
   aiLevel: Level | null
   lastMove: MoveDto | null
+}
+
+export type Result = 'ONGOING' | 'CHO_WIN' | 'HAN_WIN' | 'DRAW'
+
+export interface GameSummary {
+  id: string
+  aiSide: Side | null
+  aiLevel: Level | null
+  result: Result
+  endReason: 'CHECKMATE' | 'BIKJANG' | null
+  moveCount: number
+  startedAt: string
+}
+
+export interface ReplayDto {
+  id: string
+  ply: number
+  totalPlies: number
+  pieces: PieceDto[]
+  lastMove: MoveDto | null
+  check: boolean
+  result: Result
+  aiSide: Side | null
 }
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -55,4 +78,6 @@ export const api = {
   newGame: (choFormation: Formation, hanFormation: Formation, aiSide: Side | null, aiLevel: Level) =>
     request<GameDto>('/api/games', { choFormation, hanFormation, aiSide, aiLevel }),
   move: (id: string, move: MoveDto) => request<GameDto>(`/api/games/${id}/moves`, move),
+  recent: () => request<GameSummary[]>('/api/games'),
+  replay: (id: string, ply: number) => request<ReplayDto>(`/api/games/${id}/replay?ply=${ply}`),
 }

@@ -52,18 +52,9 @@ public record GameDto(
 
     static GameDto from(String id, GameSession session) {
         GameState state = session.state();
-        List<PieceDto> pieces = new ArrayList<>();
-        for (int y = 0; y < Square.RANKS; y++) {
-            for (int x = 0; x < Square.FILES; x++) {
-                var p = state.pieceAt(Square.of(x, y));
-                if (p != null) {
-                    pieces.add(new PieceDto(x, y, p.side().name(), p.type().name(), label(p.side(), p.type())));
-                }
-            }
-        }
         return new GameDto(
                 id,
-                pieces,
+                pieces(state),
                 state.sideToMove(),
                 state.legalMoves().stream().map(MoveDto::from).toList(),
                 state.isCheck(),
@@ -75,6 +66,19 @@ public record GameDto(
                 session.aiSide(),
                 session.aiLevel(),
                 session.lastMove() == null ? null : MoveDto.from(session.lastMove()));
+    }
+
+    static List<PieceDto> pieces(GameState state) {
+        List<PieceDto> pieces = new ArrayList<>();
+        for (int y = 0; y < Square.RANKS; y++) {
+            for (int x = 0; x < Square.FILES; x++) {
+                var p = state.pieceAt(Square.of(x, y));
+                if (p != null) {
+                    pieces.add(new PieceDto(x, y, p.side().name(), p.type().name(), label(p.side(), p.type())));
+                }
+            }
+        }
+        return pieces;
     }
 
     /** 장기알에 쓰는 한자. 초는 장(將)이 아닌 초(楚), 한은 한(漢)을 쓴다. */

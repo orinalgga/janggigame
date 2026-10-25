@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import JanggiBoard from './components/JanggiBoard.vue'
+import RecentGames from './components/RecentGames.vue'
+import ReplayView from './components/ReplayView.vue'
 import { api, type Formation, type GameDto, type Level, type Side, type SquareDto } from './api'
 
 const FORMATIONS: { value: Formation; label: string }[] = [
@@ -20,6 +22,8 @@ const LEVELS: { value: Level; label: string }[] = [
 const opponent = ref<'HUMAN' | Side>('HAN')
 const level = ref<Level>('INTERMEDIATE')
 const thinking = ref(false)
+const replayId = ref<string | null>(null)
+const recent = ref<InstanceType<typeof RecentGames> | null>(null)
 const choFormation = ref<Formation>('MA_SANG_MA_SANG')
 const hanFormation = ref<Formation>('MA_SANG_MA_SANG')
 const game = ref<GameDto | null>(null)
@@ -51,6 +55,8 @@ async function start() {
     const aiSide = opponent.value === 'HUMAN' ? null : opponent.value
     thinking.value = aiSide === 'CHO'
     game.value = await api.newGame(choFormation.value, hanFormation.value, aiSide, level.value)
+    replayId.value = null
+    recent.value?.refresh()
   } catch (e) {
     error.value = `서버에 연결할 수 없습니다: ${(e as Error).message}`
   } finally {
@@ -86,6 +92,7 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
   try {
     game.value = await api.move(game.value.id, move)
     error.value = ''
+    if (game.value.result !== 'ONGOING') recent.value?.refresh()
   } catch (e) {
     error.value = (e as Error).message
   } finally {
@@ -129,7 +136,9 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
 
     <p v-if="error" class="error">{{ error }}</p>
 
-    <template v-if="game">
+    <ReplayView v-if="replayId" :key="replayId" :game-id="replayId" @close="replayId = null" />
+
+    <template v-else-if="game">
       <p class="status">
         {{ status }}
         <span class="score">초 {{ game.choScore }} · 한 {{ game.hanScore }}</span>
@@ -144,6 +153,8 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
       />
       <button :disabled="!canPass || thinking || game.sideToMove === game.aiSide" @click="pass">한수쉼</button>
     </template>
+
+    <RecentGames ref="recent" @replay="(id) => (replayId = id)" />
   </main>
 </template>
 

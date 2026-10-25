@@ -8,12 +8,14 @@ services:
       - "8080:8080"
     environment:
       JANGGI_CORS_ALLOWED_ORIGINS: ${JANGGI_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      DB_URL: jdbc:postgresql://postgres:5432/janggi
+      DB_USER: janggi
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-janggi}
     depends_on:
       - postgres
       - redis
     restart: unless-stopped
 
-  # 1단계(회원·기보)부터 서버가 사용한다.
   postgres:
     image: postgres:16
     environment:
