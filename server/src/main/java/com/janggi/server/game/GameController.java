@@ -1,6 +1,7 @@
 package com.janggi.server.game;
 
 import com.janggi.core.IllegalMoveException;
+import com.janggi.server.auth.CurrentUser;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -28,12 +29,12 @@ public class GameController {
     @ResponseStatus(HttpStatus.CREATED)
     public GameDto create(@RequestBody(required = false) NewGameRequest request) {
         NewGameRequest r = request == null ? new NewGameRequest(null, null, null, null) : request;
-        return games.create(r.cho(), r.han(), r.aiSide(), r.aiSide() == null ? null : r.level());
+        return games.create(r.cho(), r.han(), r.aiSide(), r.aiSide() == null ? null : r.level(), CurrentUser.id());
     }
 
     @GetMapping
     public List<GameSummaryDto> recent() {
-        return games.recent();
+        return games.recent(CurrentUser.id());
     }
 
     @GetMapping("/{id}/replay")

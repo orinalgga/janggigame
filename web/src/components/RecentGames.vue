@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { api, type GameSummary } from '../api'
 
+defineProps<{ mine: boolean }>()
 const emit = defineEmits<{ (e: 'replay', id: string): void }>()
 const games = ref<GameSummary[]>([])
 
@@ -28,7 +29,7 @@ defineExpose({ refresh })
 
 <template>
   <section v-if="games.length">
-    <h2>최근 대국</h2>
+    <h2>{{ mine ? '내 대국' : '최근 대국' }}</h2>
     <ul>
       <li v-for="g in games" :key="g.id">
         <span>{{ new Date(g.startedAt).toLocaleString('ko-KR') }} · {{ opponent(g) }} · {{ g.moveCount }}수 · {{ result(g) }}</span>

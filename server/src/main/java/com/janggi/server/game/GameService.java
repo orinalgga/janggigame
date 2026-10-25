@@ -27,10 +27,15 @@ public class GameService {
         this.recorder = recorder;
     }
 
-    /** aiSide가 null이면 한 화면에서 둘이 두는 대국. */
-    public GameDto create(Formation cho, Formation han, Side aiSide, Engine.Level aiLevel) {
+    /**
+     * aiSide가 null이면 한 화면에서 둘이 두는 대국. userId가 있으면 사람이 두는 쪽에 회원을 기록한다
+     * (2인 대국이면 두 쪽 모두 같은 회원).
+     */
+    public GameDto create(Formation cho, Formation han, Side aiSide, Engine.Level aiLevel, Long userId) {
         UUID id = UUID.randomUUID();
-        recorder.start(id, cho, han, aiSide, aiLevel);
+        Long choUser = aiSide == Side.CHO ? null : userId;
+        Long hanUser = aiSide == Side.HAN ? null : userId;
+        recorder.start(id, cho, han, aiSide, aiLevel, choUser, hanUser);
         GameSession session = new GameSession(GameState.initial(cho, han), aiSide, aiLevel, 0, null, listener(id));
         sessions.put(id, session);
         session.start();
@@ -61,8 +66,10 @@ public class GameService {
                 loaded.game().getResult(), loaded.game().getAiSide());
     }
 
-    public List<GameSummaryDto> recent() {
-        return recorder.recent().stream().map(GameSummaryDto::from).toList();
+    /** userId가 있으면 그 회원의 대국, 없으면 전체 최근 대국. */
+    public List<GameSummaryDto> recent(Long userId) {
+        var records = userId == null ? recorder.recent() : recorder.recentOf(userId);
+        return records.stream().map(GameSummaryDto::from).toList();
     }
 
     private GameSession find(String id) {

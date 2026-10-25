@@ -28,8 +28,9 @@ public class GameRecorder {
     }
 
     @Transactional
-    public void start(UUID id, Formation cho, Formation han, Side aiSide, Engine.Level aiLevel) {
-        games.save(new GameRecord(id, cho, han, aiSide, aiLevel, OffsetDateTime.now()));
+    public void start(UUID id, Formation cho, Formation han, Side aiSide, Engine.Level aiLevel,
+            Long choUserId, Long hanUserId) {
+        games.save(new GameRecord(id, cho, han, aiSide, aiLevel, choUserId, hanUserId, OffsetDateTime.now()));
     }
 
     /** seq는 1부터 센 수 번호. after는 그 수를 둔 뒤의 국면. */
@@ -52,5 +53,10 @@ public class GameRecorder {
     @Transactional(readOnly = true)
     public List<GameRecord> recent() {
         return games.findTop20ByOrderByStartedAtDesc();
+    }
+
+    @Transactional(readOnly = true)
+    public List<GameRecord> recentOf(long userId) {
+        return games.findTop20ByChoUserIdOrHanUserIdOrderByStartedAtDesc(userId, userId);
     }
 }

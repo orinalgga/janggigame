@@ -46,6 +46,12 @@ public class GameRecord {
     @Column(name = "move_count", nullable = false)
     private int moveCount;
 
+    @Column(name = "cho_user_id")
+    private Long choUserId;
+
+    @Column(name = "han_user_id")
+    private Long hanUserId;
+
     @Column(name = "started_at", nullable = false)
     private OffsetDateTime startedAt;
 
@@ -55,8 +61,11 @@ public class GameRecord {
     protected GameRecord() {
     }
 
-    public GameRecord(UUID id, Formation cho, Formation han, Side aiSide, Engine.Level aiLevel, OffsetDateTime startedAt) {
+    public GameRecord(UUID id, Formation cho, Formation han, Side aiSide, Engine.Level aiLevel,
+            Long choUserId, Long hanUserId, OffsetDateTime startedAt) {
         this.id = id;
+        this.choUserId = choUserId;
+        this.hanUserId = hanUserId;
         this.choFormation = cho;
         this.hanFormation = han;
         this.aiSide = aiSide;
@@ -105,6 +114,14 @@ public class GameRecord {
 
     public int getMoveCount() {
         return moveCount;
+    }
+
+    public Long getChoUserId() {
+        return choUserId;
+    }
+
+    public Long getHanUserId() {
+        return hanUserId;
     }
 
     public OffsetDateTime getStartedAt() {

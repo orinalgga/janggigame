@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import JanggiBoard from './components/JanggiBoard.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
-import { api, type Formation, type GameDto, type Level, type Side, type SquareDto } from './api'
+import { api, auth, type Formation, type GameDto, type Level, type Me, type Side, type SquareDto } from './api'
 
 const FORMATIONS: { value: Formation; label: string }[] = [
   { value: 'MA_SANG_MA_SANG', label: '마상마상' },
@@ -24,6 +24,26 @@ const level = ref<Level>('INTERMEDIATE')
 const thinking = ref(false)
 const replayId = ref<string | null>(null)
 const recent = ref<InstanceType<typeof RecentGames> | null>(null)
+const me = ref<Me | null>(null)
+const providers = ref<string[]>([])
+
+onMounted(async () => {
+  auth.takeTokenFromUrl()
+  providers.value = (await api.providers().catch(() => ({ providers: [] }))).providers
+  if (auth.token()) {
+    me.value = await api.me().catch(() => {
+      auth.clear()
+      return null
+    })
+    recent.value?.refresh()
+  }
+})
+
+function logout() {
+  auth.clear()
+  me.value = null
+  recent.value?.refresh()
+}
 const choFormation = ref<Formation>('MA_SANG_MA_SANG')
 const hanFormation = ref<Formation>('MA_SANG_MA_SANG')
 const game = ref<GameDto | null>(null)
@@ -103,7 +123,14 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
 
 <template>
   <main>
-    <h1>장기</h1>
+    <header>
+      <h1>장기</h1>
+      <div v-if="me" class="me">
+        {{ me.nickname }} · {{ me.rating }}
+        <button @click="logout">로그아웃</button>
+      </div>
+      <a v-else-if="providers.includes('google')" class="login" :href="auth.loginUrl('google')">구글로 로그인</a>
+    </header>
     <section class="controls">
       <label>
         상대
@@ -154,11 +181,20 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
       <button :disabled="!canPass || thinking || game.sideToMove === game.aiSide" @click="pass">한수쉼</button>
     </template>
 
-    <RecentGames ref="recent" @replay="(id) => (replayId = id)" />
+    <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" />
   </main>
 </template>
 
 <style scoped>
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.me,
+.login {
+  font-size: 0.9rem;
+}
 main {
   max-width: 560px;
   margin: 0 auto;
