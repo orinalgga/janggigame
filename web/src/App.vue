@@ -6,6 +6,7 @@ import LobbyView from './components/LobbyView.vue'
 import PlayerClocks from './components/PlayerClocks.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
+import ShopView from './components/ShopView.vue'
 import {
   api,
   auth,
@@ -19,6 +20,7 @@ import {
 } from './api'
 import { Live } from './live'
 import { PERSONAS, type StartOptions } from './options'
+import { setEquipped } from './themes'
 
 const END_REASON: Record<EndReason, string> = {
   CHECKMATE: '외통',
@@ -37,6 +39,7 @@ const recent = ref<InstanceType<typeof RecentGames> | null>(null)
 const chat = ref<InstanceType<typeof ChatPanel> | null>(null)
 const me = ref<Me | null>(null)
 const providers = ref<string[]>([])
+const shopOpen = ref(false)
 
 onMounted(async () => {
   auth.takeTokenFromUrl()
@@ -46,6 +49,7 @@ onMounted(async () => {
       auth.clear()
       return null
     })
+    setEquipped(me.value?.boardTheme, me.value?.pieceTheme)
     recent.value?.refresh()
   }
 })
@@ -56,6 +60,7 @@ function logout() {
   live = null
   auth.clear()
   me.value = null
+  setEquipped(undefined, undefined)
   if (game.value?.online) game.value = null
   recent.value?.refresh()
 }
@@ -139,6 +144,7 @@ async function start(options: StartOptions) {
     thinking.value = aiSide === 'CHO'
     game.value = await api.newGame(options.choFormation, options.hanFormation, aiSide, options.level)
     replayId.value = null
+    shopOpen.value = false
     recent.value?.refresh()
   } catch (e) {
     error.value = `서버에 연결할 수 없습니다: ${(e as Error).message}`
@@ -298,12 +304,13 @@ async function gameEnded() {
 </script>
 
 <template>
-  <main :class="{ wide: game && chatKind }">
+  <main :class="{ wide: (game && chatKind) || (shopOpen && !game && !replayId) }">
     <header class="top">
-      <button v-if="game || replayId" type="button" class="brand link" :disabled="game?.online && ongoing" @click="replayId ? (replayId = null) : toLobby()">
+      <button v-if="game || replayId || shopOpen" type="button" class="brand link" :disabled="game?.online && ongoing" @click="replayId ? (replayId = null) : game ? toLobby() : (shopOpen = false)">
         장기
       </button>
       <span v-else class="brand">장기</span>
+      <button v-if="!game && !replayId && !shopOpen" type="button" class="shop-link" @click="shopOpen = true">상점</button>
       <div v-if="me" class="me">
         <span class="avatar" aria-hidden="true">{{ me.nickname.slice(0, 1) }}</span>
         <span>{{ me.nickname }}</span>
@@ -382,6 +389,8 @@ async function gameEnded() {
       </div>
     </section>
 
+    <ShopView v-else-if="shopOpen" :me="me" :providers="providers" @close="shopOpen = false" />
+
     <template v-else>
       <LobbyView :me="me" :providers="providers" :searching="searching" :error="error" @start="start" @cancel="cancelMatch" />
       <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" @resume="resume" />
@@ -402,6 +411,7 @@ main.wide {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 14px;
   padding: 4px 0 16px;
 }
 .brand {
@@ -419,6 +429,17 @@ main.wide {
 }
 .brand.link:disabled {
   cursor: default;
+}
+.shop-link {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--accent-deep);
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
 }
 .me {
   display: flex;

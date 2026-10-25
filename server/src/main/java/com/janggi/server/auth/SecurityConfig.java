@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -33,7 +34,9 @@ public class SecurityConfig {
                 // 소셜 로그인 왕복 동안에만 세션이 생긴다.
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/api/me", "/api/match").authenticated()
+                        // 상품 목록은 누구나 본다. 사기와 장착은 로그인해야 한다.
+                        .requestMatchers(HttpMethod.GET, "/api/shop").permitAll()
+                        .requestMatchers("/api/me", "/api/match", "/api/shop/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(new JwtAuthFilter(jwt), UsernamePasswordAuthenticationFilter.class);

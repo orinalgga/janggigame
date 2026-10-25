@@ -89,6 +89,14 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 - AI 대국: 난이도마다 캐릭터가 있습니다(초급 새내기 장돌이, 중급 동네 고수 박씨, 상급 장기 도사). 대국을 시작하면 먼저 인사하고, 장군·큰 알을 잡거나 잃을 때·대국이 끝날 때 한마디 합니다(수 응답의 `aiComment`). 이 한마디는 정해 둔 말이라 비용이 들지 않습니다.
 - AI에게 말을 걸면, 서버에 `ANTHROPIC_API_KEY`가 있을 때는 Claude(`JANGGI_AI_CHAT_MODEL`, 기본 `claude-opus-5-5`)가 대국 상황을 보고 캐릭터 말투로 답합니다. 키가 없거나 호출이 실패하면 정해 둔 말로 답합니다. 한 대국에서 Claude에게 묻는 횟수는 `JANGGI_AI_CHAT_MAX_REPLIES`(기본 40)까지입니다.
 
+## 상점
+
+장기판 테마 5종과 장기알 테마 5종이 있고, 각각 하나씩 무료 기본 테마가 있다. 상품 목록은 `server/.../shop/ShopItem.java`에, 색은 같은 id로 `web/src/themes.ts`에 정의한다. 테마는 장기판의 CSS 변수만 바꾼다.
+
+- 누구나 상점을 열고 미리 볼 수 있다. 사기와 장착은 로그인해야 하고, 장착한 테마는 회원 정보에 저장된다.
+- 결제 흐름: `POST /api/shop/orders`로 주문을 만들고, 결제창에서 받은 키로 `POST /api/shop/orders/{orderId}/confirm`을 부르면 서버가 결제사에 승인받은 뒤 상품을 넣어 준다. 금액은 서버의 주문 금액을 쓴다.
+- 지금 결제사는 돈이 오가지 않는 `test`뿐이다(`JANGGI_PAYMENTS_PROVIDER`). 실제 결제사(토스페이먼츠 등)는 `PaymentGateway`를 구현해 붙인다.
+
 ## 배포 (무료 구성)
 
 - 서버: Oracle Cloud Always Free VM에서 `docker compose up -d --build`
