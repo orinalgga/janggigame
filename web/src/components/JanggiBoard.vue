@@ -189,7 +189,7 @@ function burst(spikes: number, outer: number, inner: number) {
 const BURST = burst(14, 98, 66)
 const BURST_INNER = burst(14, 82, 56)
 
-/** 장군이 걸리면 알이 도착한 뒤 화면 가운데에 빨간 폭발 말풍선이 터지고 판이 흔들린다. 외통이면 더 크게. */
+/** 장군이 걸리면 알이 도착한 뒤 화면 가운데에 빨간 폭발 말풍선이 터지고 화면이 흔들린다. 외통이면 더 크게. */
 const wrap = ref<HTMLDivElement | null>(null)
 const stamp = ref<{ id: number; mate: boolean } | null>(null)
 let stampId = 0
@@ -204,16 +204,20 @@ watch(
       stamp.value = { id, mate }
       navigator.vibrate?.(mate ? [80, 60, 220] : 120)
       if (!reduceMotion()) {
-        wrap.value?.animate(
+        // 판만이 아니라 화면 전체(#app)가 흔들린다. 터지는 말풍선은 body에 따로 있어 함께 흔들리지 않는다.
+        const k = mate ? 1.6 : 1
+        ;(document.getElementById('app') ?? wrap.value)?.animate(
           [
             { transform: 'translate(0, 0)' },
-            { transform: 'translate(-7px, 2px) rotate(-0.6deg)' },
-            { transform: 'translate(6px, -2px) rotate(0.5deg)' },
-            { transform: 'translate(-4px, 1px)' },
-            { transform: 'translate(2px, 0)' },
+            { transform: `translate(${-14 * k}px, ${5 * k}px) rotate(${-0.8 * k}deg)` },
+            { transform: `translate(${12 * k}px, ${-6 * k}px) rotate(${0.7 * k}deg)` },
+            { transform: `translate(${-10 * k}px, ${3 * k}px) rotate(${-0.4 * k}deg)` },
+            { transform: `translate(${8 * k}px, ${-3 * k}px)` },
+            { transform: `translate(${-5 * k}px, ${2 * k}px)` },
+            { transform: `translate(${3 * k}px, 0)` },
             { transform: 'translate(0, 0)' },
           ],
-          { duration: mate ? 520 : 380, delay: 120, easing: 'ease-out' },
+          { duration: mate ? 750 : 520, delay: 80, easing: 'ease-out' },
         )
       }
     }, MOVE_MS * 0.8)
