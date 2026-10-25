@@ -2,6 +2,7 @@ package com.janggi.server.admin;
 
 import com.janggi.server.auth.CurrentUser;
 import com.janggi.server.notice.NoticeService;
+import com.janggi.server.shop.ShopException;
 import com.janggi.server.user.NicknameException;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +69,15 @@ public class AdminController {
         return admin.grant(CurrentUser.id(), id, body.get("itemId"));
     }
 
+    @PostMapping("/users/{id}/coins")
+    public AdminService.UserRow coins(@PathVariable long id, @RequestBody CoinsRequest body) {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.giveCoins(CurrentUser.id(), id, body.amount() == null ? 0 : body.amount(), body.memo());
+    }
+
+    public record CoinsRequest(Integer amount, String memo) {
+    }
+
     @GetMapping("/orders")
     public List<AdminService.OrderRow> orders() {
         admin.requireAdmin(CurrentUser.id());
@@ -111,7 +121,8 @@ public class AdminController {
         return Map.of("error", e.getMessage());
     }
 
-    @ExceptionHandler({AdminException.BadRequest.class, NicknameException.class, NoticeService.InvalidNotice.class})
+    @ExceptionHandler({AdminException.BadRequest.class, NicknameException.class, NoticeService.InvalidNotice.class,
+            ShopException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> bad(RuntimeException e) {
         return Map.of("error", e.getMessage());

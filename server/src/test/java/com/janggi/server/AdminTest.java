@@ -114,10 +114,35 @@ class AdminTest {
         String boss = bearer(users.loginWith("google", "admin-6", "boss@example.com"));
         String buyer = bearer(users.loginWith("google", "admin-7", null));
         mvc.perform(post("/api/shop/orders").header("Authorization", buyer)
-                .contentType(MediaType.APPLICATION_JSON).content("{\"itemId\":\"pieces.gold\"}"));
+                .contentType(MediaType.APPLICATION_JSON).content("{\"packId\":\"coins.100\"}"));
         mvc.perform(get("/api/admin/orders").header("Authorization", boss))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].itemTitle").value("금박 알"))
+                .andExpect(jsonPath("$[0].itemTitle").value("엽전 100닢"))
+                .andExpect(jsonPath("$[0].amount").value(10000))
                 .andExpect(jsonPath("$[0].status").value("PENDING"));
+    }
+
+    @Test
+    void giveAndTakeCoins() throws Exception {
+        String boss = bearer(users.loginWith("google", "admin-8", "boss@example.com"));
+        User target = users.loginWith("google", "admin-9", null);
+        String path = "/api/admin/users/" + target.getId() + "/coins";
+        mvc.perform(post(path).header("Authorization", boss).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":100,\"memo\":\"대회 보상\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coins").value(100));
+        // 가진 것보다 많이 뺄 수 없다.
+        mvc.perform(post(path).header("Authorization", boss).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":-150}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post(path).header("Authorization", boss).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":-30}"))
+                .andExpect(jsonPath("$.coins").value(70));
+        mvc.perform(get("/api/admin/logs").header("Authorization", boss))
+                .andExpect(jsonPath("$[0].action").value("COINS"))
+                .andExpect(jsonPath("$[0].detail").value("-30닢 (잔액 70) 운영자 회수"));
+        mvc.perform(get("/api/shop/coins/history").header("Authorization", bearer(target)))
+                .andExpect(jsonPath("$[1].memo").value("대회 보상"))
+                .andExpect(jsonPath("$[1].kind").value("ADMIN"));
     }
 }

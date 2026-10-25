@@ -26,27 +26,42 @@ public class ShopController {
     }
 
     @GetMapping
-    public List<ShopService.ItemDto> catalog() {
-        return shop.catalog(CurrentUser.id());
+    public ShopService.ShopDto shop() {
+        return shop.shop(CurrentUser.id());
     }
 
+    /** 엽전 충전 주문. */
     @PostMapping("/orders")
     @ResponseStatus(HttpStatus.CREATED)
     public ShopService.OrderDto order(@RequestBody OrderRequest request) {
-        return shop.order(CurrentUser.id(), request.itemId());
+        return shop.order(CurrentUser.id(), request.packId());
     }
 
     @PostMapping("/orders/{orderId}/confirm")
-    public List<ShopService.ItemDto> confirm(@PathVariable String orderId, @RequestBody ConfirmRequest request) {
+    public ShopService.ShopDto confirm(@PathVariable String orderId, @RequestBody ConfirmRequest request) {
         return shop.confirm(CurrentUser.id(), orderId, request.paymentKey());
     }
 
+    /** 엽전으로 테마 사기. */
+    @PostMapping("/items/{itemId}/buy")
+    public ShopService.ShopDto buy(@PathVariable String itemId) {
+        return shop.buy(CurrentUser.id(), itemId);
+    }
+
     @PutMapping("/equipped")
-    public List<ShopService.ItemDto> equip(@RequestBody OrderRequest request) {
+    public ShopService.ShopDto equip(@RequestBody ItemRequest request) {
         return shop.equip(CurrentUser.id(), request.itemId());
     }
 
-    public record OrderRequest(String itemId) {
+    @GetMapping("/coins/history")
+    public List<CoinService.LedgerRow> history() {
+        return shop.history(CurrentUser.id());
+    }
+
+    public record OrderRequest(String packId) {
+    }
+
+    public record ItemRequest(String itemId) {
     }
 
     public record ConfirmRequest(String paymentKey) {
