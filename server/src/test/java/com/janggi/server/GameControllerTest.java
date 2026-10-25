@@ -32,6 +32,7 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.sideToMove").value("CHO"))
                 .andExpect(jsonPath("$.pieces.length()").value(32))
                 .andExpect(jsonPath("$.choScore").value(72.0))
+                .andExpect(jsonPath("$.result").value("ONGOING"))
                 .andReturn().getResponse().getContentAsString();
         JsonNode node = json.readTree(body);
         return node.get("id").asText();

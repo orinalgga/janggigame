@@ -1,5 +1,6 @@
 package com.janggi.server.game;
 
+import com.janggi.core.GameResult;
 import com.janggi.core.GameState;
 import com.janggi.core.Move;
 import com.janggi.core.Side;
@@ -15,6 +16,7 @@ public record GameDto(
         boolean check,
         boolean checkmate,
         boolean bikjang,
+        GameResult result,
         double choScore,
         double hanScore) {
 
@@ -62,6 +64,7 @@ public record GameDto(
                 state.isCheck(),
                 state.isCheckmate(),
                 state.isBikjang(),
+                state.result(),
                 state.score(Side.CHO),
                 state.score(Side.HAN));
     }

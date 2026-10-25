@@ -34,8 +34,12 @@ public final class GameState {
         return board.get(s);
     }
 
-    /** 자기 장을 잡히게 두는 수를 뺀 합법 수. 장군이 아니면 한수쉼도 포함한다. */
+    /** 자기 장을 잡히게 두는 수를 뺀 합법 수. 장군이 아니면 한수쉼도 포함한다. 대국이 끝났으면 비어 있다. */
     public List<Move> legalMoves() {
+        return isGameOver() ? List.of() : candidateMoves();
+    }
+
+    private List<Move> candidateMoves() {
         List<Move> legal = new ArrayList<>();
         for (Move m : MoveGenerator.pseudoLegalMoves(board, sideToMove)) {
             if (!leavesGeneralAttacked(m)) {
@@ -50,7 +54,7 @@ public final class GameState {
 
     public List<Move> legalMovesFrom(Square from) {
         Piece p = board.get(from);
-        if (p == null || p.side() != sideToMove) {
+        if (p == null || p.side() != sideToMove || isGameOver()) {
             return List.of();
         }
         List<Move> legal = new ArrayList<>();
@@ -64,7 +68,7 @@ public final class GameState {
 
     public boolean isLegal(Move move) {
         if (move.isPass()) {
-            return !isCheck();
+            return !isCheck() && !isGameOver();
         }
         return legalMovesFrom(move.from()).contains(move);
     }
@@ -83,7 +87,22 @@ public final class GameState {
 
     /** 장군을 받았는데 피할 수가 없으면 외통. */
     public boolean isCheckmate() {
-        return isCheck() && legalMoves().isEmpty();
+        return isCheck() && candidateMoves().isEmpty();
+    }
+
+    /** 외통이면 둔 쪽이 이기고, 빅장이면 무승부(무효)다. 둘이 겹치면 외통을 먼저 본다. */
+    public GameResult result() {
+        if (isCheckmate()) {
+            return sideToMove == Side.CHO ? GameResult.HAN_WIN : GameResult.CHO_WIN;
+        }
+        if (isBikjang()) {
+            return GameResult.DRAW;
+        }
+        return GameResult.ONGOING;
+    }
+
+    public boolean isGameOver() {
+        return result() != GameResult.ONGOING;
     }
 
     /** 두 장이 같은 세로줄에서 사이에 아무것도 없이 마주 보는 상태(빅장). */
