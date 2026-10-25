@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 import type { MoveDto, PieceDto, Side, SquareDto } from '../api'
+import { equipped, themeStyle, type ThemeChoice } from '../themes'
 
 const props = defineProps<{
   pieces: PieceDto[]
@@ -13,7 +14,15 @@ const props = defineProps<{
   check?: Side | null
   /** 외통이면 true. */
   mate?: boolean
+  /** 상점 미리보기처럼 장착한 것과 다른 테마로 그릴 때. */
+  theme?: ThemeChoice
 }>()
+
+const style = computed(() => themeStyle(props.theme ?? equipped))
+// 한 화면에 판이 여럿이어도 그라데이션과 필터가 섞이지 않게 판마다 id를 따로 쓴다.
+const uid = (useId() ?? '').replace(/[^a-zA-Z0-9_-]/g, '')
+const defId = (name: string) => `${name}-${uid}`
+const url = (name: string) => `url(#${defId(name)})`
 
 const emit = defineEmits<{
   (e: 'select', square: SquareDto): void
@@ -227,11 +236,11 @@ watch(
 </script>
 
 <template>
-  <div ref="wrap" class="wrap">
+  <div ref="wrap" class="wrap" :style="style">
     <svg ref="svg" :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" class="board" role="img" aria-label="장기판">
       <defs>
         <!-- 나무결: 가로로 길게 늘인 잡음을 판 색에 얹는다. -->
-        <filter id="grain" x="0" y="0" width="100%" height="100%">
+        <filter :id="defId('grain')" x="0" y="0" width="100%" height="100%">
           <feTurbulence type="fractalNoise" baseFrequency="0.004 0.09" numOctaves="3" seed="7" />
           <feColorMatrix
             type="matrix"
@@ -239,24 +248,24 @@ watch(
           />
           <feComposite in2="SourceGraphic" operator="in" />
         </filter>
-        <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient :id="defId('wood')" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stop-color="var(--board-light)" />
           <stop offset="1" stop-color="var(--board-dark)" />
         </linearGradient>
-        <radialGradient id="face" cx="0.4" cy="0.35" r="0.75">
+        <radialGradient :id="defId('face')" cx="0.4" cy="0.35" r="0.75">
           <stop offset="0" stop-color="var(--piece-light)" />
           <stop offset="1" stop-color="var(--piece-dark)" />
         </radialGradient>
-        <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+        <filter :id="defId('shadow')" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="1.5" dy="2.5" stdDeviation="1.8" flood-color="#3a2108" flood-opacity="0.45" />
         </filter>
-        <filter id="lift" x="-40%" y="-40%" width="180%" height="180%">
+        <filter :id="defId('lift')" x="-40%" y="-40%" width="180%" height="180%">
           <feDropShadow dx="2.5" dy="5" stdDeviation="3" flood-color="#3a2108" flood-opacity="0.5" />
         </filter>
       </defs>
 
-      <rect :width="WIDTH" :height="HEIGHT" rx="10" fill="url(#wood)" />
-      <rect :width="WIDTH" :height="HEIGHT" rx="10" fill="var(--board-dark)" filter="url(#grain)" />
+      <rect :width="WIDTH" :height="HEIGHT" rx="10" :fill="url('wood')" />
+      <rect :width="WIDTH" :height="HEIGHT" rx="10" fill="var(--board-dark)" :filter="url('grain')" class="grain" />
       <rect x="4" y="4" :width="WIDTH - 8" :height="HEIGHT - 8" rx="8" class="frame" />
 
       <line v-for="y in 10" :key="'h' + y" :x1="px(0)" :x2="px(8)" :y1="py(y - 1)" :y2="py(y - 1)" class="line" />
@@ -320,12 +329,12 @@ watch(
         :key="'cap' + e.id"
         class="piece captured"
         :class="e.piece.side.toLowerCase()"
-        filter="url(#shadow)"
+        :filter="url('shadow')"
       >
         <polygon :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type])" class="edge" />
         <polygon
           :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type] - 2.5)"
-          fill="url(#face)"
+          :fill="url('face')"
           class="face"
         />
         <text
@@ -345,13 +354,13 @@ watch(
         :data-sq="`${p.x},${p.y}`"
         class="piece"
         :class="[p.side.toLowerCase(), { selected: isSelected(p) }]"
-        :filter="isSelected(p) ? 'url(#lift)' : 'url(#shadow)'"
+        :filter="isSelected(p) ? url('lift') : url('shadow')"
         @click="clickPoint(p.x, p.y)"
       >
         <polygon :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type])" class="edge" />
         <polygon
           :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type] - 2.5)"
-          fill="url(#face)"
+          :fill="url('face')"
           class="face"
         />
         <polygon
@@ -393,14 +402,14 @@ watch(
         <div class="burst">
           <svg viewBox="-110 -110 220 220" aria-hidden="true">
             <defs>
-              <radialGradient id="burst-fill" cx="0" cy="0" r="100" gradientUnits="userSpaceOnUse">
+              <radialGradient :id="defId('burst-fill')" cx="0" cy="0" r="100" gradientUnits="userSpaceOnUse">
                 <stop offset="0" stop-color="#ff5a3c" />
                 <stop offset="0.6" stop-color="#e3101a" />
                 <stop offset="1" stop-color="#a1000a" />
               </radialGradient>
             </defs>
             <polygon :points="BURST" class="burst-shadow" transform="translate(6 8)" />
-            <polygon :points="BURST" fill="url(#burst-fill)" class="burst-edge" />
+            <polygon :points="BURST" :fill="url('burst-fill')" class="burst-edge" />
             <polygon :points="BURST_INNER" class="burst-inner" />
           </svg>
           <span class="shout">{{ stamp.mate ? '외통!!' : '장군!!' }}</span>
@@ -411,6 +420,10 @@ watch(
 </template>
 
 <style scoped>
+/* 나무결 짙기. 한지나 옥돌처럼 결이 옅은 테마는 줄인다. */
+.grain {
+  opacity: var(--grain, 1);
+}
 .wrap {
   position: relative;
   width: 100%;

@@ -27,6 +27,14 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    /** 장착한 장기판 테마(상점 상품 id). */
+    @Column(name = "board_theme", nullable = false)
+    private String boardTheme = "board.classic";
+
+    /** 장착한 장기알 테마(상점 상품 id). */
+    @Column(name = "piece_theme", nullable = false)
+    private String pieceTheme = "pieces.classic";
+
     protected User() {
     }
 
@@ -46,6 +54,22 @@ public class User {
 
     public int getRating() {
         return rating;
+    }
+
+    public String getBoardTheme() {
+        return boardTheme;
+    }
+
+    public String getPieceTheme() {
+        return pieceTheme;
+    }
+
+    public void equipBoard(String itemId) {
+        this.boardTheme = itemId;
+    }
+
+    public void equipPieces(String itemId) {
+        this.pieceTheme = itemId;
     }
 
     public void changeRating(int delta) {

@@ -103,6 +103,32 @@ export interface Me {
   id: number
   nickname: string
   rating: number
+  /** 장착한 테마의 상점 상품 id. */
+  boardTheme: string
+  pieceTheme: string
+}
+
+export type ShopSlot = 'BOARD' | 'PIECES'
+
+/** 상점 상품. 로그인하지 않았으면 owned, equipped는 무료 상품과 기본 장착 기준이다. */
+export interface ShopItem {
+  id: string
+  slot: ShopSlot
+  title: string
+  description: string
+  /** 원 단위. 0이면 무료. */
+  price: number
+  owned: boolean
+  equipped: boolean
+}
+
+export interface ShopOrder {
+  orderId: string
+  itemId: string
+  title: string
+  amount: number
+  /** 결제사 이름. test면 돈이 오가지 않는 테스트 결제. */
+  provider: string
 }
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -174,6 +200,11 @@ export const api = {
   chat: (id: string) => request<ChatMessage[]>(`/api/games/${id}/chat`),
   /** 새로 생긴 말을 돌려준다. AI 대국이면 내 말과 AI의 답이다. */
   say: (id: string, text: string) => request<ChatMessage[]>(`/api/games/${id}/chat`, { text }),
+  shop: () => request<ShopItem[]>('/api/shop'),
+  order: (itemId: string) => request<ShopOrder>('/api/shop/orders', { itemId }),
+  confirmOrder: (orderId: string, paymentKey: string) =>
+    request<ShopItem[]>(`/api/shop/orders/${orderId}/confirm`, { paymentKey }),
+  equip: (itemId: string) => request<ShopItem[]>('/api/shop/equipped', { itemId }, 'PUT'),
 }
 
 /** 실시간 알림(STOMP) 주소. API와 같은 서버의 /ws. */

@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class MeController {
 
-    public record MeDto(long id, String nickname, int rating) {
+    /** boardTheme, pieceTheme은 장착한 테마의 상점 상품 id. */
+    public record MeDto(long id, String nickname, int rating, String boardTheme, String pieceTheme) {
     }
 
     /** 웹이 로그인 버튼을 보여 줄 공급자 목록. */
@@ -32,7 +33,8 @@ public class MeController {
             return ResponseEntity.status(401).build();
         }
         return users.find(id)
-                .map(u -> ResponseEntity.ok(new MeDto(u.getId(), u.getNickname(), u.getRating())))
+                .map(u -> ResponseEntity.ok(new MeDto(u.getId(), u.getNickname(), u.getRating(),
+                        u.getBoardTheme(), u.getPieceTheme())))
                 .orElse(ResponseEntity.status(401).build());
     }
 

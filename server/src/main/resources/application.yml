@@ -44,3 +44,6 @@ janggi:
   cors:
     # 쉼표로 여러 개. 운영에서는 JANGGI_CORS_ALLOWED_ORIGINS 환경변수로 Cloudflare Pages 주소를 넣는다.
     allowed-origins: ${JANGGI_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  payments:
+    # 지금은 돈이 오가지 않는 test만 있다. 실제 결제사를 붙이면 그 이름으로 바꾼다.
+    provider: ${JANGGI_PAYMENTS_PROVIDER:test}
