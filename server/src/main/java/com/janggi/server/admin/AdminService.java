@@ -11,6 +11,7 @@ import com.janggi.server.shop.ShopException;
 import com.janggi.server.shop.ShopItem;
 import com.janggi.server.user.AuthIdentity;
 import com.janggi.server.user.AuthIdentityRepository;
+import com.janggi.server.user.Grade;
 import com.janggi.server.user.User;
 import com.janggi.server.user.UserRepository;
 import com.janggi.server.user.UserService;
@@ -44,7 +45,8 @@ public class AdminService {
             long paidOrders, long revenueTotal, long revenueToday) {
     }
 
-    public record UserRow(long id, String nickname, boolean nicknameChosen, int rating, OffsetDateTime createdAt,
+    public record UserRow(long id, String nickname, boolean nicknameChosen, int rating, String grade,
+            OffsetDateTime createdAt,
             List<String> emails, boolean banned, String banReason, List<String> items, boolean admin) {
     }
 
@@ -172,7 +174,8 @@ public class AdminService {
         List<AuthIdentity> ids = identities.findByUserId(u.getId());
         List<String> emails = ids.stream().map(AuthIdentity::getEmail).filter(e -> e != null).toList();
         List<String> items = owned.findByUserId(u.getId()).stream().map(OwnedItem::getItemId).toList();
-        return new UserRow(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(), u.getCreatedAt(),
+        return new UserRow(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(), Grade.name(u.getRating()),
+                u.getCreatedAt(),
                 emails, u.isBanned(), u.getBanReason(), items, isAdmin(ids));
     }
 }

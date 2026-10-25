@@ -310,10 +310,21 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
   }
 }
 
-/** 끝난 대국을 목록에 올리고, 온라인 대국이면 바뀐 레이팅을 머리글에 반영한다. */
+/** 온라인 대국 뒤 급수가 바뀌면 잠깐 띄우는 알림. */
+const gradeNotice = ref<{ up: boolean; grade: string } | null>(null)
+let gradeTimer: ReturnType<typeof setTimeout> | undefined
+
+/** 끝난 대국을 목록에 올리고, 온라인 대국이면 바뀐 레이팅과 급수를 머리글에 반영한다. */
 async function gameEnded() {
   recent.value?.refresh()
-  if (game.value?.online && auth.token()) me.value = await api.me().catch(() => me.value)
+  if (!game.value?.online || !auth.token()) return
+  const before = me.value
+  me.value = await api.me().catch(() => me.value)
+  if (before && me.value && me.value.grade !== before.grade) {
+    gradeNotice.value = { up: me.value.rating > before.rating, grade: me.value.grade }
+    clearTimeout(gradeTimer)
+    gradeTimer = setTimeout(() => (gradeNotice.value = null), 5000)
+  }
 }
 </script>
 
@@ -331,7 +342,7 @@ async function gameEnded() {
       <div v-if="me" class="me">
         <span class="avatar" aria-hidden="true">{{ me.nickname.slice(0, 1) }}</span>
         <button type="button" class="nickname" title="닉네임 바꾸기" @click="nicknameOpen = true">{{ me.nickname }}</button>
-        <span class="rating">{{ me.rating }}</span>
+        <span class="rating" :title="`레이팅 ${me.rating}`">{{ me.grade }} <small>{{ me.rating }}</small></span>
         <button type="button" class="text-button" @click="logout">로그아웃</button>
       </div>
       <a v-else-if="providers.includes('google')" class="login" :href="auth.loginUrl('google')" @click="auth.openLogin($event, 'google')">구글로 로그인</a>
@@ -343,6 +354,16 @@ async function gameEnded() {
       @saved="(m) => ((me = m), (nicknameOpen = false))"
       @close="nicknameOpen = false"
     />
+
+    <Transition name="grade">
+      <div v-if="gradeNotice" class="grade-notice" :class="{ down: !gradeNotice.up }" role="status">
+        <span class="grade-mark" aria-hidden="true">{{ gradeNotice.up ? '昇' : '降' }}</span>
+        <span>
+          <b>{{ gradeNotice.up ? '승급!' : '강등' }}</b>
+          {{ gradeNotice.grade }}{{ gradeNotice.up ? '이 되었어요' : '(으)로 내려갔어요' }}
+        </span>
+      </div>
+    </Transition>
 
     <p v-if="me?.banned" class="banned" role="alert">
       이용이 정지된 계정이에요. 사유: {{ me.banReason }}<br />
@@ -485,6 +506,54 @@ main.wide {
   color: #fff;
   background: var(--accent-deep);
   border-color: var(--accent-deep);
+}
+.rating small {
+  font-weight: 500;
+  opacity: 0.75;
+}
+.grade-notice {
+  position: fixed;
+  top: calc(16px + env(safe-area-inset-top));
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px 10px 10px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--cho-color);
+  box-shadow: 0 10px 30px var(--shadow);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.grade-notice.down {
+  background: var(--muted);
+}
+.grade-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-family: 'Noto Serif KR', serif;
+  font-weight: 900;
+  color: var(--cho-color);
+  background: #fff;
+}
+.grade-notice.down .grade-mark {
+  color: var(--muted);
+}
+.grade-enter-active,
+.grade-leave-active {
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+.grade-enter-from,
+.grade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -20px);
 }
 .banned {
   margin: 0 0 14px;

@@ -279,7 +279,7 @@ watch(
         :y2="py(d[3])"
         class="line"
       />
-      <rect :x="px(0) - 6" :y="PAD - 6" :width="CELL * 8 + 12" :height="CELL * 9 + 12" class="border" />
+      <rect :x="PAD - 6" :y="PAD - 6" :width="CELL * 8 + 12" :height="CELL * 9 + 12" class="border" />
 
       <g v-if="last" :key="`${last.from.x},${last.from.y}-${last.to.x},${last.to.y}`" class="last" :class="last.side">
         <rect :x="last.to.x - 29" :y="last.to.y - 29" width="58" height="58" rx="8" class="spot" />

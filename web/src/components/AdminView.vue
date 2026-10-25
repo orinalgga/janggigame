@@ -161,7 +161,7 @@ const cards = computed(() => {
               <span v-if="!u.nicknameChosen" class="tag soft">임시 닉네임</span>
               <small>{{ u.emails.join(', ') || '메일 없음' }}</small>
             </span>
-            <span class="rating">{{ u.rating }}</span>
+            <span class="rating">{{ u.grade }} <small>{{ u.rating }}</small></span>
           </button>
           <div v-if="open === u.id" class="detail">
             <p class="meta">

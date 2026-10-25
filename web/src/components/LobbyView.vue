@@ -185,7 +185,7 @@ function start() {
             <span class="badge small cho">楚</span>
             <span>
               <b>{{ me.nickname }}</b>
-              <span class="muted"> · 레이팅 {{ me.rating }}</span>
+              <span class="muted"> · {{ me.grade }} · 레이팅 {{ me.rating }}</span>
             </span>
           </div>
           <p class="muted rule">기본 10분에 한 수마다 10초가 더해집니다. 진영은 무작위로 정해집니다.</p>
