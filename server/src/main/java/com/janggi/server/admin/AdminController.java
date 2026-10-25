@@ -1,6 +1,7 @@
 package com.janggi.server.admin;
 
 import com.janggi.server.auth.CurrentUser;
+import com.janggi.server.notice.NoticeService;
 import com.janggi.server.user.NicknameException;
 import java.util.List;
 import java.util.Map;
@@ -23,9 +24,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminController {
 
     private final AdminService admin;
+    private final NoticeService notices;
 
-    public AdminController(AdminService admin) {
+    public AdminController(AdminService admin, NoticeService notices) {
         this.admin = admin;
+        this.notices = notices;
     }
 
     @GetMapping("/stats")
@@ -77,13 +80,38 @@ public class AdminController {
         return admin.logs();
     }
 
+    @GetMapping("/notices")
+    public List<NoticeService.NoticeDto> notices() {
+        admin.requireAdmin(CurrentUser.id());
+        return notices.all();
+    }
+
+    @PostMapping("/notices")
+    public NoticeService.NoticeDto createNotice(@RequestBody NoticeService.NoticeRequest body) {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.createNotice(CurrentUser.id(), body);
+    }
+
+    @PutMapping("/notices/{id}")
+    public NoticeService.NoticeDto updateNotice(@PathVariable long id, @RequestBody NoticeService.NoticeRequest body) {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.updateNotice(CurrentUser.id(), id, body);
+    }
+
+    @DeleteMapping("/notices/{id}")
+    public Map<String, Boolean> deleteNotice(@PathVariable long id) {
+        admin.requireAdmin(CurrentUser.id());
+        admin.deleteNotice(CurrentUser.id(), id);
+        return Map.of("deleted", true);
+    }
+
     @ExceptionHandler(AdminException.Forbidden.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public Map<String, String> forbidden(AdminException e) {
         return Map.of("error", e.getMessage());
     }
 
-    @ExceptionHandler({AdminException.BadRequest.class, NicknameException.class})
+    @ExceptionHandler({AdminException.BadRequest.class, NicknameException.class, NoticeService.InvalidNotice.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> bad(RuntimeException e) {
         return Map.of("error", e.getMessage());

@@ -5,7 +5,9 @@ import JanggiBoard from './components/JanggiBoard.vue'
 import AdminView from './components/AdminView.vue'
 import LobbyView from './components/LobbyView.vue'
 import NicknameDialog from './components/NicknameDialog.vue'
+import NoticePopup from './components/NoticePopup.vue'
 import PlayerClocks from './components/PlayerClocks.vue'
+import RankingBoard from './components/RankingBoard.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
 import ShopView from './components/ShopView.vue'
@@ -348,6 +350,8 @@ async function gameEnded() {
       <a v-else-if="providers.includes('google')" class="login" :href="auth.loginUrl('google')" @click="auth.openLogin($event, 'google')">구글로 로그인</a>
     </header>
 
+    <NoticePopup :paused="!!game || nicknameOpen" />
+
     <NicknameDialog
       v-if="me && nicknameOpen"
       :me="me"
@@ -446,6 +450,7 @@ async function gameEnded() {
     <template v-else>
       <LobbyView :me="me" :providers="providers" :searching="searching" :error="error" @start="start" @cancel="cancelMatch" />
       <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" @resume="resume" />
+      <RankingBoard :key="me?.id ?? 0" :my-id="me?.id ?? null" />
     </template>
   </main>
 </template>

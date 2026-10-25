@@ -157,7 +157,7 @@ export interface AdminLog {
   at: string
   adminId: number
   admin: string
-  action: 'RENAME' | 'BAN' | 'UNBAN' | 'GRANT'
+  action: 'RENAME' | 'BAN' | 'UNBAN' | 'GRANT' | 'NOTICE_CREATE' | 'NOTICE_UPDATE' | 'NOTICE_DELETE'
   targetId: number | null
   target: string | null
   detail: string | null
@@ -174,6 +174,56 @@ export interface AdminOrder {
   status: 'PENDING' | 'PAID' | 'FAILED'
   createdAt: string
   paidAt: string | null
+}
+
+/** 공지. 본문은 글자 그대로(줄바꿈 포함) 보여 준다. */
+export interface Notice {
+  id: number
+  title: string
+  body: string
+  startsAt: string
+  /** null이면 끄기 전까지 보인다. */
+  endsAt: string | null
+  active: boolean
+  updatedAt: string
+}
+
+export interface NoticeInput {
+  title: string
+  body: string
+  /** null이면 지금부터. */
+  startsAt: string | null
+  endsAt: string | null
+  active: boolean
+}
+
+export type RankingPeriod = 'WEEK' | 'MONTH' | 'YEAR'
+
+export interface RankingRow {
+  /** 판 수가 모자라 순위에 오르지 못했으면 null. */
+  rank: number | null
+  userId: number
+  nickname: string
+  grade: string
+  rating: number
+  /** 기간 동안 오르내린 레이팅의 합. */
+  points: number
+  games: number
+  wins: number
+  draws: number
+  losses: number
+}
+
+export interface Ranking {
+  period: RankingPeriod
+  offset: number
+  /** 기간 첫날과 다음 기간 첫날(한국 날짜, 끝날은 빠진다). */
+  from: string
+  to: string
+  minGames: number
+  rows: RankingRow[]
+  /** 로그인했고 이 기간에 둔 판이 있을 때만. */
+  me: RankingRow | null
 }
 
 export type ShopSlot = 'BOARD' | 'PIECES'
@@ -283,6 +333,9 @@ export const api = {
   confirmOrder: (orderId: string, paymentKey: string) =>
     request<ShopItem[]>(`/api/shop/orders/${orderId}/confirm`, { paymentKey }),
   equip: (itemId: string) => request<ShopItem[]>('/api/shop/equipped', { itemId }, 'PUT'),
+  notices: () => request<Notice[]>('/api/notices'),
+  rankings: (period: RankingPeriod, offset = 0) =>
+    request<Ranking>(`/api/rankings?period=${period.toLowerCase()}&offset=${offset}`),
   admin: {
     stats: () => request<AdminStats>('/api/admin/stats'),
     users: (q: string, page: number) =>
@@ -293,6 +346,10 @@ export const api = {
     grant: (id: number, itemId: string) => request<AdminUser>(`/api/admin/users/${id}/items`, { itemId }),
     orders: () => request<AdminOrder[]>('/api/admin/orders'),
     logs: () => request<AdminLog[]>('/api/admin/logs'),
+    notices: () => request<Notice[]>('/api/admin/notices'),
+    createNotice: (n: NoticeInput) => request<Notice>('/api/admin/notices', n),
+    updateNotice: (id: number, n: NoticeInput) => request<Notice>(`/api/admin/notices/${id}`, n, 'PUT'),
+    deleteNotice: (id: number) => request<{ deleted: boolean }>(`/api/admin/notices/${id}`, undefined, 'DELETE'),
   },
 }
 
