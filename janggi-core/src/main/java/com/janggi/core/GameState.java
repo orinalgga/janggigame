@@ -90,13 +90,17 @@ public final class GameState {
         return isCheck() && candidateMoves().isEmpty();
     }
 
-    /** 외통이면 둔 쪽이 이기고, 빅장이면 무승부(무효)다. 둘이 겹치면 외통을 먼저 본다. */
+    /**
+     * 외통이면 둔 쪽이 이기고, 빅장이면 점수가 높은 쪽이 이긴다. 둘이 겹치면 외통을 먼저 본다.
+     * 한의 덤 1.5점 때문에 점수가 같을 수 없지만, 같으면 무승부로 둔다.
+     */
     public GameResult result() {
         if (isCheckmate()) {
             return sideToMove == Side.CHO ? GameResult.HAN_WIN : GameResult.CHO_WIN;
         }
         if (isBikjang()) {
-            return GameResult.DRAW;
+            int cmp = Double.compare(score(Side.CHO), score(Side.HAN));
+            return cmp > 0 ? GameResult.CHO_WIN : cmp < 0 ? GameResult.HAN_WIN : GameResult.DRAW;
         }
         return GameResult.ONGOING;
     }

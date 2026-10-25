@@ -22,9 +22,11 @@ const status = computed(() => {
   const g = game.value
   if (!g) return ''
   const turn = g.sideToMove === 'CHO' ? '초' : '한'
-  if (g.result === 'CHO_WIN') return '외통! 초가 이겼습니다.'
-  if (g.result === 'HAN_WIN') return '외통! 한이 이겼습니다.'
-  if (g.result === 'DRAW') return '빅장! 무승부(무효)로 끝났습니다.'
+  if (g.result !== 'ONGOING') {
+    const how = g.checkmate ? '외통' : '빅장, 점수 판정'
+    if (g.result === 'DRAW') return `${how}: 무승부입니다.`
+    return `${how}: ${g.result === 'CHO_WIN' ? '초' : '한'}가 이겼습니다.`
+  }
   if (g.check) return `장군! ${turn} 차례`
   return `${turn} 차례`
 })
