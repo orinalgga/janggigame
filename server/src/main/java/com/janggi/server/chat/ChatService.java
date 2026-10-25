@@ -29,19 +29,22 @@ public class ChatService {
 
     public static final int MAX_LENGTH = 200;
     private static final int KEEP = 100;
-    private static final long MIN_INTERVAL_MS = 500;
 
     private final Map<String, Log> logs = new ConcurrentHashMap<>();
     private final SimpMessagingTemplate messaging;
     private final ClaudeChat claude;
     private final int maxClaudeReplies;
+    /** 한 사람이 이 간격보다 빨리 보내면 거절한다. */
+    private final long minIntervalMs;
     private final Random random = new Random();
 
     public ChatService(SimpMessagingTemplate messaging, ClaudeChat claude,
-            @Value("${janggi.ai-chat.max-replies-per-game:40}") int maxClaudeReplies) {
+            @Value("${janggi.ai-chat.max-replies-per-game:40}") int maxClaudeReplies,
+            @Value("${janggi.chat.min-interval-ms:500}") long minIntervalMs) {
         this.messaging = messaging;
         this.claude = claude;
         this.maxClaudeReplies = maxClaudeReplies;
+        this.minIntervalMs = minIntervalMs;
     }
 
     public List<ChatMessage> history(String gameId) {
@@ -120,7 +123,7 @@ public class ChatService {
     }
 
     private Log log(String gameId) {
-        return logs.computeIfAbsent(gameId, k -> new Log());
+        return logs.computeIfAbsent(gameId, k -> new Log(minIntervalMs));
     }
 
     static String systemPrompt(GameDto g, Persona persona) {
@@ -202,16 +205,21 @@ public class ChatService {
     /** 대국 하나의 채팅. 최근 KEEP개만 남긴다. */
     private static final class Log {
 
+        private final long minIntervalMs;
         private final Deque<ChatMessage> messages = new ArrayDeque<>();
         private final Map<Side, Long> lastHumanAt = new EnumMap<>(Side.class);
         private long nextId = 1;
         private int claudeReplies;
 
+        Log(long minIntervalMs) {
+            this.minIntervalMs = minIntervalMs;
+        }
+
         synchronized ChatMessage add(Side side, String nickname, boolean ai, String text, boolean human) {
             long now = System.currentTimeMillis();
             if (human) {
                 Long last = lastHumanAt.get(side);
-                if (last != null && now - last < MIN_INTERVAL_MS) {
+                if (last != null && now - last < minIntervalMs) {
                     throw new ChatException("조금 천천히 보내 주세요");
                 }
                 lastHumanAt.put(side, now);

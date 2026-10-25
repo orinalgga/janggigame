@@ -17,8 +17,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-/** API 키가 없는 테스트 환경이라 AI는 정해 둔 말로 답한다. */
-@SpringBootTest
+/**
+ * API 키가 없는 테스트 환경이라 AI는 정해 둔 말로 답한다.
+ * 느린 CI에서도 연달아 보낸 말이 거절되도록 간격을 길게 잡는다.
+ */
+@SpringBootTest(properties = "janggi.chat.min-interval-ms=60000")
 @AutoConfigureMockMvc
 class ChatTest {
 
