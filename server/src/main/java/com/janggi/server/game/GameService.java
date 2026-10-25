@@ -6,6 +6,7 @@ import com.janggi.core.GameResult;
 import com.janggi.core.GameState;
 import com.janggi.core.Move;
 import com.janggi.core.Side;
+import com.janggi.server.chat.ChatService;
 import com.janggi.server.record.GameRecord;
 import com.janggi.server.record.GameRecorder;
 import com.janggi.server.user.UserService;
@@ -32,15 +33,17 @@ public class GameService {
     private final GameRecorder recorder;
     private final UserService users;
     private final SimpMessagingTemplate messaging;
+    private final ChatService chat;
     private final int baseSeconds;
     private final int incrementSeconds;
 
-    public GameService(GameRecorder recorder, UserService users, SimpMessagingTemplate messaging,
+    public GameService(GameRecorder recorder, UserService users, SimpMessagingTemplate messaging, ChatService chat,
             @Value("${janggi.online.base-seconds}") int baseSeconds,
             @Value("${janggi.online.increment-seconds}") int incrementSeconds) {
         this.recorder = recorder;
         this.users = users;
         this.messaging = messaging;
+        this.chat = chat;
         this.baseSeconds = baseSeconds;
         this.incrementSeconds = incrementSeconds;
     }
@@ -57,6 +60,9 @@ public class GameService {
         GameSession session = new GameSession(GameState.initial(cho, han), aiSide, aiLevel,
                 GameSession.Players.NONE, null, 0, null, listener(id));
         sessions.put(id, session);
+        if (aiSide != null) {
+            chat.greet(id.toString(), aiSide, aiLevel);
+        }
         session.start();
         return GameDto.from(id.toString(), session);
     }
@@ -79,8 +85,11 @@ public class GameService {
 
     public GameDto play(String id, Move move, Long userId) {
         GameSession session = find(id);
+        GameDto before = session.aiSide() == null ? null : GameDto.from(id, session);
         session.playHuman(move, userId);
-        return changed(id, session);
+        GameDto after = changed(id, session);
+        // AI 대국이면 AI가 이번 수를 보고 한마디 할 수 있다.
+        return before == null ? after : after.withAiComment(chat.commentOnMove(before, after));
     }
 
     public GameDto resign(String id, Long userId) {

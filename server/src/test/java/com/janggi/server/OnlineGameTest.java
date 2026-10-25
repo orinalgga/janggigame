@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.janggi.core.Side;
 import com.janggi.server.auth.JwtService;
+import com.janggi.server.chat.ChatService;
 import com.janggi.server.game.GameDto;
 import com.janggi.server.game.GameService;
 import com.janggi.server.record.GameRecorder;
@@ -70,7 +71,7 @@ class OnlineGameTest {
     }
 
     private JsonNode call(org.springframework.test.web.servlet.RequestBuilder request, int expected) throws Exception {
-        String body = mvc.perform(request).andExpect(status().is(expected)).andReturn().getResponse().getContentAsString();
+        String body = mvc.perform(request).andExpect(status().is(expected)).andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         return body.isEmpty() ? null : json.readTree(body);
     }
 
@@ -212,6 +213,9 @@ class OnlineGameTest {
     @Autowired
     SimpMessagingTemplate messaging;
 
+    @Autowired
+    ChatService chat;
+
     @Test
     void onlineGameAndClockAreRestoredAfterRestart() throws Exception {
         Player a = newPlayer("타");
@@ -224,7 +228,7 @@ class OnlineGameTest {
         Thread.sleep(300);
 
         // 메모리가 빈 새 서비스 = 서버를 다시 켠 상황. 꺼져 있던 동안도 한의 시간이 흐른 것으로 본다.
-        GameService fresh = new GameService(recorder, users, messaging, 600, 10);
+        GameService fresh = new GameService(recorder, users, messaging, chat, 600, 10);
         GameDto restored = fresh.get(gameId);
         assertEquals(Side.HAN, restored.clock().running());
         assertTrue(restored.clock().hanMs() <= 600_000 - 300, "한 시계: " + restored.clock().hanMs());
@@ -241,5 +245,30 @@ class OnlineGameTest {
         String gameId = join(b).get("gameId").asText();
         call(post("/api/games/" + gameId + "/resign").header("Authorization", newPlayer("카").bearer()), 403);
         call(post("/api/games/" + gameId + "/resign"), 403);
+    }
+
+    @Test
+    void playersChatAndOutsiderCannot() throws Exception {
+        Player a = newPlayer("채팅가");
+        Player b = newPlayer("채팅나");
+        Player outsider = newPlayer("구경꾼");
+        join(a);
+        String gameId = join(b).get("gameId").asText();
+        BlockingQueue<String> seenByA = subscribe(a, "/topic/games/" + gameId + "/chat");
+
+        JsonNode sent = call(post("/api/games/" + gameId + "/chat").header("Authorization", b.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"text\":\" 잘 부탁해요 \"}"), 200);
+        assertEquals("잘 부탁해요", sent.get(0).get("text").asText());
+        assertEquals("채팅나", sent.get(0).get("nickname").asText());
+
+        JsonNode pushed = json.readTree(seenByA.poll(5, TimeUnit.SECONDS));
+        assertEquals("잘 부탁해요", pushed.get("text").asText());
+        assertEquals(false, pushed.get("ai").asBoolean());
+
+        call(post("/api/games/" + gameId + "/chat").header("Authorization", outsider.bearer())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"text\":\"훈수\"}"), 403);
+        call(post("/api/games/" + gameId + "/chat")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"text\":\"훈수\"}"), 403);
+        assertEquals(1, call(get("/api/games/" + gameId + "/chat"), 200).size());
     }
 }

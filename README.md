@@ -77,6 +77,14 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 - 서버가 다시 켜지면 진행 중이던 온라인 대국을 기보와 남은 시간으로 되살립니다. 꺼져 있던 시간은 둘 차례였던 쪽이 쓴 것으로 칩니다.
 - 대기열은 서버 메모리에 있습니다. 서버를 여러 대로 늘릴 때 Redis로 옮깁니다.
 
+## 채팅
+
+대국 화면 옆에 채팅 창이 있습니다. 같은 화면 2인 대국에는 없습니다. 채팅은 서버 메모리에만 두어 서버가 다시 켜지면 사라지고, 한 번에 200자까지 보낼 수 있습니다.
+
+- 온라인 대전: 두 참가자만 보낼 수 있고(`POST /api/games/{id}/chat`), 서버가 STOMP `/topic/games/{id}/chat`으로 두 사람에게 보냅니다.
+- AI 대국: 난이도마다 캐릭터가 있습니다(초급 새내기 장돌이, 중급 동네 고수 박씨, 상급 장기 도사). 대국을 시작하면 먼저 인사하고, 장군·큰 알을 잡거나 잃을 때·대국이 끝날 때 한마디 합니다(수 응답의 `aiComment`). 이 한마디는 정해 둔 말이라 비용이 들지 않습니다.
+- AI에게 말을 걸면, 서버에 `ANTHROPIC_API_KEY`가 있을 때는 Claude(`JANGGI_AI_CHAT_MODEL`, 기본 `claude-opus-5-5`)가 대국 상황을 보고 캐릭터 말투로 답합니다. 키가 없거나 호출이 실패하면 정해 둔 말로 답합니다. 한 대국에서 Claude에게 묻는 횟수는 `JANGGI_AI_CHAT_MAX_REPLIES`(기본 40)까지입니다.
+
 ## 배포 (무료 구성)
 
 - 서버: Oracle Cloud Always Free VM에서 `docker compose up -d --build`

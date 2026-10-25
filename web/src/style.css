@@ -14,7 +14,17 @@
   --last-move: rgba(255, 236, 160, 0.45);
   --last-move-strong: rgba(232, 168, 40, 0.9);
   --page-bg: #f3ece0;
-  --text: #222;
+  --text: #2a2118;
+  /* 로비와 대국 화면의 카드, 버튼 */
+  --surface: #fbf6ed;
+  --surface-strong: #fffdf8;
+  --border: rgba(74, 44, 16, 0.14);
+  --shadow: rgba(74, 44, 16, 0.1);
+  --muted: #7a6650;
+  --accent: #8a4b14;
+  --accent-deep: #5e3009;
+  --accent-soft: rgba(138, 75, 20, 0.35);
+  --accent-bg: rgba(138, 75, 20, 0.1);
   font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   color: var(--text);
   background: var(--page-bg);
@@ -22,4 +32,9 @@
 
 body {
   margin: 0;
+  background: var(--page-bg);
+}
+
+button {
+  font: inherit;
 }
