@@ -4,6 +4,8 @@ import com.janggi.core.GameResult;
 import com.janggi.server.match.MatchService;
 import com.janggi.server.notice.NoticeService;
 import com.janggi.server.record.GameRecordRepository;
+import com.janggi.server.shop.CoinPack;
+import com.janggi.server.shop.CoinService;
 import com.janggi.server.shop.OwnedItem;
 import com.janggi.server.shop.OwnedItemRepository;
 import com.janggi.server.shop.Purchase;
@@ -50,7 +52,7 @@ public class AdminService {
 
     public record UserRow(long id, String nickname, boolean nicknameChosen, int rating, String grade,
             OffsetDateTime createdAt,
-            List<String> emails, boolean banned, String banReason, List<String> items, boolean admin) {
+            List<String> emails, boolean banned, String banReason, List<String> items, boolean admin, int coins) {
     }
 
     public record UserPage(List<UserRow> users, int page, int totalPages, long total) {
@@ -74,11 +76,12 @@ public class AdminService {
     private final MatchService match;
     private final AdminLogRepository logs;
     private final NoticeService notices;
+    private final CoinService coins;
 
     public AdminService(@Value("${janggi.admin-emails:}") String adminEmails, UserRepository users,
             UserService userService, AuthIdentityRepository identities, GameRecordRepository games,
             PurchaseRepository purchases, OwnedItemRepository owned, MatchService match, AdminLogRepository logs,
-            NoticeService notices) {
+            NoticeService notices, CoinService coins) {
         this.adminEmails = Arrays.stream(adminEmails.split(","))
                 .map(e -> e.strip().toLowerCase(Locale.ROOT))
                 .filter(e -> !e.isEmpty())
@@ -92,6 +95,7 @@ public class AdminService {
         this.match = match;
         this.logs = logs;
         this.notices = notices;
+        this.coins = coins;
     }
 
     @Transactional(readOnly = true)
@@ -172,6 +176,20 @@ public class AdminService {
         return row(user);
     }
 
+    /** 엽전을 넣거나(양수) 뺀다(음수). 사유는 회원의 엽전 기록에도 남는다. */
+    @Transactional
+    public UserRow giveCoins(long adminId, long userId, int amount, String memo) {
+        User user = user(userId);
+        if (amount == 0 || Math.abs(amount) > 100_000) {
+            throw new AdminException.BadRequest("엽전은 1~100000닢 사이로 넣거나 빼 주세요");
+        }
+        String m = memo == null || memo.isBlank() ? (amount > 0 ? "운영자 지급" : "운영자 회수") : memo.strip();
+        m = m.length() > MAX_REASON ? m.substring(0, MAX_REASON) : m;
+        int balance = coins.change(userId, amount, CoinService.Kind.ADMIN, "admin:" + adminId, m);
+        log(adminId, AdminLog.Action.COINS, userId, (amount > 0 ? "+" : "") + amount + "닢 (잔액 " + balance + ") " + m);
+        return row(user);
+    }
+
     /** 최근 관리자 작업 100건. 닉네임은 지금 닉네임이다. */
     @Transactional(readOnly = true)
     public List<LogRow> logs() {
@@ -218,9 +236,16 @@ public class AdminService {
                 .stream().collect(Collectors.toMap(User::getId, User::getNickname, (a, b) -> a));
         return list.stream()
                 .map(p -> new OrderRow(p.getOrderId(), p.getUserId(), names.getOrDefault(p.getUserId(), "(탈퇴)"),
-                        p.getItemId(), ShopItem.byId(p.getItemId()).map(ShopItem::title).orElse(p.getItemId()),
+                        p.getItemId(), title(p.getItemId()),
                         p.getAmount(), p.getProvider(), p.getStatus(), p.getCreatedAt(), p.getPaidAt()))
                 .toList();
+    }
+
+    /** 주문 상품 이름. 지금은 엽전 충전이고, 예전 주문은 테마다. */
+    private static String title(String itemId) {
+        return CoinPack.byId(itemId).map(CoinPack::title)
+                .or(() -> ShopItem.byId(itemId).map(ShopItem::title))
+                .orElse(itemId);
     }
 
     private User user(long id) {
@@ -233,6 +258,6 @@ public class AdminService {
         List<String> items = owned.findByUserId(u.getId()).stream().map(OwnedItem::getItemId).toList();
         return new UserRow(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(), Grade.name(u.getRating()),
                 u.getCreatedAt(),
-                emails, u.isBanned(), u.getBanReason(), items, isAdmin(ids));
+                emails, u.isBanned(), u.getBanReason(), items, isAdmin(ids), coins.balance(u.getId()));
     }
 }

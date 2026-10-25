@@ -19,6 +19,7 @@ const ACTION: Record<AdminLog['action'], string> = {
   BAN: '이용 정지',
   UNBAN: '정지 해제',
   GRANT: '테마 지급',
+  COINS: '엽전',
   NOTICE_CREATE: '공지 등록',
   NOTICE_UPDATE: '공지 수정',
   NOTICE_DELETE: '공지 삭제',
@@ -47,11 +48,13 @@ const open = ref<number | null>(null)
 const newName = ref('')
 const reason = ref('')
 const grantItem = ref('')
+const coinAmount = ref<number | null>(null)
+const coinMemo = ref('')
 const busy = ref(false)
 
 onMounted(() => {
   void loadStats()
-  void api.shop().then((items) => (catalog.value = items.filter((i) => i.price > 0))).catch(() => undefined)
+  void api.shop().then((s) => (catalog.value = s.items.filter((i) => i.price > 0))).catch(() => undefined)
 })
 
 async function run<T>(work: () => Promise<T>): Promise<T | undefined> {
@@ -154,6 +157,8 @@ function toggle(u: AdminUser) {
   newName.value = u.nickname
   reason.value = ''
   grantItem.value = ''
+  coinAmount.value = null
+  coinMemo.value = ''
   notice.value = ''
 }
 
@@ -172,6 +177,14 @@ const unban = (u: AdminUser) =>
   run(() => api.admin.unban(u.id)).then((r) => replace(r, `${u.nickname}님의 정지를 풀었어요.`))
 const grant = (u: AdminUser) =>
   run(() => api.admin.grant(u.id, grantItem.value)).then((r) => replace(r, `${title(grantItem.value)}을(를) 넣어 줬어요.`))
+
+const giveCoins = (u: AdminUser) => {
+  const n = coinAmount.value ?? 0
+  return run(() => api.admin.coins(u.id, n, coinMemo.value.trim())).then((r) => {
+    replace(r, `엽전 ${Math.abs(n)}닢을 ${n > 0 ? '넣었' : '뺐'}어요. 잔액 ${r?.coins}닢.`)
+    if (r) coinAmount.value = null
+  })
+}
 
 const title = (id: string) => catalog.value.find((i) => i.id === id)?.title ?? id
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
@@ -244,7 +257,7 @@ const cards = computed(() => {
           </button>
           <div v-if="open === u.id" class="detail">
             <p class="meta">
-              가입 {{ date(u.createdAt) }} · 산 테마 {{ u.items.length ? u.items.map(title).join(', ') : '없음' }}
+              가입 {{ date(u.createdAt) }} · 엽전 {{ u.coins.toLocaleString('ko-KR') }}닢 · 산 테마 {{ u.items.length ? u.items.map(title).join(', ') : '없음' }}
               <template v-if="u.banned"><br />정지 사유: {{ u.banReason }}</template>
             </p>
             <div class="field">
@@ -259,6 +272,11 @@ const cards = computed(() => {
                 </option>
               </select>
               <button type="button" class="ghost" :disabled="busy || !grantItem" @click="grant(u)">테마 지급</button>
+            </div>
+            <div class="field">
+              <input v-model.number="coinAmount" type="number" step="1" placeholder="엽전(빼려면 -)" aria-label="넣거나 뺄 엽전" />
+              <input v-model="coinMemo" maxlength="200" placeholder="사유(회원 내역에 보여요)" aria-label="엽전 사유" />
+              <button type="button" class="ghost" :disabled="busy || !coinAmount" @click="giveCoins(u)">엽전 넣기·빼기</button>
             </div>
             <div class="field">
               <template v-if="!u.banned">

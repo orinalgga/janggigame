@@ -46,79 +46,104 @@ class ShopTest {
         return mvc.perform(req.header("Authorization", token).contentType(MediaType.APPLICATION_JSON).content(body));
     }
 
-    private String orderId(String token, String itemId) throws Exception {
-        String body = send(token, "POST", "/api/shop/orders", "{\"itemId\":\"" + itemId + "\"}")
+    private String orderId(String token, String packId, int amount) throws Exception {
+        String body = send(token, "POST", "/api/shop/orders", "{\"packId\":\"" + packId + "\"}")
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.amount").value(3900))
+                .andExpect(jsonPath("$.amount").value(amount))
                 .andExpect(jsonPath("$.provider").value("test"))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
         return json.readTree(body).get("orderId").asText();
+    }
+
+    private void charge(String token, String packId, int amount) throws Exception {
+        send(token, "POST", "/api/shop/orders/" + orderId(token, packId, amount) + "/confirm", "{\"paymentKey\":\"test-key\"}")
+                .andExpect(status().isOk());
     }
 
     @Test
     void anyoneSeesCatalogWithFreeItemsOwned() throws Exception {
         mvc.perform(get("/api/shop"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='board.classic')].owned").value(true))
-                .andExpect(jsonPath("$[?(@.id=='board.classic')].equipped").value(true))
-                .andExpect(jsonPath("$[?(@.id=='board.jade')].owned").value(false))
-                .andExpect(jsonPath("$[?(@.id=='board.jade')].price").value(3900));
+                .andExpect(jsonPath("$.coins").doesNotExist())
+                .andExpect(jsonPath("$.items[?(@.id=='board.classic')].owned").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='board.classic')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='board.jade')].owned").value(false))
+                .andExpect(jsonPath("$.items[?(@.id=='board.jade')].price").value(39))
+                .andExpect(jsonPath("$.packs[?(@.id=='coins.50')].price").value(5000));
     }
 
     @Test
     void buyingNeedsLogin() throws Exception {
-        mvc.perform(post("/api/shop/orders").contentType(MediaType.APPLICATION_JSON).content("{\"itemId\":\"board.jade\"}"))
+        mvc.perform(post("/api/shop/orders").contentType(MediaType.APPLICATION_JSON).content("{\"packId\":\"coins.10\"}"))
                 .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/shop/items/board.jade/buy")).andExpect(status().isUnauthorized());
     }
 
     @Test
-    void buyThenEquip() throws Exception {
+    void chargeCoinsThenBuyAndEquip() throws Exception {
         String token = login("shop-1");
-        // 사기 전에는 장착할 수 없다.
+        mvc.perform(get("/api/shop").header("Authorization", token)).andExpect(jsonPath("$.coins").value(0));
+        // 엽전이 없으면 살 수 없고, 사기 전에는 장착할 수 없다.
+        send(token, "POST", "/api/shop/items/board.jade/buy", "").andExpect(status().isBadRequest());
         send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"board.jade\"}").andExpect(status().isBadRequest());
 
-        String order = orderId(token, "board.jade");
+        String order = orderId(token, "coins.50", 5000);
         send(token, "POST", "/api/shop/orders/" + order + "/confirm", "{\"paymentKey\":\"test-key\"}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='board.jade')].owned").value(true));
-        // 같은 주문을 다시 확인해도 괜찮고, 이미 가진 상품은 다시 주문할 수 없다.
+                .andExpect(jsonPath("$.coins").value(50));
+        // 같은 주문을 다시 확인해도 한 번만 들어간다.
         send(token, "POST", "/api/shop/orders/" + order + "/confirm", "{\"paymentKey\":\"test-key\"}")
-                .andExpect(status().isOk());
-        send(token, "POST", "/api/shop/orders", "{\"itemId\":\"board.jade\"}").andExpect(status().isBadRequest());
+                .andExpect(jsonPath("$.coins").value(50));
+
+        send(token, "POST", "/api/shop/items/board.jade/buy", "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coins").value(11))
+                .andExpect(jsonPath("$.items[?(@.id=='board.jade')].owned").value(true));
+        // 이미 가진 상품, 엽전이 모자란 상품은 살 수 없다.
+        send(token, "POST", "/api/shop/items/board.jade/buy", "").andExpect(status().isBadRequest());
+        send(token, "POST", "/api/shop/items/pieces.gold/buy", "").andExpect(status().isBadRequest());
 
         send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"board.jade\"}")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.id=='board.jade')].equipped").value(true))
-                .andExpect(jsonPath("$[?(@.id=='board.classic')].equipped").value(false))
-                .andExpect(jsonPath("$[?(@.id=='pieces.classic')].equipped").value(true));
+                .andExpect(jsonPath("$.items[?(@.id=='board.jade')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='board.classic')].equipped").value(false))
+                .andExpect(jsonPath("$.items[?(@.id=='pieces.classic')].equipped").value(true));
         mvc.perform(get("/api/me").header("Authorization", token))
                 .andExpect(jsonPath("$.boardTheme").value("board.jade"))
                 .andExpect(jsonPath("$.pieceTheme").value("pieces.classic"));
+        mvc.perform(get("/api/shop/coins/history").header("Authorization", token))
+                .andExpect(jsonPath("$[0].kind").value("SPEND"))
+                .andExpect(jsonPath("$[0].delta").value(-39))
+                .andExpect(jsonPath("$[0].balance").value(11))
+                .andExpect(jsonPath("$[1].kind").value("CHARGE"))
+                .andExpect(jsonPath("$[1].delta").value(50));
     }
 
     @Test
     void declinedPaymentGivesNothing() throws Exception {
         String token = login("shop-2");
-        String order = orderId(token, "pieces.ink");
+        String order = orderId(token, "coins.10", 1000);
         send(token, "POST", "/api/shop/orders/" + order + "/confirm", "{\"paymentKey\":\"fail-card\"}")
                 .andExpect(status().isBadRequest());
-        // 실패한 주문은 다시 확인해도 상품이 들어오지 않는다.
+        // 실패한 주문은 다시 확인해도 엽전이 들어오지 않는다.
         send(token, "POST", "/api/shop/orders/" + order + "/confirm", "{\"paymentKey\":\"test-key\"}")
                 .andExpect(status().isBadRequest());
-        mvc.perform(get("/api/shop").header("Authorization", token))
-                .andExpect(jsonPath("$[?(@.id=='pieces.ink')].owned").value(false));
+        mvc.perform(get("/api/shop").header("Authorization", token)).andExpect(jsonPath("$.coins").value(0));
     }
 
     @Test
     void cannotConfirmSomeoneElsesOrder() throws Exception {
-        String order = orderId(login("shop-3"), "board.night");
+        String order = orderId(login("shop-3"), "coins.30", 3000);
         send(login("shop-4"), "POST", "/api/shop/orders/" + order + "/confirm", "{\"paymentKey\":\"test-key\"}")
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void unknownItem() throws Exception {
-        send(login("shop-5"), "POST", "/api/shop/orders", "{\"itemId\":\"board.nope\"}").andExpect(status().isBadRequest());
-        send(login("shop-5"), "PUT", "/api/shop/equipped", "{\"itemId\":\"board.nope\"}").andExpect(status().isBadRequest());
+        String token = login("shop-5");
+        charge(token, "coins.10", 1000);
+        send(token, "POST", "/api/shop/orders", "{\"packId\":\"coins.7\"}").andExpect(status().isBadRequest());
+        send(token, "POST", "/api/shop/items/board.nope/buy", "").andExpect(status().isBadRequest());
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"board.nope\"}").andExpect(status().isBadRequest());
     }
 }

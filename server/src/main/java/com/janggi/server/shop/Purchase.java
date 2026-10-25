@@ -8,7 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
 
-/** 주문 하나. 금액은 주문할 때의 가격으로 고정해 두고, 결제사 승인 금액과 맞춰 본다. */
+/** 엽전 충전 주문 하나(예전에는 테마를 바로 샀다). 금액은 주문할 때의 가격으로 고정해 두고, 결제사 승인 금액과 맞춰 본다. */
 @Entity
 @Table(name = "purchases")
 public class Purchase {
@@ -49,11 +49,11 @@ public class Purchase {
     protected Purchase() {
     }
 
-    public Purchase(String orderId, long userId, ShopItem item, String provider, OffsetDateTime createdAt) {
+    public Purchase(String orderId, long userId, CoinPack pack, String provider, OffsetDateTime createdAt) {
         this.orderId = orderId;
         this.userId = userId;
-        this.itemId = item.id();
-        this.amount = item.price();
+        this.itemId = pack.id();
+        this.amount = pack.price();
         this.provider = provider;
         this.status = Status.PENDING;
         this.createdAt = createdAt;

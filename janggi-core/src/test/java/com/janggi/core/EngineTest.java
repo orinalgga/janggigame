@@ -20,6 +20,15 @@ class EngineTest {
     }
 
     @Test
+    void doesNotPassWhenAMoveIsJustAsGood() {
+        // 초급은 비슷한 수 중 무작위로 고르는데, 그 안에 한수쉼이 섞여 첫 수부터 쉬는 일이 있었다.
+        GameState s = GameState.initial(Formation.SANG_MA_SANG_MA, Formation.SANG_MA_SANG_MA);
+        for (int seed = 0; seed < 300; seed++) {
+            assertFalse(new Engine(new Random(seed)).bestMove(s, Engine.Level.BEGINNER).isPass(), "seed " + seed);
+        }
+    }
+
+    @Test
     void findsMateInOne() {
         GameState s = state(CHO,
                 HAN, GENERAL, 3, 9,

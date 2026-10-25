@@ -99,7 +99,11 @@ public final class Engine {
                 .filter(s -> s.score() >= best - tolerance)
                 .map(ScoredMove::move)
                 .toList();
-        return candidates.get(random.nextInt(candidates.size()));
+        // 한수쉼은 그것만 가장 좋을 때만 둔다. 비슷한 수 사이에서 무작위로 고르다 쉬어 버리면 어색하다.
+        boolean passIsOnlyBest = scored.stream().noneMatch(s -> !s.move().isPass() && s.score() == best);
+        List<Move> pool = passIsOnlyBest ? candidates.stream().filter(Move::isPass).toList()
+                : candidates.stream().filter(m -> !m.isPass()).toList();
+        return pool.get(random.nextInt(pool.size()));
     }
 
     private int search(GameState state, int depth, int alpha, int beta, int ply) {

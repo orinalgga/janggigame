@@ -144,6 +144,8 @@ export interface AdminUser {
   /** 산 테마(무료 제외)의 상품 id. */
   items: string[]
   admin: boolean
+  /** 엽전 잔액. */
+  coins: number
 }
 
 export interface AdminUserPage {
@@ -157,7 +159,7 @@ export interface AdminLog {
   at: string
   adminId: number
   admin: string
-  action: 'RENAME' | 'BAN' | 'UNBAN' | 'GRANT' | 'NOTICE_CREATE' | 'NOTICE_UPDATE' | 'NOTICE_DELETE'
+  action: 'RENAME' | 'BAN' | 'UNBAN' | 'GRANT' | 'COINS' | 'NOTICE_CREATE' | 'NOTICE_UPDATE' | 'NOTICE_DELETE'
   targetId: number | null
   target: string | null
   detail: string | null
@@ -234,16 +236,44 @@ export interface ShopItem {
   slot: ShopSlot
   title: string
   description: string
-  /** 원 단위. 0이면 무료. */
+  /** 엽전 가격. 0이면 무료. */
   price: number
   owned: boolean
   equipped: boolean
 }
 
+/** 엽전 충전 상품. 100원에 1닢. */
+export interface CoinPack {
+  id: string
+  title: string
+  coins: number
+  /** 원. */
+  price: number
+}
+
+export interface ShopState {
+  /** 엽전 잔액. 로그인하지 않았으면 null. */
+  coins: number | null
+  items: ShopItem[]
+  packs: CoinPack[]
+}
+
+export interface CoinLedgerRow {
+  id: number
+  delta: number
+  balance: number
+  kind: 'CHARGE' | 'SPEND' | 'ADMIN'
+  ref: string | null
+  memo: string | null
+  at: string
+}
+
+/** 엽전 충전 주문. amount는 원. */
 export interface ShopOrder {
   orderId: string
-  itemId: string
+  packId: string
   title: string
+  coins: number
   amount: number
   /** 결제사 이름. test면 돈이 오가지 않는 테스트 결제. */
   provider: string
@@ -328,11 +358,13 @@ export const api = {
   chat: (id: string) => request<ChatMessage[]>(`/api/games/${id}/chat`),
   /** 새로 생긴 말을 돌려준다. AI 대국이면 내 말과 AI의 답이다. */
   say: (id: string, text: string) => request<ChatMessage[]>(`/api/games/${id}/chat`, { text }),
-  shop: () => request<ShopItem[]>('/api/shop'),
-  order: (itemId: string) => request<ShopOrder>('/api/shop/orders', { itemId }),
+  shop: () => request<ShopState>('/api/shop'),
+  order: (packId: string) => request<ShopOrder>('/api/shop/orders', { packId }),
   confirmOrder: (orderId: string, paymentKey: string) =>
-    request<ShopItem[]>(`/api/shop/orders/${orderId}/confirm`, { paymentKey }),
-  equip: (itemId: string) => request<ShopItem[]>('/api/shop/equipped', { itemId }, 'PUT'),
+    request<ShopState>(`/api/shop/orders/${orderId}/confirm`, { paymentKey }),
+  buy: (itemId: string) => request<ShopState>(`/api/shop/items/${itemId}/buy`, {}),
+  equip: (itemId: string) => request<ShopState>('/api/shop/equipped', { itemId }, 'PUT'),
+  coinHistory: () => request<CoinLedgerRow[]>('/api/shop/coins/history'),
   notices: () => request<Notice[]>('/api/notices'),
   rankings: (period: RankingPeriod, offset = 0) =>
     request<Ranking>(`/api/rankings?period=${period.toLowerCase()}&offset=${offset}`),
@@ -344,6 +376,8 @@ export const api = {
     ban: (id: number, reason: string) => request<AdminUser>(`/api/admin/users/${id}/ban`, { reason }),
     unban: (id: number) => request<AdminUser>(`/api/admin/users/${id}/ban`, undefined, 'DELETE'),
     grant: (id: number, itemId: string) => request<AdminUser>(`/api/admin/users/${id}/items`, { itemId }),
+    coins: (id: number, amount: number, memo: string) =>
+      request<AdminUser>(`/api/admin/users/${id}/coins`, { amount, memo }),
     orders: () => request<AdminOrder[]>('/api/admin/orders'),
     logs: () => request<AdminLog[]>('/api/admin/logs'),
     notices: () => request<Notice[]>('/api/admin/notices'),
