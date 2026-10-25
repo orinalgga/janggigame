@@ -35,6 +35,8 @@ body {
   background: var(--page-bg);
   /* 장군 때 화면이 흔들려도 가로 스크롤이 생기지 않게. */
   overflow-x: clip;
+  /* 앱에서 상태 표시줄·노치 아래로 화면이 들어가지 않게. 웹 브라우저에서는 0이다. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 
 button {

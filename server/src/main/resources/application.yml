@@ -24,6 +24,8 @@ management:
 janggi:
   # 소셜 로그인이 끝나면 돌아갈 웹 주소.
   web-base-url: ${JANGGI_WEB_BASE_URL:http://localhost:5173}
+  # 앱에서 로그인하면 돌아갈 앱 주소. 앱의 AndroidManifest·Info.plist에 등록한 주소와 같아야 한다.
+  app-redirect-url: ${JANGGI_APP_REDIRECT_URL:com.janggi.app://auth}
   jwt:
     # 운영에서는 반드시 JANGGI_JWT_SECRET에 32자 이상 임의 문자열을 넣는다.
     secret: ${JANGGI_JWT_SECRET:local-dev-secret-change-me-0123456789}
@@ -43,7 +45,8 @@ janggi:
     max-replies-per-game: ${JANGGI_AI_CHAT_MAX_REPLIES:40}
   cors:
     # 쉼표로 여러 개. 운영에서는 JANGGI_CORS_ALLOWED_ORIGINS 환경변수로 Cloudflare Pages 주소를 넣는다.
-    allowed-origins: ${JANGGI_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    # https://localhost는 안드로이드 앱, capacitor://localhost는 iOS 앱 화면의 주소다.
+    allowed-origins: ${JANGGI_CORS_ALLOWED_ORIGINS:http://localhost:5173,https://localhost,capacitor://localhost}
   payments:
     # 지금은 돈이 오가지 않는 test만 있다. 실제 결제사를 붙이면 그 이름으로 바꾼다.
     provider: ${JANGGI_PAYMENTS_PROVIDER:test}

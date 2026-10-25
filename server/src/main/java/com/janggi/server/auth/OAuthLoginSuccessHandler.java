@@ -19,11 +19,13 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
     private final UserService users;
     private final JwtService jwt;
     private final String webBaseUrl;
+    private final String appRedirectUrl;
 
-    public OAuthLoginSuccessHandler(UserService users, JwtService jwt, String webBaseUrl) {
+    public OAuthLoginSuccessHandler(UserService users, JwtService jwt, String webBaseUrl, String appRedirectUrl) {
         this.users = users;
         this.jwt = jwt;
         this.webBaseUrl = webBaseUrl;
+        this.appRedirectUrl = appRedirectUrl;
     }
 
     @Override
@@ -35,9 +37,12 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
         User user = users.loginWith(provider, principal.getName(),
                 principal.getAttribute("email"), principal.getAttribute("name"));
         // 로그인 과정에서만 쓴 세션은 더 필요 없다.
+        boolean app = false;
         if (request.getSession(false) != null) {
+            app = Boolean.TRUE.equals(request.getSession(false).getAttribute(AppLoginFilter.ATTRIBUTE));
             request.getSession(false).invalidate();
         }
-        response.sendRedirect(webBaseUrl + "/#token=" + jwt.issue(user.getId()));
+        String target = app ? appRedirectUrl : webBaseUrl + "/";
+        response.sendRedirect(target + "#token=" + jwt.issue(user.getId()));
     }
 }

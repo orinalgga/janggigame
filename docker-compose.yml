@@ -7,7 +7,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      JANGGI_CORS_ALLOWED_ORIGINS: ${JANGGI_CORS_ALLOWED_ORIGINS:-http://localhost:5173}
+      JANGGI_CORS_ALLOWED_ORIGINS: ${JANGGI_CORS_ALLOWED_ORIGINS:-http://localhost:5173,https://localhost,capacitor://localhost}
       DB_URL: jdbc:postgresql://postgres:5432/janggi
       DB_USER: janggi
       DB_PASSWORD: ${POSTGRES_PASSWORD:-janggi}

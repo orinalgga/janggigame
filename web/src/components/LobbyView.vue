@@ -177,7 +177,7 @@ function start() {
       <template v-else-if="mode === 'ONLINE'">
         <div v-if="!me" class="login-box">
           <p>온라인 대전은 로그인한 회원끼리 둡니다. 레이팅이 기록됩니다.</p>
-          <a v-if="canLogin" class="primary" :href="auth.loginUrl('google')">구글로 로그인</a>
+          <a v-if="canLogin" class="primary" :href="auth.loginUrl('google')" @click="auth.openLogin($event, 'google')">구글로 로그인</a>
           <p v-else class="muted">지금은 로그인을 쓸 수 없습니다.</p>
         </div>
         <template v-else>
