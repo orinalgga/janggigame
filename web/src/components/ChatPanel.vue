@@ -28,11 +28,35 @@ const list = ref<HTMLElement | null>(null)
 const pending = ref<string | null>(null)
 let stop: (() => void) | null = null
 
+// 좁은 화면에서는 판 아래로 밀려 안 보이지 않도록 화면 아래에 붙은 채팅 바가 되고, 누르면 펼쳐진다.
+const narrowQuery = window.matchMedia?.('(max-width: 860px)')
+const narrow = ref(narrowQuery?.matches ?? false)
+const onNarrow = (e: MediaQueryListEvent) => (narrow.value = e.matches)
+narrowQuery?.addEventListener('change', onNarrow)
+const open = ref(false)
+const unread = ref(0)
+const bump = ref(0)
+const latest = computed(() => messages.value[messages.value.length - 1])
+
+function toggle() {
+  if (!narrow.value) return
+  open.value = !open.value
+  if (open.value) {
+    unread.value = 0
+    void scrollDown()
+  }
+}
+
 const length = computed(() => [...draft.value].length)
 
 function add(m: ChatMessage) {
   if (messages.value.some((x) => x.id === m.id)) return
   messages.value = [...messages.value, m].sort((a, b) => a.id - b.id)
+  const mine = m.side === props.mySide && !m.ai
+  if (narrow.value && !open.value && !mine) {
+    unread.value++
+    bump.value++
+  }
   void scrollDown()
 }
 
@@ -48,7 +72,10 @@ onMounted(async () => {
   const history = await api.chat(props.gameId).catch(() => [])
   history.forEach(add)
 })
-onBeforeUnmount(() => stop?.())
+onBeforeUnmount(() => {
+  stop?.()
+  narrowQuery?.removeEventListener('change', onNarrow)
+})
 
 async function send(text = draft.value) {
   const t = text.trim()
@@ -77,11 +104,22 @@ defineExpose({ push: add })
 </script>
 
 <template>
-  <aside class="chat" aria-label="채팅">
-    <header>
+  <aside class="chat" :class="{ sheet: narrow, open: open || !narrow }" aria-label="채팅">
+    <header
+      :key="bump"
+      :class="{ bump: bump > 0 && narrow && !open }"
+      :role="narrow ? 'button' : undefined"
+      :tabindex="narrow ? 0 : undefined"
+      :aria-expanded="narrow ? open : undefined"
+      @click="toggle"
+      @keydown.enter="toggle"
+    >
       <span class="dot" :class="kind" aria-hidden="true" />
       <b>{{ title }}</b>
-      <span class="muted">{{ kind === 'ai' ? 'AI와 대화' : '상대와 대화' }}</span>
+      <span v-if="narrow && !open && latest" class="preview">{{ latest.text }}</span>
+      <span v-else class="muted">{{ kind === 'ai' ? 'AI와 대화' : '상대와 대화' }}</span>
+      <span v-if="unread" class="unread">{{ unread }}</span>
+      <span v-if="narrow" class="chevron" aria-hidden="true">{{ open ? '▾' : '▴' }}</span>
     </header>
 
     <div ref="list" class="messages" aria-live="polite">
@@ -147,6 +185,68 @@ header {
 header .muted {
   margin-left: auto;
   font-size: 0.78rem;
+}
+.preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.unread {
+  flex: none;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--han-color);
+}
+.chevron {
+  flex: none;
+  color: var(--muted);
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  max-height: 72vh;
+  border-radius: 16px 16px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -8px 30px var(--shadow);
+}
+.sheet header {
+  cursor: pointer;
+  padding: 14px 16px;
+}
+.sheet:not(.open) header {
+  border-bottom: none;
+}
+.sheet:not(.open) .messages,
+.sheet:not(.open) .quick,
+.sheet:not(.open) .compose,
+.sheet:not(.open) .error,
+.sheet:not(.open) .count {
+  display: none;
+}
+.sheet .messages {
+  max-height: none;
+  min-height: 160px;
+}
+.bump {
+  animation: bump 0.45s ease-out;
+}
+@keyframes bump {
+  30% {
+    background: var(--accent-bg);
+    transform: translateY(-4px);
+  }
 }
 .dot {
   width: 8px;
@@ -321,6 +421,7 @@ header .muted {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .bump,
   .msg,
   .typing i {
     animation: none;

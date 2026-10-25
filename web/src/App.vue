@@ -260,7 +260,8 @@ function withMove(g: GameDto, from: SquareDto, to: SquareDto): GameDto {
   const pieces = g.pieces
     .filter((p) => !(p.x === to.x && p.y === to.y))
     .map((p) => (p.x === from.x && p.y === from.y ? { ...p, x: to.x, y: to.y } : p))
-  return { ...g, pieces, legalMoves: [], lastMove: { from, to } }
+  // 장군 여부는 서버 응답이 와야 알 수 있으므로 잠시 끈다.
+  return { ...g, pieces, legalMoves: [], lastMove: { from, to }, check: false, checkmate: false }
 }
 
 async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
@@ -346,6 +347,8 @@ async function gameEnded() {
             :selected="selected"
             :last-move="game.lastMove"
             :flipped="flipped"
+            :check="game.check ? game.sideToMove : null"
+            :mate="game.checkmate"
             @select="onSelect"
           />
           <div class="actions">
@@ -582,6 +585,10 @@ main.wide .layout {
   }
   main.wide .layout {
     grid-template-columns: minmax(0, 1fr);
+  }
+  /* 채팅 바가 화면 아래를 덮으므로 그만큼 띄운다. */
+  main.wide {
+    padding-bottom: 90px;
   }
 }
 </style>
