@@ -42,6 +42,8 @@ const END_REASON: Record<EndReason, string> = {
 const opponent = ref<'HUMAN' | 'ONLINE' | Side>('HAN')
 const level = ref<Level>('INTERMEDIATE')
 const thinking = ref(false)
+/** 수를 보내고 응답을 기다리는 중. 이때 누른 칸은 무시해서 옛 국면 기준으로 알이 골라지지 않게 한다. */
+const busy = ref(false)
 const replayId = ref<string | null>(null)
 const recent = ref<InstanceType<typeof RecentGames> | null>(null)
 const me = ref<Me | null>(null)
@@ -92,7 +94,7 @@ const mySide = computed<Side | null>(() => {
 
 const canAct = computed(() => {
   const g = game.value
-  if (!g || g.result !== 'ONGOING' || thinking.value) return false
+  if (!g || g.result !== 'ONGOING' || thinking.value || busy.value) return false
   return g.online ? g.sideToMove === mySide.value : g.sideToMove !== g.aiSide
 })
 
@@ -225,6 +227,7 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
   if (!game.value) return
   selected.value = null
   thinking.value = game.value.aiSide !== null
+  busy.value = true
   try {
     game.value = await api.move(game.value.id, move)
     error.value = ''
@@ -233,6 +236,7 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
     error.value = (e as Error).message
   } finally {
     thinking.value = false
+    busy.value = false
   }
 }
 
