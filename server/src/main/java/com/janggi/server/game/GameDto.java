@@ -22,7 +22,25 @@ public record GameDto(
         double hanScore,
         Side aiSide,
         Engine.Level aiLevel,
-        MoveDto lastMove) {
+        MoveDto lastMove,
+        String endReason,
+        boolean online,
+        PlayerDto cho,
+        PlayerDto han,
+        ClockDto clock,
+        RatingChange ratingChange) {
+
+    /** rating은 대국을 시작할 때의 레이팅. */
+    public record PlayerDto(long id, String nickname, int rating) {
+    }
+
+    /** 남은 시간(밀리초)과 지금 시계가 가는 쪽. 웹은 받은 뒤부터 running 쪽을 직접 줄여 보여 준다. */
+    public record ClockDto(long choMs, long hanMs, Side running) {
+
+        static ClockDto from(GameClock.Snapshot s) {
+            return s == null ? null : new ClockDto(s.choMs(), s.hanMs(), s.running());
+        }
+    }
 
     public record PieceDto(int x, int y, String side, String type, String label) {
     }
@@ -51,21 +69,35 @@ public record GameDto(
     }
 
     static GameDto from(String id, GameSession session) {
+        // 수와 시계, 결과가 한 시점의 것이 되도록 세션을 잡고 만든다.
+        synchronized (session) {
+            return build(id, session);
+        }
+    }
+
+    private static GameDto build(String id, GameSession session) {
         GameState state = session.state();
+        boolean over = session.isOver();
         return new GameDto(
                 id,
                 pieces(state),
                 state.sideToMove(),
-                state.legalMoves().stream().map(MoveDto::from).toList(),
+                over ? List.of() : state.legalMoves().stream().map(MoveDto::from).toList(),
                 state.isCheck(),
                 state.isCheckmate(),
                 state.isBikjang(),
-                state.result(),
+                session.result(),
                 state.score(Side.CHO),
                 state.score(Side.HAN),
                 session.aiSide(),
                 session.aiLevel(),
-                session.lastMove() == null ? null : MoveDto.from(session.lastMove()));
+                session.lastMove() == null ? null : MoveDto.from(session.lastMove()),
+                session.endReason(),
+                session.online(),
+                session.players().cho(),
+                session.players().han(),
+                ClockDto.from(session.clock()),
+                session.ratingChange());
     }
 
     static List<PieceDto> pieces(GameState state) {

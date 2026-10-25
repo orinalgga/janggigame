@@ -33,7 +33,7 @@ public class SecurityConfig {
                 // 소셜 로그인 왕복 동안에만 세션이 생긴다.
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers("/api/me").authenticated()
+                        .requestMatchers("/api/me", "/api/match").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(new JwtAuthFilter(jwt), UsernamePasswordAuthenticationFilter.class);
