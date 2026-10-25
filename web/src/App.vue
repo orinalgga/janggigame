@@ -20,6 +20,7 @@ import {
 } from './api'
 import { Live } from './live'
 import { PERSONAS, type StartOptions } from './options'
+import { onLoginReturn } from './native'
 import { setEquipped } from './themes'
 
 const END_REASON: Record<EndReason, string> = {
@@ -43,16 +44,21 @@ const shopOpen = ref(false)
 
 onMounted(async () => {
   auth.takeTokenFromUrl()
+  // 앱에서는 브라우저로 로그인한 뒤 앱 주소(com.janggi.app://auth#token=...)로 돌아온다.
+  void onLoginReturn((url) => auth.takeToken(url) && void loadMe())
   providers.value = (await api.providers().catch(() => ({ providers: [] }))).providers
-  if (auth.token()) {
-    me.value = await api.me().catch(() => {
-      auth.clear()
-      return null
-    })
-    setEquipped(me.value?.boardTheme, me.value?.pieceTheme)
-    recent.value?.refresh()
-  }
+  await loadMe()
 })
+
+async function loadMe() {
+  if (!auth.token()) return
+  me.value = await api.me().catch(() => {
+    auth.clear()
+    return null
+  })
+  setEquipped(me.value?.boardTheme, me.value?.pieceTheme)
+  recent.value?.refresh()
+}
 
 function logout() {
   leaveOnline()
@@ -317,7 +323,7 @@ async function gameEnded() {
         <span class="rating">{{ me.rating }}</span>
         <button type="button" class="text-button" @click="logout">로그아웃</button>
       </div>
-      <a v-else-if="providers.includes('google')" class="login" :href="auth.loginUrl('google')">구글로 로그인</a>
+      <a v-else-if="providers.includes('google')" class="login" :href="auth.loginUrl('google')" @click="auth.openLogin($event, 'google')">구글로 로그인</a>
     </header>
 
     <ReplayView v-if="replayId" :key="replayId" :game-id="replayId" @close="replayId = null" />

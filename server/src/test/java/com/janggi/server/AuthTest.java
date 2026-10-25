@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.janggi.server.auth.AppLoginFilter;
 import com.janggi.server.auth.JwtService;
 import com.janggi.server.auth.OAuthLoginSuccessHandler;
 import com.janggi.server.user.User;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -29,6 +31,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest
 @AutoConfigureMockMvc
 class AuthTest {
+
+    private static final String APP = "com.janggi.app://auth";
 
     @Autowired
     MockMvc mvc;
@@ -95,12 +99,31 @@ class AuthTest {
         var auth = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
         var response = new MockHttpServletResponse();
 
-        new OAuthLoginSuccessHandler(users, jwt, "https://janggi.example").onAuthenticationSuccess(
+        new OAuthLoginSuccessHandler(users, jwt, "https://janggi.example", APP).onAuthenticationSuccess(
                 new MockHttpServletRequest(), response, auth);
 
         String location = response.getRedirectedUrl();
         assertTrue(location.startsWith("https://janggi.example/#token="), location);
         long userId = jwt.verify(location.substring(location.indexOf('=') + 1)).orElseThrow();
         assertEquals("최", users.find(userId).orElseThrow().getNickname());
+    }
+
+    @Test
+    void appLoginRedirectsBackToApp() throws Exception {
+        var principal = new DefaultOAuth2User(List.of(new SimpleGrantedAuthority("USER")),
+                Map.of("sub", "sub-5", "name", "앱손님"), "sub");
+        var auth = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+        // 앱이 ?app=1로 로그인을 시작하면 세션에 표시가 남는다.
+        var start = new MockHttpServletRequest("GET", "/oauth2/authorization/google");
+        start.setParameter("app", "1");
+        new AppLoginFilter().doFilter(start, new MockHttpServletResponse(), new MockFilterChain());
+        var callback = new MockHttpServletRequest();
+        callback.setSession(start.getSession());
+        var response = new MockHttpServletResponse();
+
+        new OAuthLoginSuccessHandler(users, jwt, "https://janggi.example", APP).onAuthenticationSuccess(
+                callback, response, auth);
+
+        assertTrue(response.getRedirectedUrl().startsWith(APP + "#token="), response.getRedirectedUrl());
     }
 }

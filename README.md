@@ -97,6 +97,22 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 - 결제 흐름: `POST /api/shop/orders`로 주문을 만들고, 결제창에서 받은 키로 `POST /api/shop/orders/{orderId}/confirm`을 부르면 서버가 결제사에 승인받은 뒤 상품을 넣어 준다. 금액은 서버의 주문 금액을 쓴다.
 - 지금 결제사는 돈이 오가지 않는 `test`뿐이다(`JANGGI_PAYMENTS_PROVIDER`). 실제 결제사(토스페이먼츠 등)는 `PaymentGateway`를 구현해 붙인다.
 
+## 모바일 앱
+
+웹 화면을 Capacitor로 감싸 안드로이드·iOS 앱으로 만든다(`web/android`, `web/ios`). 앱 id는 `com.janggi.app`.
+
+1. 앱이 붙을 서버 주소를 `web/.env.app.local`에 적는다(이 파일은 저장소에 올라가지 않는다).
+   - 집에서 시험할 때: `VITE_API_BASE=http://<PC의 내부 IP>:8080` (휴대폰과 PC가 같은 와이파이, Windows 방화벽에서 8080 허용)
+   - 배포 후: `VITE_API_BASE=https://<서버 주소>`
+2. 안드로이드: [Android Studio](https://developer.android.com/studio)를 설치하고 `cd web && npm run app:android`. Android Studio가 열리면 휴대폰을 USB로 연결(개발자 옵션의 USB 디버깅 켜기)하고 ▶ 실행.
+3. iOS: Mac과 Xcode가 필요하다. `npm run app:ios`.
+
+웹을 고친 뒤에는 `npm run app:build`로 다시 넣는다.
+
+- 구글은 앱 안 화면에서 로그인을 막으므로, 앱은 기기 브라우저로 로그인하고 `com.janggi.app://auth#token=...`으로 돌아온다(`JANGGI_APP_REDIRECT_URL`). 구글 로그인은 구글에 등록한 서버 주소에서만 되므로, 내부 IP로 시험할 때는 로그인 없이 AI 대국·같은 화면 대국만 된다.
+- 서버의 `JANGGI_CORS_ALLOWED_ORIGINS`에는 앱 화면 주소 `https://localhost`(안드로이드), `capacitor://localhost`(iOS)가 들어 있어야 한다(기본값에 포함).
+- 앱 스토어에 올리면 테마 같은 디지털 상품은 스토어 인앱 결제를 써야 한다. 지금 상점의 테스트 결제는 출시 전에 바꾼다.
+
 ## 배포 (무료 구성)
 
 - 서버: Oracle Cloud Always Free VM에서 `docker compose up -d --build`

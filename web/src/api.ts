@@ -1,3 +1,5 @@
+import { isNative, openInBrowser } from './native'
+
 export type Side = 'CHO' | 'HAN'
 export type Level = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
 export type Formation = 'SANG_MA_SANG_MA' | 'MA_SANG_MA_SANG' | 'MA_SANG_SANG_MA' | 'SANG_MA_MA_SANG'
@@ -158,14 +160,23 @@ export const auth = {
       // 무시
     }
   },
-  loginUrl: (provider: string) => `${AUTH_BASE}/oauth2/authorization/${provider}`,
-  /** 로그인 후 돌아온 주소의 #token=을 꺼내 저장하고 주소에서 지운다. */
+  /** 앱이면 ?app=1을 붙여, 로그인이 끝난 뒤 서버가 웹 대신 앱으로 돌려보내게 한다. */
+  loginUrl: (provider: string) => `${AUTH_BASE}/oauth2/authorization/${provider}${isNative ? '?app=1' : ''}`,
+  /** 로그인 링크를 누를 때. 앱에서는 기기 브라우저로 연다. */
+  openLogin(e: MouseEvent, provider: string) {
+    if (!isNative) return
+    e.preventDefault()
+    void openInBrowser(auth.loginUrl(provider))
+  },
+  /** 로그인 후 돌아온 주소의 #token=을 꺼내 저장한다. 찾았으면 true. */
+  takeToken(url: string): boolean {
+    const m = url.match(/token=([^&]+)/)
+    if (m) auth.save(decodeURIComponent(m[1]))
+    return m !== null
+  },
+  /** 웹에서 로그인 후 돌아온 주소의 토큰을 저장하고 주소에서 지운다. */
   takeTokenFromUrl() {
-    const m = location.hash.match(/token=([^&]+)/)
-    if (m) {
-      auth.save(decodeURIComponent(m[1]))
-      history.replaceState(null, '', location.pathname + location.search)
-    }
+    if (auth.takeToken(location.hash)) history.replaceState(null, '', location.pathname + location.search)
   },
 }
 

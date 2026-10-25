@@ -176,7 +176,7 @@ async function pay() {
 
         <p v-if="!me && !loading" class="login-hint">
           유료 테마는 로그인하면 살 수 있어요.
-          <a v-if="providers.includes('google')" :href="auth.loginUrl('google')">구글로 로그인</a>
+          <a v-if="providers.includes('google')" :href="auth.loginUrl('google')" @click="auth.openLogin($event, 'google')">구글로 로그인</a>
         </p>
       </div>
     </div>

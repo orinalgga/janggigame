@@ -14,6 +14,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.oauth2.client.CommonOAuth2Provider;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -27,7 +28,8 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http, JwtService jwt, UserService users,
-            OAuthProviders providers, @Value("${janggi.web-base-url}") String webBaseUrl)
+            OAuthProviders providers, @Value("${janggi.web-base-url}") String webBaseUrl,
+            @Value("${janggi.app-redirect-url}") String appRedirectUrl)
             throws Exception {
         http.csrf(c -> c.disable())
                 .cors(Customizer.withDefaults())
@@ -39,11 +41,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/me", "/api/match", "/api/shop/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
-                .addFilterBefore(new JwtAuthFilter(jwt), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthFilter(jwt), UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new AppLoginFilter(), OAuth2AuthorizationRequestRedirectFilter.class);
         if (!providers.registrations().isEmpty()) {
             http.oauth2Login(o -> o
                     .clientRegistrationRepository(new InMemoryClientRegistrationRepository(providers.registrations()))
-                    .successHandler(new OAuthLoginSuccessHandler(users, jwt, webBaseUrl)));
+                    .successHandler(new OAuthLoginSuccessHandler(users, jwt, webBaseUrl, appRedirectUrl)));
         }
         return http.build();
     }
