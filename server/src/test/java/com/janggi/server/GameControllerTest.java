@@ -7,6 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.janggi.server.game.GameService;
+import com.janggi.server.record.GameRecorder;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -87,9 +90,48 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.lastMove.from").exists());
     }
 
+    @Autowired
+    GameRecorder recorder;
+
+    private void playFirstMove(String id) throws Exception {
+        mvc.perform(post("/api/games/" + id + "/moves")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"from\":{\"x\":0,\"y\":3},\"to\":{\"x\":1,\"y\":3}}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void movesAreRecordedForReplay() throws Exception {
+        String id = newGame();
+        playFirstMove(id);
+
+        mvc.perform(get("/api/games/" + id + "/replay").param("ply", "0"))
+                .andExpect(jsonPath("$.ply").value(0))
+                .andExpect(jsonPath("$.totalPlies").value(1))
+                .andExpect(jsonPath("$.lastMove").doesNotExist());
+        mvc.perform(get("/api/games/" + id + "/replay").param("ply", "1"))
+                .andExpect(jsonPath("$.ply").value(1))
+                .andExpect(jsonPath("$.lastMove.to.x").value(1))
+                .andExpect(jsonPath("$.lastMove.to.y").value(3));
+        mvc.perform(get("/api/games")).andExpect(jsonPath("$[?(@.id == '" + id + "')].moveCount").value(1));
+    }
+
+    @Test
+    void gameIsRestoredFromRecordAfterRestart() throws Exception {
+        String id = newGame();
+        playFirstMove(id);
+
+        // 메모리가 빈 새 서비스 = 서버를 다시 켠 상황.
+        GameService fresh = new GameService(recorder);
+        var restored = fresh.get(id);
+        assertEquals("HAN", restored.sideToMove().name());
+        assertEquals(1, restored.lastMove().to().x());
+    }
+
     @Test
     void unknownGameIs404() throws Exception {
         mvc.perform(get("/api/games/nope")).andExpect(status().isNotFound());
+        mvc.perform(get("/api/games/00000000-0000-0000-0000-000000000000")).andExpect(status().isNotFound());
     }
 
     @Test
