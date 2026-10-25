@@ -386,6 +386,7 @@ button:disabled {
   background: rgba(30, 20, 10, 0.45);
 }
 .dialog {
+  box-sizing: border-box;
   width: min(100%, 360px);
   padding: 20px;
   border-radius: 16px;

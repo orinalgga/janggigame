@@ -65,8 +65,8 @@ class OnlineGameTest {
         }
     }
 
-    private Player newPlayer(String name) {
-        User u = users.loginWith("google", UUID.randomUUID().toString(), null, name);
+    private Player newPlayer() {
+        User u = users.loginWith("google", UUID.randomUUID().toString(), null);
         return new Player(u.getId(), jwt.issue(u.getId()));
     }
 
@@ -117,8 +117,8 @@ class OnlineGameTest {
 
     @Test
     void twoPlayersAreMatchedAndWaitingPlayerIsNotified() throws Exception {
-        Player a = newPlayer("가");
-        Player b = newPlayer("나");
+        Player a = newPlayer();
+        Player b = newPlayer();
         BlockingQueue<String> aInbox = subscribe(a, "/user/queue/match");
 
         assertEquals("WAITING", join(a).get("status").asText());
@@ -141,8 +141,8 @@ class OnlineGameTest {
 
     @Test
     void cancelledPlayerIsNotMatched() throws Exception {
-        Player a = newPlayer("다");
-        Player b = newPlayer("라");
+        Player a = newPlayer();
+        Player b = newPlayer();
         join(a);
         call(delete("/api/match").header("Authorization", a.bearer()), 200);
         assertEquals("WAITING", join(b).get("status").asText());
@@ -151,8 +151,8 @@ class OnlineGameTest {
 
     @Test
     void onlyPlayerToMoveCanMoveAndBothSeeIt() throws Exception {
-        Player a = newPlayer("마");
-        Player b = newPlayer("바");
+        Player a = newPlayer();
+        Player b = newPlayer();
         join(a);
         String gameId = join(b).get("gameId").asText();
         JsonNode game = call(get("/api/games/" + gameId), 200);
@@ -162,7 +162,7 @@ class OnlineGameTest {
 
         String choMove = "{\"from\":{\"x\":0,\"y\":3},\"to\":{\"x\":1,\"y\":3}}";
         move(han, gameId, choMove, 403);
-        move(newPlayer("구경꾼"), gameId, choMove, 403);
+        move(newPlayer(), gameId, choMove, 403);
         mvc.perform(post("/api/games/" + gameId + "/moves").contentType(MediaType.APPLICATION_JSON).content(choMove))
                 .andExpect(status().isForbidden());
 
@@ -177,8 +177,8 @@ class OnlineGameTest {
 
     @Test
     void resignEndsGameAndChangesRatings() throws Exception {
-        Player a = newPlayer("사");
-        Player b = newPlayer("아");
+        Player a = newPlayer();
+        Player b = newPlayer();
         join(a);
         String gameId = join(b).get("gameId").asText();
         JsonNode game = call(get("/api/games/" + gameId), 200);
@@ -218,8 +218,8 @@ class OnlineGameTest {
 
     @Test
     void onlineGameAndClockAreRestoredAfterRestart() throws Exception {
-        Player a = newPlayer("타");
-        Player b = newPlayer("파");
+        Player a = newPlayer();
+        Player b = newPlayer();
         join(a);
         String gameId = join(b).get("gameId").asText();
         JsonNode game = call(get("/api/games/" + gameId), 200);
@@ -239,19 +239,20 @@ class OnlineGameTest {
 
     @Test
     void outsiderCannotResign() throws Exception {
-        Player a = newPlayer("자");
-        Player b = newPlayer("차");
+        Player a = newPlayer();
+        Player b = newPlayer();
         join(a);
         String gameId = join(b).get("gameId").asText();
-        call(post("/api/games/" + gameId + "/resign").header("Authorization", newPlayer("카").bearer()), 403);
+        call(post("/api/games/" + gameId + "/resign").header("Authorization", newPlayer().bearer()), 403);
         call(post("/api/games/" + gameId + "/resign"), 403);
     }
 
     @Test
     void playersChatAndOutsiderCannot() throws Exception {
-        Player a = newPlayer("채팅가");
-        Player b = newPlayer("채팅나");
-        Player outsider = newPlayer("구경꾼");
+        Player a = newPlayer();
+        Player b = newPlayer();
+        users.changeNickname(b.id(), "채팅나");
+        Player outsider = newPlayer();
         join(a);
         String gameId = join(b).get("gameId").asText();
         BlockingQueue<String> seenByA = subscribe(a, "/topic/games/" + gameId + "/chat");

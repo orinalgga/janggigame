@@ -35,7 +35,7 @@ class ShopTest {
     ObjectMapper json;
 
     private String login(String sub) {
-        return "Bearer " + jwt.issue(users.loginWith("google", sub, null, "상점손님").getId());
+        return "Bearer " + jwt.issue(users.loginWith("google", sub, null).getId());
     }
 
     private ResultActions send(String token, String method, String path, String body) throws Exception {

@@ -24,8 +24,8 @@ class OnlineTimeoutTest {
 
     @Test
     void sideToMoveLosesOnTimeEvenIfNobodyMoves() throws Exception {
-        long cho = users.loginWith("google", UUID.randomUUID().toString(), null, "초").getId();
-        long han = users.loginWith("google", UUID.randomUUID().toString(), null, "한").getId();
+        long cho = users.loginWith("google", UUID.randomUUID().toString(), null).getId();
+        long han = users.loginWith("google", UUID.randomUUID().toString(), null).getId();
         String id = games.createOnline(cho, Formation.MA_SANG_MA_SANG, han, Formation.MA_SANG_MA_SANG).id();
 
         GameDto game = games.get(id);

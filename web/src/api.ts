@@ -104,6 +104,8 @@ export interface ReplayDto {
 export interface Me {
   id: number
   nickname: string
+  /** false면 가입할 때 받은 임시 닉네임(장기꾼+번호). */
+  nicknameChosen: boolean
   rating: number
   /** 장착한 테마의 상점 상품 id. */
   boardTheme: string
@@ -202,6 +204,7 @@ export const api = {
   move: (id: string, move: MoveDto) => request<GameDto>(`/api/games/${id}/moves`, move),
   recent: () => request<GameSummary[]>('/api/games'),
   me: () => request<Me>('/api/me'),
+  setNickname: (nickname: string) => request<Me>('/api/me/nickname', { nickname }, 'PUT'),
   providers: () => request<{ providers: string[] }>('/api/auth/providers'),
   replay: (id: string, ply: number) => request<ReplayDto>(`/api/games/${id}/replay?ply=${ply}`),
   game: (id: string) => request<GameDto>(`/api/games/${id}`),

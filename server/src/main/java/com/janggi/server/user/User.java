@@ -21,6 +21,10 @@ public class User {
     @Column(nullable = false)
     private String nickname;
 
+    /** false면 가입할 때 받은 임시 닉네임(장기꾼+번호)이다. */
+    @Column(name = "nickname_chosen", nullable = false)
+    private boolean nicknameChosen;
+
     @Column(nullable = false)
     private int rating;
 
@@ -50,6 +54,15 @@ public class User {
 
     public String getNickname() {
         return nickname;
+    }
+
+    public boolean isNicknameChosen() {
+        return nicknameChosen;
+    }
+
+    void rename(String nickname, boolean chosen) {
+        this.nickname = nickname;
+        this.nicknameChosen = chosen;
     }
 
     public int getRating() {
