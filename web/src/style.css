@@ -1,13 +1,19 @@
 :root {
   /* 장기판 테마. 유료 테마는 이 변수들을 바꿔 끼우는 방식으로 만든다. */
-  --board-bg: #e8c98f;
-  --board-line: #5b3a1a;
-  --cho-color: #1f6f43;
-  --han-color: #b3261e;
-  --piece-bg: #fdf6e3;
-  --highlight: rgba(31, 111, 67, 0.35);
-  --last-move: rgba(255, 214, 102, 0.55);
-  --page-bg: #f5f1ea;
+  --board-light: #f0cf8e;
+  --board-dark: #d19a55;
+  --board-line: #4a2c10;
+  --cho-color: #0e5a3c;
+  --han-color: #a8161b;
+  --piece-light: #fffaf0;
+  --piece-dark: #ecd9b4;
+  --piece-edge: #8a6236;
+  --select: #e0a526;
+  --highlight: rgba(14, 90, 60, 0.55);
+  --capture: #c0392b;
+  --last-move: rgba(255, 236, 160, 0.45);
+  --last-move-strong: rgba(232, 168, 40, 0.9);
+  --page-bg: #f3ece0;
   --text: #222;
   font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
   color: var(--text);
