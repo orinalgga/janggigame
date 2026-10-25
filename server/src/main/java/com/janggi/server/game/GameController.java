@@ -25,8 +25,8 @@ public class GameController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public GameDto create(@RequestBody(required = false) NewGameRequest request) {
-        NewGameRequest r = request == null ? new NewGameRequest(null, null) : request;
-        return games.create(r.cho(), r.han());
+        NewGameRequest r = request == null ? new NewGameRequest(null, null, null, null) : request;
+        return games.create(r.cho(), r.han(), r.aiSide(), r.aiSide() == null ? null : r.level());
     }
 
     @GetMapping("/{id}")

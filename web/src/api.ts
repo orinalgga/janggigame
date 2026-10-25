@@ -1,4 +1,5 @@
 export type Side = 'CHO' | 'HAN'
+export type Level = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
 export type Formation = 'SANG_MA_SANG_MA' | 'MA_SANG_MA_SANG' | 'MA_SANG_SANG_MA' | 'SANG_MA_MA_SANG'
 
 export interface SquareDto {
@@ -30,6 +31,9 @@ export interface GameDto {
   result: 'ONGOING' | 'CHO_WIN' | 'HAN_WIN' | 'DRAW'
   choScore: number
   hanScore: number
+  aiSide: Side | null
+  aiLevel: Level | null
+  lastMove: MoveDto | null
 }
 
 const BASE = import.meta.env.VITE_API_BASE ?? ''
@@ -48,7 +52,7 @@ async function request<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export const api = {
-  newGame: (choFormation: Formation, hanFormation: Formation) =>
-    request<GameDto>('/api/games', { choFormation, hanFormation }),
+  newGame: (choFormation: Formation, hanFormation: Formation, aiSide: Side | null, aiLevel: Level) =>
+    request<GameDto>('/api/games', { choFormation, hanFormation, aiSide, aiLevel }),
   move: (id: string, move: MoveDto) => request<GameDto>(`/api/games/${id}/moves`, move),
 }

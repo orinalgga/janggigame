@@ -6,6 +6,9 @@ const props = defineProps<{
   pieces: PieceDto[]
   legalMoves: MoveDto[]
   selected: SquareDto | null
+  lastMove: MoveDto | null
+  /** true면 한이 아래에 보이도록 판을 돌린다. */
+  flipped: boolean
 }>()
 
 const emit = defineEmits<{
@@ -17,9 +20,14 @@ const PAD = 40
 const WIDTH = PAD * 2 + CELL * 8
 const HEIGHT = PAD * 2 + CELL * 9
 
-// 한이 위, 초가 아래에 보이도록 y를 뒤집는다.
-const px = (x: number) => PAD + x * CELL
-const py = (y: number) => PAD + (9 - y) * CELL
+// 기본은 한이 위, 초가 아래. flipped면 180도 돌린다.
+const px = (x: number) => PAD + (props.flipped ? 8 - x : x) * CELL
+const py = (y: number) => PAD + (props.flipped ? y : 9 - y) * CELL
+
+const lastSquares = computed(() => {
+  const m = props.lastMove
+  return m && m.from && m.to ? [m.from, m.to] : []
+})
 
 const RADIUS: Record<string, number> = {
   GENERAL: 27,
@@ -64,6 +72,17 @@ function clickPoint(x: number, y: number) {
       :x2="px(d[2])"
       :y2="py(d[3])"
       class="line"
+    />
+
+    <rect
+      v-for="(sq, i) in lastSquares"
+      :key="'last' + i"
+      :x="px(sq.x) - 29"
+      :y="py(sq.y) - 29"
+      width="58"
+      height="58"
+      rx="6"
+      class="last"
     />
 
     <template v-for="y in 10" :key="'row' + y">
@@ -145,6 +164,9 @@ function clickPoint(x: number, y: number) {
 }
 .piece.selected circle {
   stroke-width: 5;
+}
+.last {
+  fill: var(--last-move);
 }
 .target {
   fill: var(--highlight);

@@ -6,6 +6,7 @@
   --han-color: #b3261e;
   --piece-bg: #fdf6e3;
   --highlight: rgba(31, 111, 67, 0.35);
+  --last-move: rgba(255, 214, 102, 0.55);
   --page-bg: #f5f1ea;
   --text: #222;
   font-family: system-ui, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;

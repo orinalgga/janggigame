@@ -26,6 +26,11 @@ public final class GameState {
         return board.copy();
     }
 
+    /** 복사하지 않은 판. 엔진 안에서 읽기만 할 때 쓴다. */
+    Board boardView() {
+        return board;
+    }
+
     public Side sideToMove() {
         return sideToMove;
     }
@@ -39,7 +44,8 @@ public final class GameState {
         return isGameOver() ? List.of() : candidateMoves();
     }
 
-    private List<Move> candidateMoves() {
+    /** 끝났는지 따지지 않은 합법 수. 엔진이 탐색 중에 쓴다. */
+    List<Move> candidateMoves() {
         List<Move> legal = new ArrayList<>();
         for (Move m : MoveGenerator.pseudoLegalMoves(board, sideToMove)) {
             if (!leavesGeneralAttacked(m)) {
@@ -77,6 +83,11 @@ public final class GameState {
         if (!isLegal(move)) {
             throw new IllegalMoveException(move);
         }
+        return next(move);
+    }
+
+    /** 합법성 검사 없이 수를 둔다. 엔진이 이미 합법 수만 넘길 때 쓴다. */
+    GameState next(Move move) {
         return new GameState(play(board, move), sideToMove.opponent());
     }
 
@@ -140,7 +151,7 @@ public final class GameState {
 
     private static boolean isGeneralAttacked(Board b, Side side) {
         return b.findGeneral(side)
-                .map(g -> MoveGenerator.isAttacked(b, g, side.opponent()))
+                .map(g -> Attacks.onGeneral(b, g, side.opponent()))
                 .orElse(true);
     }
 
