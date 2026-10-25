@@ -223,16 +223,32 @@ async function pass() {
   await play({ from: null, to: null })
 }
 
+/** 서버 응답 전에 보여 줄 국면: 알 하나를 옮기고 잡힌 알을 뺀다. 둘 수 있는 수는 비운다. */
+function withMove(g: GameDto, from: SquareDto, to: SquareDto): GameDto {
+  const pieces = g.pieces
+    .filter((p) => !(p.x === to.x && p.y === to.y))
+    .map((p) => (p.x === from.x && p.y === from.y ? { ...p, x: to.x, y: to.y } : p))
+  return { ...g, pieces, legalMoves: [], lastMove: { from, to } }
+}
+
 async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
   if (!game.value) return
+  const before = game.value
   selected.value = null
   thinking.value = game.value.aiSide !== null
   busy.value = true
   try {
-    game.value = await api.move(game.value.id, move)
+    const sent = api.move(game.value.id, move)
+    // AI 대국은 응답에 AI의 수까지 실려 오므로, 내 수를 먼저 판에 올려 움직임이 보이게 한다.
+    if (game.value.aiSide !== null && move.from && move.to) {
+      game.value = withMove(game.value, move.from, move.to)
+      await new Promise((r) => setTimeout(r, 350))
+    }
+    game.value = await sent
     error.value = ''
     if (game.value.result !== 'ONGOING') void gameEnded()
   } catch (e) {
+    game.value = before
     error.value = (e as Error).message
   } finally {
     thinking.value = false
