@@ -175,7 +175,21 @@ const checkedGeneral = computed(() =>
   props.check ? props.pieces.find((p) => p.type === 'GENERAL' && p.side === props.check) : undefined,
 )
 
-/** 장군이 걸리면 알이 도착한 뒤 판 위에 將軍 도장이 찍히고 판이 흔들린다. 외통이면 더 크게. */
+/** 만화의 깜짝 폭발 말풍선. 뾰족한 끝의 길이를 조금씩 달리해 손으로 그린 느낌을 낸다. */
+function burst(spikes: number, outer: number, inner: number) {
+  const pts: string[] = []
+  for (let k = 0; k < spikes * 2; k++) {
+    const jitter = k % 2 === 0 ? [1, 0.86, 0.95, 0.8, 1.04, 0.9][(k / 2) % 6] : 1
+    const r = (k % 2 === 0 ? outer : inner) * jitter
+    const a = (k * Math.PI) / spikes - Math.PI / 2
+    pts.push(`${(r * Math.cos(a)).toFixed(1)},${(r * Math.sin(a)).toFixed(1)}`)
+  }
+  return pts.join(' ')
+}
+const BURST = burst(14, 98, 66)
+const BURST_INNER = burst(14, 82, 56)
+
+/** 장군이 걸리면 알이 도착한 뒤 화면 가운데에 빨간 폭발 말풍선이 터지고 판이 흔들린다. 외통이면 더 크게. */
 const wrap = ref<HTMLDivElement | null>(null)
 const stamp = ref<{ id: number; mate: boolean } | null>(null)
 let stampId = 0
@@ -203,8 +217,7 @@ watch(
         )
       }
     }, MOVE_MS * 0.8)
-    // 외통 도장은 대국이 끝났으므로 남겨 두고, 장군 도장만 잠시 뒤 걷는다.
-    if (!mate) setTimeout(() => stamp.value?.id === id && (stamp.value = null), MOVE_MS * 0.8 + 1500)
+    setTimeout(() => stamp.value?.id === id && (stamp.value = null), MOVE_MS * 0.8 + (mate ? 2600 : 1400))
   },
   { flush: 'post' },
 )
@@ -356,6 +369,7 @@ watch(
       <polygon v-if="last" :points="octagon(last.to.x, last.to.y, last.r + 4)" class="last-ring" :class="last.side" />
 
       <g v-if="checkedGeneral" class="check-ring" :class="{ mate }">
+        <polygon :points="octagon(px(checkedGeneral.x), py(checkedGeneral.y), RADIUS.GENERAL + 7)" class="glow" />
         <polygon :points="octagon(px(checkedGeneral.x), py(checkedGeneral.y), RADIUS.GENERAL + 7)" />
         <polygon :points="octagon(px(checkedGeneral.x), py(checkedGeneral.y), RADIUS.GENERAL + 7)" class="echo" />
       </g>
@@ -370,10 +384,26 @@ watch(
         <circle v-else :cx="px(t.x)" :cy="py(t.y)" r="9" class="target" @click="clickPoint(t.x, t.y)" />
       </template>
     </svg>
-    <div v-if="stamp" :key="stamp.id" class="stamp" :class="{ mate: stamp.mate }" role="status">
-      <span class="seal">將軍</span>
-      <span v-if="stamp.mate" class="caption">외통</span>
-    </div>
+    <Teleport to="body">
+      <div v-if="stamp" :key="stamp.id" class="shock" :class="{ mate: stamp.mate }" role="status">
+        <div class="speed-lines" aria-hidden="true" />
+        <div class="burst">
+          <svg viewBox="-110 -110 220 220" aria-hidden="true">
+            <defs>
+              <radialGradient id="burst-fill" cx="0" cy="0" r="100" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#ff5a3c" />
+                <stop offset="0.6" stop-color="#e3101a" />
+                <stop offset="1" stop-color="#a1000a" />
+              </radialGradient>
+            </defs>
+            <polygon :points="BURST" class="burst-shadow" transform="translate(6 8)" />
+            <polygon :points="BURST" fill="url(#burst-fill)" class="burst-edge" />
+            <polygon :points="BURST_INNER" class="burst-inner" />
+          </svg>
+          <span class="shout">{{ stamp.mate ? '외통!!' : '장군!!' }}</span>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -557,12 +587,15 @@ watch(
   pointer-events: none;
   transform-box: fill-box;
   transform-origin: center;
-  filter: drop-shadow(0 0 6px rgba(200, 20, 20, 0.7));
   animation: alarm 0.9s ease-in-out infinite;
+}
+.check-ring .glow {
+  stroke-width: 12;
+  stroke-opacity: 0.25;
+  stroke-linejoin: round;
 }
 .check-ring .echo {
   stroke-width: 2;
-  filter: none;
   animation: echo 0.9s ease-out infinite;
 }
 .check-ring.mate polygon {
@@ -585,93 +618,114 @@ watch(
     transform: scale(1.7);
   }
 }
-.stamp {
+.shock {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  animation: shock-out 0.35s ease-in 1.05s forwards;
+}
+.shock.mate {
+  animation-delay: 2.25s;
+}
+.speed-lines {
+  position: absolute;
+  inset: -20%;
+  background: repeating-conic-gradient(from 0deg, rgba(190, 0, 10, 0.55) 0deg 1.6deg, transparent 1.6deg 7deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 18%, #000 60%);
+  mask-image: radial-gradient(circle, transparent 18%, #000 60%);
+  animation: lines-in 0.25s ease-out both;
+}
+.mate .speed-lines {
+  background:
+    radial-gradient(circle, transparent 30%, rgba(40, 0, 0, 0.5) 100%),
+    repeating-conic-gradient(from 0deg, rgba(150, 0, 10, 0.7) 0deg 2deg, transparent 2deg 6deg);
+}
+.burst {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(78vw, 420px);
+  aspect-ratio: 1;
+  animation: burst-pop 0.5s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.mate .burst {
+  width: min(90vw, 520px);
+}
+.burst svg {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  pointer-events: none;
-  border-radius: 10px;
-  background: radial-gradient(circle, rgba(120, 0, 0, 0.18), rgba(120, 0, 0, 0) 65%);
-  animation: veil 1.5s ease-out both;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
 }
-.stamp.mate {
-  background: radial-gradient(circle, rgba(60, 0, 0, 0.45), rgba(40, 0, 0, 0.25) 75%);
-  animation: veil-in 0.4s ease-out both;
+.burst-shadow {
+  fill: rgba(40, 0, 0, 0.35);
 }
-.seal {
-  padding: 6px 22px 10px;
-  border: 6px solid currentColor;
-  border-radius: 14px;
-  color: #c8161d;
-  background: rgba(255, 246, 232, 0.88);
-  font-family: 'Noto Serif KR', serif;
-  font-weight: 900;
-  font-size: clamp(3rem, 15vw, 6rem);
-  line-height: 1.1;
-  letter-spacing: 0.08em;
-  box-shadow:
-    0 0 0 3px rgba(255, 246, 232, 0.88),
-    0 12px 30px rgba(80, 0, 0, 0.45);
-  animation: slam 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+.burst-edge {
+  stroke: #3d0004;
+  stroke-width: 6;
+  stroke-linejoin: round;
 }
-.mate .seal {
-  font-size: clamp(3.6rem, 19vw, 7.5rem);
-  color: #fff4e6;
-  background: #b0131a;
-  border-color: #fff4e6;
+.burst-inner {
+  fill: none;
+  stroke: rgba(255, 236, 200, 0.85);
+  stroke-width: 3;
+  stroke-linejoin: round;
 }
-.caption {
-  padding: 4px 16px;
-  border-radius: 999px;
+.shout {
+  position: relative;
   color: #fff;
-  background: rgba(30, 0, 0, 0.75);
-  font-weight: 800;
-  font-size: 1.3rem;
-  letter-spacing: 0.3em;
-  animation: rise-in 0.4s 0.35s ease-out both;
+  font-weight: 900;
+  font-size: min(15vw, 5.2rem);
+  letter-spacing: -0.04em;
+  transform: rotate(-8deg);
+  -webkit-text-stroke: 3px #3d0004;
+  paint-order: stroke fill;
+  text-shadow: 0 5px 0 #3d0004;
+  animation: shout-shake 0.5s 0.35s ease-in-out 2;
 }
-@keyframes slam {
+.mate .shout {
+  font-size: min(18vw, 6.4rem);
+}
+@keyframes burst-pop {
   from {
     opacity: 0;
-    transform: scale(2.6) rotate(-14deg);
+    transform: scale(0.1) rotate(-30deg);
   }
   to {
     opacity: 1;
-    transform: scale(1) rotate(-6deg);
+    transform: scale(1) rotate(0);
   }
 }
-@keyframes veil {
-  0%,
-  70% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes veil-in {
+@keyframes lines-in {
   from {
     opacity: 0;
+    transform: scale(1.4);
   }
 }
-@keyframes rise-in {
-  from {
+@keyframes shout-shake {
+  25% {
+    transform: rotate(-11deg) translate(-3px, 1px);
+  }
+  75% {
+    transform: rotate(-5deg) translate(3px, -1px);
+  }
+}
+@keyframes shock-out {
+  to {
     opacity: 0;
-    transform: translateY(10px);
+    transform: scale(1.15);
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .check-ring polygon,
-  .seal,
-  .caption {
+  .speed-lines,
+  .burst,
+  .shout {
     animation: none;
-  }
-  .seal {
-    transform: rotate(-6deg);
   }
 }
 .last {
