@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -54,24 +55,49 @@ class AuthTest {
 
     @Test
     void meReturnsLoggedInUser() throws Exception {
-        User user = users.loginWith("google", "sub-1", "kim@example.com", "김장기");
+        User user = users.loginWith("google", "sub-1", "kim@example.com");
         mvc.perform(get("/api/me").header("Authorization", "Bearer " + jwt.issue(user.getId())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nickname").value("김장기"))
+                .andExpect(jsonPath("$.nickname").value("장기꾼" + user.getId()))
+                .andExpect(jsonPath("$.nicknameChosen").value(false))
                 .andExpect(jsonPath("$.rating").value(1200));
     }
 
     @Test
+    void chooseNickname() throws Exception {
+        String me = "Bearer " + jwt.issue(users.loginWith("google", "nick-1", null).getId());
+        String other = "Bearer " + jwt.issue(users.loginWith("google", "nick-2", null).getId());
+        mvc.perform(put("/api/me/nickname").header("Authorization", me)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nickname\":\" 포장마차 \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("포장마차"))
+                .andExpect(jsonPath("$.nicknameChosen").value(true));
+        // 내 닉네임을 다시 저장하는 건 괜찮다.
+        mvc.perform(put("/api/me/nickname").header("Authorization", me)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nickname\":\"포장마차\"}"))
+                .andExpect(status().isOk());
+        for (String bad : new String[] {"포장마차", "가", "열세글자가넘는아주긴닉네임", "공 백", "장기꾼7", "운영자", "ADMIN"}) {
+            mvc.perform(put("/api/me/nickname").header("Authorization", other)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"nickname\":\"" + bad + "\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").exists());
+        }
+        mvc.perform(put("/api/me/nickname").contentType(MediaType.APPLICATION_JSON).content("{\"nickname\":\"손님\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void sameSocialAccountIsSameUser() {
-        User first = users.loginWith("google", "sub-2", "lee@example.com", null);
-        User again = users.loginWith("google", "sub-2", "lee@example.com", "바뀐 이름");
+        User first = users.loginWith("google", "sub-2", "lee@example.com");
+        User again = users.loginWith("google", "sub-2", "lee@example.com");
         assertEquals(first.getId(), again.getId());
-        assertEquals("lee", first.getNickname());
+        // 소셜 계정의 이름이나 메일은 닉네임으로 쓰지 않는다.
+        assertEquals("장기꾼" + first.getId(), first.getNickname());
     }
 
     @Test
     void myGamesListOnlyShowsMine() throws Exception {
-        String token = jwt.issue(users.loginWith("google", "sub-3", null, "박").getId());
+        String token = jwt.issue(users.loginWith("google", "sub-3", null).getId());
         String body = mvc.perform(post("/api/games")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -105,7 +131,7 @@ class AuthTest {
         String location = response.getRedirectedUrl();
         assertTrue(location.startsWith("https://janggi.example/#token="), location);
         long userId = jwt.verify(location.substring(location.indexOf('=') + 1)).orElseThrow();
-        assertEquals("최", users.find(userId).orElseThrow().getNickname());
+        assertEquals("장기꾼" + userId, users.find(userId).orElseThrow().getNickname());
     }
 
     @Test

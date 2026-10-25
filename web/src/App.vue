@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import ChatPanel from './components/ChatPanel.vue'
 import JanggiBoard from './components/JanggiBoard.vue'
 import LobbyView from './components/LobbyView.vue'
+import NicknameDialog from './components/NicknameDialog.vue'
 import PlayerClocks from './components/PlayerClocks.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
@@ -41,6 +42,8 @@ const chat = ref<InstanceType<typeof ChatPanel> | null>(null)
 const me = ref<Me | null>(null)
 const providers = ref<string[]>([])
 const shopOpen = ref(false)
+/** 처음 로그인해 임시 닉네임이면 저절로 열리고, 머리글의 닉네임을 눌러도 열린다. */
+const nicknameOpen = ref(false)
 
 onMounted(async () => {
   auth.takeTokenFromUrl()
@@ -57,6 +60,7 @@ async function loadMe() {
     return null
   })
   setEquipped(me.value?.boardTheme, me.value?.pieceTheme)
+  nicknameOpen.value = me.value?.nicknameChosen === false
   recent.value?.refresh()
 }
 
@@ -319,12 +323,19 @@ async function gameEnded() {
       <button v-if="!game && !replayId && !shopOpen" type="button" class="shop-link" @click="shopOpen = true">상점</button>
       <div v-if="me" class="me">
         <span class="avatar" aria-hidden="true">{{ me.nickname.slice(0, 1) }}</span>
-        <span>{{ me.nickname }}</span>
+        <button type="button" class="nickname" title="닉네임 바꾸기" @click="nicknameOpen = true">{{ me.nickname }}</button>
         <span class="rating">{{ me.rating }}</span>
         <button type="button" class="text-button" @click="logout">로그아웃</button>
       </div>
       <a v-else-if="providers.includes('google')" class="login" :href="auth.loginUrl('google')" @click="auth.openLogin($event, 'google')">구글로 로그인</a>
     </header>
+
+    <NicknameDialog
+      v-if="me && nicknameOpen"
+      :me="me"
+      @saved="(m) => ((me = m), (nicknameOpen = false))"
+      @close="nicknameOpen = false"
+    />
 
     <ReplayView v-if="replayId" :key="replayId" :game-id="replayId" @close="replayId = null" />
 
@@ -420,6 +431,14 @@ main.wide {
   gap: 14px;
   padding: 4px 0 16px;
 }
+.brand,
+.shop-link,
+.nickname,
+.rating,
+.text-button,
+.login {
+  white-space: nowrap;
+}
 .brand {
   font-family: 'Noto Serif KR', serif;
   font-size: 1.3rem;
@@ -463,6 +482,15 @@ main.wide {
   background: var(--accent);
   font-weight: 700;
   font-size: 0.8rem;
+}
+.nickname {
+  font: inherit;
+  font-weight: 600;
+  padding: 2px 4px;
+  border: none;
+  border-bottom: 1px dashed var(--muted);
+  background: none;
+  cursor: pointer;
 }
 .rating {
   padding: 1px 8px;
@@ -605,6 +633,23 @@ main.wide .layout {
 }
 .error {
   color: var(--han-color);
+}
+@media (max-width: 480px) {
+  .top {
+    gap: 8px;
+  }
+  .avatar {
+    display: none;
+  }
+  .me {
+    gap: 6px;
+    min-width: 0;
+  }
+  .nickname {
+    max-width: 7.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 @media (max-width: 860px) {
   main.wide {

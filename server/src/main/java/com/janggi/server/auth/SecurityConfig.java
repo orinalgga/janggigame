@@ -38,7 +38,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         // 상품 목록은 누구나 본다. 사기와 장착은 로그인해야 한다.
                         .requestMatchers(HttpMethod.GET, "/api/shop").permitAll()
-                        .requestMatchers("/api/me", "/api/match", "/api/shop/**").authenticated()
+                        .requestMatchers("/api/me", "/api/me/**", "/api/match", "/api/shop/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(new JwtAuthFilter(jwt), UsernamePasswordAuthenticationFilter.class)

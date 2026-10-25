@@ -34,8 +34,7 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
         OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) auth;
         OAuth2User principal = token.getPrincipal();
         String provider = token.getAuthorizedClientRegistrationId();
-        User user = users.loginWith(provider, principal.getName(),
-                principal.getAttribute("email"), principal.getAttribute("name"));
+        User user = users.loginWith(provider, principal.getName(), principal.getAttribute("email"));
         // 로그인 과정에서만 쓴 세션은 더 필요 없다.
         boolean app = false;
         if (request.getSession(false) != null) {
