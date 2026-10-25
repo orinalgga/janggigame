@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { MoveDto, PieceDto, SquareDto } from '../api'
+import type { MoveDto, PieceDto, Side, SquareDto } from '../api'
 
 const props = defineProps<{
   pieces: PieceDto[]
@@ -9,6 +9,10 @@ const props = defineProps<{
   lastMove: MoveDto | null
   /** true면 한이 아래에 보이도록 판을 돌린다. */
   flipped: boolean
+  /** 장군을 받은 쪽. 장군이 아니면 null. */
+  check?: Side | null
+  /** 외통이면 true. */
+  mate?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -24,9 +28,43 @@ const HEIGHT = PAD * 2 + CELL * 9
 const px = (x: number) => PAD + (props.flipped ? 8 - x : x) * CELL
 const py = (y: number) => PAD + (props.flipped ? y : 9 - y) * CELL
 
-const lastSquares = computed(() => {
+/**
+ * 방금 둔 수. 떠난 자리에 알 모양 발자국, 떠난 곳에서 도착한 곳까지 화살표,
+ * 도착한 알 둘레에 고리를 둔 진영 색으로 그린다.
+ */
+const last = computed(() => {
   const m = props.lastMove
-  return m && m.from && m.to ? [m.from, m.to] : []
+  if (!m?.from || !m.to) return null
+  const mover = props.pieces.find((p) => p.x === m.to!.x && p.y === m.to!.y)
+  if (!mover) return null
+  const r = RADIUS[mover.type]
+  const x1 = px(m.from.x)
+  const y1 = py(m.from.y)
+  const x2 = px(m.to.x)
+  const y2 = py(m.to.y)
+  const len = Math.hypot(x2 - x1, y2 - y1)
+  const ux = (x2 - x1) / len
+  const uy = (y2 - y1) / len
+  // 화살표는 발자국 안쪽에서 시작해 도착한 알 테두리 바로 앞에서 끝난다.
+  const sx = x1 + ux * 10
+  const sy = y1 + uy * 10
+  const tx = x2 - ux * (r + 7)
+  const ty = y2 - uy * (r + 7)
+  const bx = tx - ux * 14
+  const by = ty - uy * 14
+  const head = [
+    [tx, ty],
+    [bx - uy * 8, by + ux * 8],
+    [bx + uy * 8, by - ux * 8],
+  ]
+  return {
+    side: mover.side.toLowerCase(),
+    from: { x: x1, y: y1 },
+    to: { x: x2, y: y2 },
+    r,
+    shaft: { x1: sx, y1: sy, x2: bx, y2: by },
+    head: head.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' '),
+  }
 })
 
 /** 장기알은 팔각형이고, 장 > 차·포·마·상 > 사·졸 순으로 크다. */
@@ -131,171 +169,222 @@ watch(
   },
   { flush: 'post' },
 )
+
+/** 장군을 받은 장. 둘레에 붉은 고리가 맥박치듯 뛴다. */
+const checkedGeneral = computed(() =>
+  props.check ? props.pieces.find((p) => p.type === 'GENERAL' && p.side === props.check) : undefined,
+)
+
+/** 장군이 걸리면 알이 도착한 뒤 판 위에 將軍 도장이 찍히고 판이 흔들린다. 외통이면 더 크게. */
+const wrap = ref<HTMLDivElement | null>(null)
+const stamp = ref<{ id: number; mate: boolean } | null>(null)
+let stampId = 0
+
+watch(
+  () => props.pieces,
+  (_now, before) => {
+    if (!before || !props.check) return
+    const mate = !!props.mate
+    const id = ++stampId
+    setTimeout(() => {
+      stamp.value = { id, mate }
+      navigator.vibrate?.(mate ? [80, 60, 220] : 120)
+      if (!reduceMotion()) {
+        wrap.value?.animate(
+          [
+            { transform: 'translate(0, 0)' },
+            { transform: 'translate(-7px, 2px) rotate(-0.6deg)' },
+            { transform: 'translate(6px, -2px) rotate(0.5deg)' },
+            { transform: 'translate(-4px, 1px)' },
+            { transform: 'translate(2px, 0)' },
+            { transform: 'translate(0, 0)' },
+          ],
+          { duration: mate ? 520 : 380, delay: 120, easing: 'ease-out' },
+        )
+      }
+    }, MOVE_MS * 0.8)
+    // 외통 도장은 대국이 끝났으므로 남겨 두고, 장군 도장만 잠시 뒤 걷는다.
+    if (!mate) setTimeout(() => stamp.value?.id === id && (stamp.value = null), MOVE_MS * 0.8 + 1500)
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>
-  <svg ref="svg" :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" class="board" role="img" aria-label="장기판">
-    <defs>
-      <!-- 나무결: 가로로 길게 늘인 잡음을 판 색에 얹는다. -->
-      <filter id="grain" x="0" y="0" width="100%" height="100%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.004 0.09" numOctaves="3" seed="7" />
-        <feColorMatrix
-          type="matrix"
-          values="0 0 0 0 0.35  0 0 0 0 0.2  0 0 0 0 0.08  0 0 0 0.55 -0.12"
-        />
-        <feComposite in2="SourceGraphic" operator="in" />
-      </filter>
-      <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="var(--board-light)" />
-        <stop offset="1" stop-color="var(--board-dark)" />
-      </linearGradient>
-      <radialGradient id="face" cx="0.4" cy="0.35" r="0.75">
-        <stop offset="0" stop-color="var(--piece-light)" />
-        <stop offset="1" stop-color="var(--piece-dark)" />
-      </radialGradient>
-      <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-        <feDropShadow dx="1.5" dy="2.5" stdDeviation="1.8" flood-color="#3a2108" flood-opacity="0.45" />
-      </filter>
-      <filter id="lift" x="-40%" y="-40%" width="180%" height="180%">
-        <feDropShadow dx="2.5" dy="5" stdDeviation="3" flood-color="#3a2108" flood-opacity="0.5" />
-      </filter>
-    </defs>
+  <div ref="wrap" class="wrap">
+    <svg ref="svg" :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" class="board" role="img" aria-label="장기판">
+      <defs>
+        <!-- 나무결: 가로로 길게 늘인 잡음을 판 색에 얹는다. -->
+        <filter id="grain" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.004 0.09" numOctaves="3" seed="7" />
+          <feColorMatrix
+            type="matrix"
+            values="0 0 0 0 0.35  0 0 0 0 0.2  0 0 0 0 0.08  0 0 0 0.55 -0.12"
+          />
+          <feComposite in2="SourceGraphic" operator="in" />
+        </filter>
+        <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="var(--board-light)" />
+          <stop offset="1" stop-color="var(--board-dark)" />
+        </linearGradient>
+        <radialGradient id="face" cx="0.4" cy="0.35" r="0.75">
+          <stop offset="0" stop-color="var(--piece-light)" />
+          <stop offset="1" stop-color="var(--piece-dark)" />
+        </radialGradient>
+        <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="1.5" dy="2.5" stdDeviation="1.8" flood-color="#3a2108" flood-opacity="0.45" />
+        </filter>
+        <filter id="lift" x="-40%" y="-40%" width="180%" height="180%">
+          <feDropShadow dx="2.5" dy="5" stdDeviation="3" flood-color="#3a2108" flood-opacity="0.5" />
+        </filter>
+      </defs>
 
-    <rect :width="WIDTH" :height="HEIGHT" rx="10" fill="url(#wood)" />
-    <rect :width="WIDTH" :height="HEIGHT" rx="10" fill="var(--board-dark)" filter="url(#grain)" />
-    <rect x="4" y="4" :width="WIDTH - 8" :height="HEIGHT - 8" rx="8" class="frame" />
+      <rect :width="WIDTH" :height="HEIGHT" rx="10" fill="url(#wood)" />
+      <rect :width="WIDTH" :height="HEIGHT" rx="10" fill="var(--board-dark)" filter="url(#grain)" />
+      <rect x="4" y="4" :width="WIDTH - 8" :height="HEIGHT - 8" rx="8" class="frame" />
 
-    <line v-for="y in 10" :key="'h' + y" :x1="px(0)" :x2="px(8)" :y1="py(y - 1)" :y2="py(y - 1)" class="line" />
-    <line v-for="x in 9" :key="'v' + x" :x1="px(x - 1)" :x2="px(x - 1)" :y1="py(0)" :y2="py(9)" class="line" />
-    <line
-      v-for="(d, i) in palaceDiagonals"
-      :key="'p' + i"
-      :x1="px(d[0])"
-      :y1="py(d[1])"
-      :x2="px(d[2])"
-      :y2="py(d[3])"
-      class="line"
-    />
-    <rect :x="px(0) - 6" :y="PAD - 6" :width="CELL * 8 + 12" :height="CELL * 9 + 12" class="border" />
-
-    <rect
-      v-for="(sq, i) in lastSquares"
-      :key="'last' + i"
-      :x="px(sq.x) - 29"
-      :y="py(sq.y) - 29"
-      width="58"
-      height="58"
-      rx="8"
-      class="last"
-      :class="{ to: i === 1 }"
-    />
-
-    <template v-for="y in 10" :key="'row' + y">
-      <circle
-        v-for="x in 9"
-        :key="x"
-        :cx="px(x - 1)"
-        :cy="py(y - 1)"
-        r="28"
-        class="hit"
-        @click="clickPoint(x - 1, y - 1)"
+      <line v-for="y in 10" :key="'h' + y" :x1="px(0)" :x2="px(8)" :y1="py(y - 1)" :y2="py(y - 1)" class="line" />
+      <line v-for="x in 9" :key="'v' + x" :x1="px(x - 1)" :x2="px(x - 1)" :y1="py(0)" :y2="py(9)" class="line" />
+      <line
+        v-for="(d, i) in palaceDiagonals"
+        :key="'p' + i"
+        :x1="px(d[0])"
+        :y1="py(d[1])"
+        :x2="px(d[2])"
+        :y2="py(d[3])"
+        class="line"
       />
-    </template>
+      <rect :x="px(0) - 6" :y="PAD - 6" :width="CELL * 8 + 12" :height="CELL * 9 + 12" class="border" />
 
-    <template v-for="e in effects" :key="'fx' + e.id">
-      <g v-if="e.kind === 'trail'" class="trail" :class="e.piece.side.toLowerCase()">
-        <line :x1="px(e.from.x)" :y1="py(e.from.y)" :x2="px(e.to.x)" :y2="py(e.to.y)" class="streak" />
-        <polygon
-          v-for="k in 3"
-          :key="k"
-          :points="
-            octagon(
-              px(e.from.x) + (px(e.to.x) - px(e.from.x)) * (k - 1) * 0.28,
-              py(e.from.y) + (py(e.to.y) - py(e.from.y)) * (k - 1) * 0.28,
-              RADIUS[e.piece.type],
-            )
-          "
-          class="ghost"
-          :style="{ animationDelay: `${(k - 1) * 70}ms` }"
-        />
+      <g v-if="last" :key="`${last.from.x},${last.from.y}-${last.to.x},${last.to.y}`" class="last" :class="last.side">
+        <rect :x="last.to.x - 29" :y="last.to.y - 29" width="58" height="58" rx="8" class="spot" />
+        <polygon :points="octagon(last.from.x, last.from.y, last.r - 2)" class="footprint" />
+        <line v-bind="last.shaft" class="arrow" />
+        <polygon :points="last.head" class="arrow-head" />
       </g>
-      <polygon
-        v-else-if="e.kind === 'ripple'"
-        :points="octagon(px(e.at.x), py(e.at.y), 30)"
-        class="ripple"
-      />
-    </template>
 
-    <g
-      v-for="e in captures"
-      :key="'cap' + e.id"
-      class="piece captured"
-      :class="e.piece.side.toLowerCase()"
-      filter="url(#shadow)"
-    >
-      <polygon :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type])" class="edge" />
-      <polygon
-        :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type] - 2.5)"
-        fill="url(#face)"
-        class="face"
-      />
-      <text
-        :x="px(e.piece.x)"
-        :y="py(e.piece.y)"
-        :font-size="RADIUS[e.piece.type] * 1.12"
-        dy="0.36em"
-        text-anchor="middle"
+      <template v-for="y in 10" :key="'row' + y">
+        <circle
+          v-for="x in 9"
+          :key="x"
+          :cx="px(x - 1)"
+          :cy="py(y - 1)"
+          r="28"
+          class="hit"
+          @click="clickPoint(x - 1, y - 1)"
+        />
+      </template>
+
+      <template v-for="e in effects" :key="'fx' + e.id">
+        <g v-if="e.kind === 'trail'" class="trail" :class="e.piece.side.toLowerCase()">
+          <line :x1="px(e.from.x)" :y1="py(e.from.y)" :x2="px(e.to.x)" :y2="py(e.to.y)" class="streak" />
+          <polygon
+            v-for="k in 3"
+            :key="k"
+            :points="
+              octagon(
+                px(e.from.x) + (px(e.to.x) - px(e.from.x)) * (k - 1) * 0.28,
+                py(e.from.y) + (py(e.to.y) - py(e.from.y)) * (k - 1) * 0.28,
+                RADIUS[e.piece.type],
+              )
+            "
+            class="ghost"
+            :style="{ animationDelay: `${(k - 1) * 70}ms` }"
+          />
+        </g>
+        <polygon
+          v-else-if="e.kind === 'ripple'"
+          :points="octagon(px(e.at.x), py(e.at.y), 30)"
+          class="ripple"
+        />
+      </template>
+
+      <g
+        v-for="e in captures"
+        :key="'cap' + e.id"
+        class="piece captured"
+        :class="e.piece.side.toLowerCase()"
+        filter="url(#shadow)"
       >
-        {{ e.piece.label }}
-      </text>
-    </g>
+        <polygon :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type])" class="edge" />
+        <polygon
+          :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type] - 2.5)"
+          fill="url(#face)"
+          class="face"
+        />
+        <text
+          :x="px(e.piece.x)"
+          :y="py(e.piece.y)"
+          :font-size="RADIUS[e.piece.type] * 1.12"
+          dy="0.36em"
+          text-anchor="middle"
+        >
+          {{ e.piece.label }}
+        </text>
+      </g>
 
-    <g
-      v-for="p in pieces"
-      :key="`${p.x},${p.y}`"
-      :data-sq="`${p.x},${p.y}`"
-      class="piece"
-      :class="[p.side.toLowerCase(), { selected: isSelected(p) }]"
-      :filter="isSelected(p) ? 'url(#lift)' : 'url(#shadow)'"
-      @click="clickPoint(p.x, p.y)"
-    >
-      <polygon :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type])" class="edge" />
-      <polygon
-        :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type] - 2.5)"
-        fill="url(#face)"
-        class="face"
-      />
-      <polygon
-        :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type] - 6)"
-        class="inlay"
-      />
-      <text
-        :x="px(p.x)"
-        :y="py(p.y) - (isSelected(p) ? 2 : 0)"
-        :font-size="RADIUS[p.type] * 1.12"
-        dy="0.36em"
-        text-anchor="middle"
+      <g
+        v-for="p in pieces"
+        :key="`${p.x},${p.y}`"
+        :data-sq="`${p.x},${p.y}`"
+        class="piece"
+        :class="[p.side.toLowerCase(), { selected: isSelected(p) }]"
+        :filter="isSelected(p) ? 'url(#lift)' : 'url(#shadow)'"
+        @click="clickPoint(p.x, p.y)"
       >
-        {{ p.label }}
-      </text>
-    </g>
+        <polygon :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type])" class="edge" />
+        <polygon
+          :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type] - 2.5)"
+          fill="url(#face)"
+          class="face"
+        />
+        <polygon
+          :points="octagon(px(p.x), py(p.y) - (isSelected(p) ? 2 : 0), RADIUS[p.type] - 6)"
+          class="inlay"
+        />
+        <text
+          :x="px(p.x)"
+          :y="py(p.y) - (isSelected(p) ? 2 : 0)"
+          :font-size="RADIUS[p.type] * 1.12"
+          dy="0.36em"
+          text-anchor="middle"
+        >
+          {{ p.label }}
+        </text>
+      </g>
 
-    <template v-for="t in targets" :key="`t${t.x},${t.y}`">
-      <polygon
-        v-if="occupant(t)"
-        :points="octagon(px(t.x), py(t.y), RADIUS[occupant(t)!.type] + 4)"
-        class="capture"
-        @click="clickPoint(t.x, t.y)"
-      />
-      <circle v-else :cx="px(t.x)" :cy="py(t.y)" r="9" class="target" @click="clickPoint(t.x, t.y)" />
-    </template>
-  </svg>
+      <polygon v-if="last" :points="octagon(last.to.x, last.to.y, last.r + 4)" class="last-ring" :class="last.side" />
+
+      <g v-if="checkedGeneral" class="check-ring" :class="{ mate }">
+        <polygon :points="octagon(px(checkedGeneral.x), py(checkedGeneral.y), RADIUS.GENERAL + 7)" />
+        <polygon :points="octagon(px(checkedGeneral.x), py(checkedGeneral.y), RADIUS.GENERAL + 7)" class="echo" />
+      </g>
+
+      <template v-for="t in targets" :key="`t${t.x},${t.y}`">
+        <polygon
+          v-if="occupant(t)"
+          :points="octagon(px(t.x), py(t.y), RADIUS[occupant(t)!.type] + 4)"
+          class="capture"
+          @click="clickPoint(t.x, t.y)"
+        />
+        <circle v-else :cx="px(t.x)" :cy="py(t.y)" r="9" class="target" @click="clickPoint(t.x, t.y)" />
+      </template>
+    </svg>
+    <div v-if="stamp" :key="stamp.id" class="stamp" :class="{ mate: stamp.mate }" role="status">
+      <span class="seal">將軍</span>
+      <span v-if="stamp.mate" class="caption">외통</span>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.board {
+.wrap {
+  position: relative;
   width: 100%;
   max-width: 560px;
+}
+.board {
+  width: 100%;
   display: block;
   user-select: none;
   border-radius: 10px;
@@ -461,13 +550,174 @@ watch(
     transform: scale(0.3);
   }
 }
+.check-ring polygon {
+  fill: none;
+  stroke: var(--han-color);
+  stroke-width: 4;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px rgba(200, 20, 20, 0.7));
+  animation: alarm 0.9s ease-in-out infinite;
+}
+.check-ring .echo {
+  stroke-width: 2;
+  filter: none;
+  animation: echo 0.9s ease-out infinite;
+}
+.check-ring.mate polygon {
+  stroke-width: 5;
+  animation-duration: 0.6s;
+}
+@keyframes alarm {
+  50% {
+    stroke-opacity: 0.45;
+    transform: scale(1.06);
+  }
+}
+@keyframes echo {
+  from {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+.stamp {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+  border-radius: 10px;
+  background: radial-gradient(circle, rgba(120, 0, 0, 0.18), rgba(120, 0, 0, 0) 65%);
+  animation: veil 1.5s ease-out both;
+}
+.stamp.mate {
+  background: radial-gradient(circle, rgba(60, 0, 0, 0.45), rgba(40, 0, 0, 0.25) 75%);
+  animation: veil-in 0.4s ease-out both;
+}
+.seal {
+  padding: 6px 22px 10px;
+  border: 6px solid currentColor;
+  border-radius: 14px;
+  color: #c8161d;
+  background: rgba(255, 246, 232, 0.88);
+  font-family: 'Noto Serif KR', serif;
+  font-weight: 900;
+  font-size: clamp(3rem, 15vw, 6rem);
+  line-height: 1.1;
+  letter-spacing: 0.08em;
+  box-shadow:
+    0 0 0 3px rgba(255, 246, 232, 0.88),
+    0 12px 30px rgba(80, 0, 0, 0.45);
+  animation: slam 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.mate .seal {
+  font-size: clamp(3.6rem, 19vw, 7.5rem);
+  color: #fff4e6;
+  background: #b0131a;
+  border-color: #fff4e6;
+}
+.caption {
+  padding: 4px 16px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(30, 0, 0, 0.75);
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: 0.3em;
+  animation: rise-in 0.4s 0.35s ease-out both;
+}
+@keyframes slam {
+  from {
+    opacity: 0;
+    transform: scale(2.6) rotate(-14deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-6deg);
+  }
+}
+@keyframes veil {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes veil-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .check-ring polygon,
+  .seal,
+  .caption {
+    animation: none;
+  }
+  .seal {
+    transform: rotate(-6deg);
+  }
+}
 .last {
+  pointer-events: none;
+  --mover: var(--han-color);
+}
+.last.cho,
+.last-ring.cho {
+  --mover: var(--cho-color);
+}
+.last {
+  animation: last-in 0.3s 0.22s ease-out both;
+}
+@keyframes last-in {
+  from {
+    opacity: 0;
+  }
+}
+.last .spot {
   fill: var(--last-move);
 }
-.last.to {
+.last .footprint {
+  fill: var(--mover);
+  fill-opacity: 0.12;
+  stroke: var(--mover);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 5;
+  stroke-opacity: 0.85;
+}
+.last .arrow {
+  stroke: var(--mover);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-opacity: 0.55;
+}
+.last .arrow-head {
+  fill: var(--mover);
+  fill-opacity: 0.75;
+}
+.last-ring {
+  --mover: var(--han-color);
   fill: none;
-  stroke: var(--last-move-strong);
+  stroke: var(--mover);
   stroke-width: 3;
+  stroke-opacity: 0.9;
+  pointer-events: none;
 }
 .target {
   fill: var(--highlight);
