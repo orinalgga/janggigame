@@ -153,6 +153,16 @@ export interface AdminUserPage {
   total: number
 }
 
+export interface AdminLog {
+  at: string
+  adminId: number
+  admin: string
+  action: 'RENAME' | 'BAN' | 'UNBAN' | 'GRANT'
+  targetId: number | null
+  target: string | null
+  detail: string | null
+}
+
 export interface AdminOrder {
   orderId: string
   userId: number
@@ -282,6 +292,7 @@ export const api = {
     unban: (id: number) => request<AdminUser>(`/api/admin/users/${id}/ban`, undefined, 'DELETE'),
     grant: (id: number, itemId: string) => request<AdminUser>(`/api/admin/users/${id}/items`, { itemId }),
     orders: () => request<AdminOrder[]>('/api/admin/orders'),
+    logs: () => request<AdminLog[]>('/api/admin/logs'),
   },
 }
 

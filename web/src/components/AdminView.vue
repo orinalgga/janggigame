@@ -1,17 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type ShopItem } from '../api'
+import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type ShopItem } from '../api'
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-type Tab = 'stats' | 'users' | 'orders'
+type Tab = 'stats' | 'users' | 'orders' | 'logs'
 const TABS: { value: Tab; label: string }[] = [
   { value: 'stats', label: '현황' },
   { value: 'users', label: '회원' },
   { value: 'orders', label: '주문' },
+  { value: 'logs', label: '기록' },
 ]
+const ACTION: Record<AdminLog['action'], string> = {
+  RENAME: '닉네임 변경',
+  BAN: '이용 정지',
+  UNBAN: '정지 해제',
+  GRANT: '테마 지급',
+}
 const STATUS: Record<AdminOrder['status'], string> = { PENDING: '결제 전', PAID: '결제 완료', FAILED: '실패' }
 
 const tab = ref<Tab>('stats')
@@ -22,6 +29,7 @@ const stats = ref<AdminStats | null>(null)
 const query = ref('')
 const page = ref<AdminUserPage | null>(null)
 const orders = ref<AdminOrder[]>([])
+const logs = ref<AdminLog[]>([])
 const catalog = ref<ShopItem[]>([])
 
 /** 펼쳐서 손보는 중인 회원과 입력 칸. */
@@ -58,6 +66,10 @@ async function search(p = 0) {
   page.value = (await run(() => api.admin.users(query.value, p))) ?? page.value
 }
 
+async function loadLogs() {
+  logs.value = (await run(api.admin.logs)) ?? logs.value
+}
+
 async function loadOrders() {
   orders.value = (await run(api.admin.orders)) ?? orders.value
 }
@@ -68,6 +80,7 @@ function show(t: Tab) {
   if (t === 'stats') void loadStats()
   if (t === 'users' && !page.value) void search()
   if (t === 'orders') void loadOrders()
+  if (t === 'logs') void loadLogs()
 }
 
 function toggle(u: AdminUser) {
@@ -198,6 +211,31 @@ const cards = computed(() => {
           다음
         </button>
       </div>
+    </div>
+
+    <div v-else-if="tab === 'logs'" class="orders">
+      <p v-if="!logs.length && !busy" class="count">아직 기록이 없어요.</p>
+      <table v-else>
+        <thead>
+          <tr>
+            <th>때</th>
+            <th>관리자</th>
+            <th>한 일</th>
+            <th>대상</th>
+            <th>내용</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(l, i) in logs" :key="i">
+            <td>{{ date(l.at) }}</td>
+            <td>{{ l.admin }}</td>
+            <td><span class="status" :class="{ failed: l.action === 'BAN' }">{{ ACTION[l.action] }}</span></td>
+            <td>{{ l.target ?? '-' }} <small v-if="l.targetId">#{{ l.targetId }}</small></td>
+            <td>{{ l.detail ?? '' }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">최근 100건이에요. 기록은 지울 수 없어요.</p>
     </div>
 
     <div v-else class="orders">

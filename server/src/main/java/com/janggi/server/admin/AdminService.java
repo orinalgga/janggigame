@@ -22,7 +22,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -53,6 +55,10 @@ public class AdminService {
     public record UserPage(List<UserRow> users, int page, int totalPages, long total) {
     }
 
+    public record LogRow(OffsetDateTime at, long adminId, String admin, AdminLog.Action action, Long targetId,
+            String target, String detail) {
+    }
+
     public record OrderRow(String orderId, long userId, String nickname, String itemId, String itemTitle,
             int amount, String provider, Purchase.Status status, OffsetDateTime createdAt, OffsetDateTime paidAt) {
     }
@@ -65,10 +71,11 @@ public class AdminService {
     private final PurchaseRepository purchases;
     private final OwnedItemRepository owned;
     private final MatchService match;
+    private final AdminLogRepository logs;
 
     public AdminService(@Value("${janggi.admin-emails:}") String adminEmails, UserRepository users,
             UserService userService, AuthIdentityRepository identities, GameRecordRepository games,
-            PurchaseRepository purchases, OwnedItemRepository owned, MatchService match) {
+            PurchaseRepository purchases, OwnedItemRepository owned, MatchService match, AdminLogRepository logs) {
         this.adminEmails = Arrays.stream(adminEmails.split(","))
                 .map(e -> e.strip().toLowerCase(Locale.ROOT))
                 .filter(e -> !e.isEmpty())
@@ -80,6 +87,7 @@ public class AdminService {
         this.purchases = purchases;
         this.owned = owned;
         this.match = match;
+        this.logs = logs;
     }
 
     @Transactional(readOnly = true)
@@ -119,12 +127,15 @@ public class AdminService {
     }
 
     @Transactional
-    public UserRow rename(long userId, String nickname) {
-        return row(userService.changeNickname(userId, nickname));
+    public UserRow rename(long adminId, long userId, String nickname) {
+        String before = user(userId).getNickname();
+        User user = userService.changeNickname(userId, nickname);
+        log(adminId, AdminLog.Action.RENAME, userId, before + " → " + user.getNickname());
+        return row(user);
     }
 
     @Transactional
-    public UserRow ban(long userId, String reason) {
+    public UserRow ban(long adminId, long userId, String reason) {
         User user = user(userId);
         if (isAdmin(userId)) {
             throw new AdminException.BadRequest("관리자는 정지할 수 없어요");
@@ -132,26 +143,49 @@ public class AdminService {
         String r = reason == null || reason.isBlank() ? "운영 정책 위반" : reason.strip();
         user.ban(r.length() > MAX_REASON ? r.substring(0, MAX_REASON) : r, OffsetDateTime.now());
         match.leave(userId);
+        log(adminId, AdminLog.Action.BAN, userId, user.getBanReason());
         return row(user);
     }
 
     @Transactional
-    public UserRow unban(long userId) {
+    public UserRow unban(long adminId, long userId) {
         User user = user(userId);
         user.unban();
+        log(adminId, AdminLog.Action.UNBAN, userId, null);
         return row(user);
     }
 
     /** 결제 없이 테마를 넣어 준다(보상, 환불 대신 등). */
     @Transactional
-    public UserRow grant(long userId, String itemId) {
+    public UserRow grant(long adminId, long userId, String itemId) {
         User user = user(userId);
         ShopItem item = ShopItem.byId(itemId).orElseThrow(() -> new AdminException.BadRequest("없는 상품입니다"));
         if (item.free() || owned.existsByUserIdAndItemId(userId, item.id())) {
             throw new AdminException.BadRequest("이미 가지고 있는 상품입니다");
         }
         owned.save(new OwnedItem(userId, item.id(), OffsetDateTime.now()));
+        log(adminId, AdminLog.Action.GRANT, userId, item.title());
         return row(user);
+    }
+
+    /** 최근 관리자 작업 100건. 닉네임은 지금 닉네임이다. */
+    @Transactional(readOnly = true)
+    public List<LogRow> logs() {
+        List<AdminLog> list = logs.findTop100ByOrderByCreatedAtDescIdDesc();
+        Map<Long, String> names = users.findAllById(list.stream()
+                        .flatMap(l -> Stream.of(l.getAdminId(), l.getTargetUserId()))
+                        .filter(Objects::nonNull).distinct().toList())
+                .stream().collect(Collectors.toMap(User::getId, User::getNickname, (a, b) -> a));
+        return list.stream()
+                .map(l -> new LogRow(l.getCreatedAt(), l.getAdminId(), names.getOrDefault(l.getAdminId(), "?"),
+                        l.getAction(), l.getTargetUserId(),
+                        l.getTargetUserId() == null ? null : names.getOrDefault(l.getTargetUserId(), "?"),
+                        l.getDetail()))
+                .toList();
+    }
+
+    private void log(long adminId, AdminLog.Action action, long targetUserId, String detail) {
+        logs.save(new AdminLog(adminId, action, targetUserId, detail, OffsetDateTime.now()));
     }
 
     @Transactional(readOnly = true)
@@ -172,7 +206,7 @@ public class AdminService {
 
     private UserRow row(User u) {
         List<AuthIdentity> ids = identities.findByUserId(u.getId());
-        List<String> emails = ids.stream().map(AuthIdentity::getEmail).filter(e -> e != null).toList();
+        List<String> emails = ids.stream().map(AuthIdentity::getEmail).filter(Objects::nonNull).toList();
         List<String> items = owned.findByUserId(u.getId()).stream().map(OwnedItem::getItemId).toList();
         return new UserRow(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(), Grade.name(u.getRating()),
                 u.getCreatedAt(),

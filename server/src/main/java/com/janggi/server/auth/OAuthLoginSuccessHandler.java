@@ -34,7 +34,10 @@ public class OAuthLoginSuccessHandler implements AuthenticationSuccessHandler {
         OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) auth;
         OAuth2User principal = token.getPrincipal();
         String provider = token.getAuthorizedClientRegistrationId();
-        User user = users.loginWith(provider, principal.getName(), principal.getAttribute("email"));
+        // 확인되지 않은 메일은 남기지 않는다. 관리자는 메일로 정하므로, 남의 메일을 사칭해 관리자가 될 수 없게 한다.
+        String email = Boolean.TRUE.equals(principal.getAttribute("email_verified"))
+                ? principal.getAttribute("email") : null;
+        User user = users.loginWith(provider, principal.getName(), email);
         // 로그인 과정에서만 쓴 세션은 더 필요 없다.
         boolean app = false;
         if (request.getSession(false) != null) {

@@ -89,6 +89,16 @@ class AdminTest {
         mvc.perform(delete("/api/admin/users/" + target.getId() + "/ban").header("Authorization", boss))
                 .andExpect(jsonPath("$.banned").value(false));
         mvc.perform(get("/api/shop").header("Authorization", targetToken)).andExpect(status().isOk());
+
+        // 한 일은 최근 것부터 기록에 남는다.
+        mvc.perform(get("/api/admin/logs").header("Authorization", boss))
+                .andExpect(jsonPath("$[0].action").value("UNBAN"))
+                .andExpect(jsonPath("$[1].action").value("BAN"))
+                .andExpect(jsonPath("$[1].detail").value("욕설"))
+                .andExpect(jsonPath("$[2].action").value("GRANT"))
+                .andExpect(jsonPath("$[3].action").value("RENAME"))
+                .andExpect(jsonPath("$[3].target").value("바뀐이름"));
+        mvc.perform(get("/api/admin/logs").header("Authorization", targetToken)).andExpect(status().isForbidden());
     }
 
     @Test

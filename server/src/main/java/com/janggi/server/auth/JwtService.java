@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Optional;
 import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,8 +23,21 @@ public class JwtService {
 
     private final SecretKey key;
 
-    public JwtService(@Value("${janggi.jwt.secret:}") String secret) {
-        byte[] bytes = (secret == null || secret.isBlank() ? DEV_SECRET : secret).getBytes(StandardCharsets.UTF_8);
+    @Autowired
+    public JwtService(@Value("${janggi.jwt.secret:}") String secret, @Value("${spring.datasource.url:}") String dbUrl) {
+        this(secret, !dbUrl.startsWith("jdbc:h2:"));
+    }
+
+    /**
+     * 개발용 키는 저장소에 공개돼 있어 누구나 아무 회원(관리자 포함)의 토큰을 만들 수 있다.
+     * 그래서 운영 DB(H2가 아닌 DB)를 쓸 때는 개발용 키로 켜지지 않는다.
+     */
+    JwtService(String secret, boolean production) {
+        boolean dev = secret == null || secret.isBlank() || secret.equals(DEV_SECRET);
+        if (dev && production) {
+            throw new IllegalStateException("운영 DB를 쓸 때는 JANGGI_JWT_SECRET에 32자 이상 임의 문자열을 넣어야 합니다");
+        }
+        byte[] bytes = (dev ? DEV_SECRET : secret).getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             throw new IllegalStateException("janggi.jwt.secret은 32바이트 이상이어야 합니다");
         }
