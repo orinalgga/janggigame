@@ -203,23 +203,22 @@ watch(
     setTimeout(() => {
       stamp.value = { id, mate }
       navigator.vibrate?.(mate ? [80, 60, 220] : 120)
-      if (!reduceMotion()) {
-        // 판만이 아니라 화면 전체(#app)가 흔들린다. 터지는 말풍선은 body에 따로 있어 함께 흔들리지 않는다.
-        const k = mate ? 1.6 : 1
-        ;(document.getElementById('app') ?? wrap.value)?.animate(
-          [
-            { transform: 'translate(0, 0)' },
-            { transform: `translate(${-14 * k}px, ${5 * k}px) rotate(${-0.8 * k}deg)` },
-            { transform: `translate(${12 * k}px, ${-6 * k}px) rotate(${0.7 * k}deg)` },
-            { transform: `translate(${-10 * k}px, ${3 * k}px) rotate(${-0.4 * k}deg)` },
-            { transform: `translate(${8 * k}px, ${-3 * k}px)` },
-            { transform: `translate(${-5 * k}px, ${2 * k}px)` },
-            { transform: `translate(${3 * k}px, 0)` },
-            { transform: 'translate(0, 0)' },
-          ],
-          { duration: mate ? 750 : 520, delay: 80, easing: 'ease-out' },
-        )
-      }
+      // 판만이 아니라 화면 전체(#app)가 흔들린다. 터지는 말풍선은 body에 따로 있어 함께 흔들리지 않는다.
+      // 장군은 꼭 알아차려야 하므로 OS의 '애니메이션 줄이기' 설정과 상관없이 흔든다.
+      const k = mate ? 1.6 : 1
+      ;(document.getElementById('app') ?? wrap.value)?.animate(
+        [
+          { transform: 'translate(0, 0)' },
+          { transform: `translate(${-14 * k}px, ${5 * k}px) rotate(${-0.8 * k}deg)` },
+          { transform: `translate(${12 * k}px, ${-6 * k}px) rotate(${0.7 * k}deg)` },
+          { transform: `translate(${-10 * k}px, ${3 * k}px) rotate(${-0.4 * k}deg)` },
+          { transform: `translate(${8 * k}px, ${-3 * k}px)` },
+          { transform: `translate(${-5 * k}px, ${2 * k}px)` },
+          { transform: `translate(${3 * k}px, 0)` },
+          { transform: 'translate(0, 0)' },
+        ],
+        { duration: mate ? 750 : 520, delay: 80, easing: 'ease-out' },
+      )
     }, MOVE_MS * 0.8)
     setTimeout(() => stamp.value?.id === id && (stamp.value = null), MOVE_MS * 0.8 + (mate ? 2600 : 1400))
   },
@@ -725,10 +724,7 @@ watch(
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .check-ring polygon,
-  .speed-lines,
-  .burst,
-  .shout {
+  .check-ring polygon {
     animation: none;
   }
 }
