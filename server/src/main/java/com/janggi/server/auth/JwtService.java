@@ -17,11 +17,13 @@ import org.springframework.stereotype.Service;
 public class JwtService {
 
     private static final Duration LIFETIME = Duration.ofDays(30);
+    /** application.yml의 개발용 기본값과 같다. .env에 JANGGI_JWT_SECRET=만 있고 값이 비어도 서버가 뜨게 한다. */
+    private static final String DEV_SECRET = "local-dev-secret-change-me-0123456789";
 
     private final SecretKey key;
 
-    public JwtService(@Value("${janggi.jwt.secret}") String secret) {
-        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+    public JwtService(@Value("${janggi.jwt.secret:}") String secret) {
+        byte[] bytes = (secret == null || secret.isBlank() ? DEV_SECRET : secret).getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) {
             throw new IllegalStateException("janggi.jwt.secret은 32바이트 이상이어야 합니다");
         }
