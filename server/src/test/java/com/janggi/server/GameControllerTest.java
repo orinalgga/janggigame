@@ -59,6 +59,35 @@ class GameControllerTest {
     }
 
     @Test
+    void aiRepliesAfterHumanMove() throws Exception {
+        String body = mvc.perform(post("/api/games")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiSide\":\"HAN\",\"aiLevel\":\"BEGINNER\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sideToMove").value("CHO"))
+                .andReturn().getResponse().getContentAsString();
+        String id = json.readTree(body).get("id").asText();
+
+        mvc.perform(post("/api/games/" + id + "/moves")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"from\":{\"x\":0,\"y\":3},\"to\":{\"x\":1,\"y\":3}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sideToMove").value("CHO"))
+                .andExpect(jsonPath("$.aiSide").value("HAN"))
+                .andExpect(jsonPath("$.lastMove").exists());
+    }
+
+    @Test
+    void aiMovesFirstWhenPlayingCho() throws Exception {
+        mvc.perform(post("/api/games")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiSide\":\"CHO\",\"aiLevel\":\"BEGINNER\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sideToMove").value("HAN"))
+                .andExpect(jsonPath("$.lastMove.from").exists());
+    }
+
+    @Test
     void unknownGameIs404() throws Exception {
         mvc.perform(get("/api/games/nope")).andExpect(status().isNotFound());
     }

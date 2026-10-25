@@ -1,5 +1,6 @@
 package com.janggi.server.game;
 
+import com.janggi.core.Engine;
 import com.janggi.core.GameResult;
 import com.janggi.core.GameState;
 import com.janggi.core.Move;
@@ -18,7 +19,10 @@ public record GameDto(
         boolean bikjang,
         GameResult result,
         double choScore,
-        double hanScore) {
+        double hanScore,
+        Side aiSide,
+        Engine.Level aiLevel,
+        MoveDto lastMove) {
 
     public record PieceDto(int x, int y, String side, String type, String label) {
     }
@@ -46,7 +50,8 @@ public record GameDto(
         }
     }
 
-    static GameDto from(String id, GameState state) {
+    static GameDto from(String id, GameSession session) {
+        GameState state = session.state();
         List<PieceDto> pieces = new ArrayList<>();
         for (int y = 0; y < Square.RANKS; y++) {
             for (int x = 0; x < Square.FILES; x++) {
@@ -66,7 +71,10 @@ public record GameDto(
                 state.isBikjang(),
                 state.result(),
                 state.score(Side.CHO),
-                state.score(Side.HAN));
+                state.score(Side.HAN),
+                session.aiSide(),
+                session.aiLevel(),
+                session.lastMove() == null ? null : MoveDto.from(session.lastMove()));
     }
 
     /** 장기알에 쓰는 한자. 초는 장(將)이 아닌 초(楚), 한은 한(漢)을 쓴다. */
