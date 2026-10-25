@@ -22,8 +22,11 @@ const status = computed(() => {
   const g = game.value
   if (!g) return ''
   const turn = g.sideToMove === 'CHO' ? '초' : '한'
-  if (g.checkmate) return `외통! ${turn}이 졌습니다.`
-  if (g.bikjang) return `빅장입니다. ${turn} 차례`
+  if (g.result !== 'ONGOING') {
+    const how = g.checkmate ? '외통' : '빅장, 점수 판정'
+    if (g.result === 'DRAW') return `${how}: 무승부입니다.`
+    return `${how}: ${g.result === 'CHO_WIN' ? '초' : '한'}가 이겼습니다.`
+  }
   if (g.check) return `장군! ${turn} 차례`
   return `${turn} 차례`
 })
@@ -40,7 +43,7 @@ async function start() {
 
 async function onSelect(sq: SquareDto) {
   const g = game.value
-  if (!g || g.checkmate) return
+  if (!g || g.result !== 'ONGOING') return
   const piece = g.pieces.find((p) => p.x === sq.x && p.y === sq.y)
   if (piece && piece.side === g.sideToMove) {
     selected.value = sq

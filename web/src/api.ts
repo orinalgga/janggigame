@@ -27,6 +27,7 @@ export interface GameDto {
   check: boolean
   checkmate: boolean
   bikjang: boolean
+  result: 'ONGOING' | 'CHO_WIN' | 'HAN_WIN' | 'DRAW'
   choScore: number
   hanScore: number
 }

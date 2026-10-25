@@ -103,6 +103,40 @@ class GameStateTest {
     }
 
     @Test
+    void bikjangIsDecidedByScore() {
+        // 초는 장 + 차(13), 한은 장 + 덤(1.5) → 초가 이긴다.
+        GameState s = state(HAN, CHO, GENERAL, 4, 1, HAN, GENERAL, 3, 8, CHO, CHARIOT, 0, 4);
+        assertEquals(GameResult.ONGOING, s.result());
+
+        GameState next = s.apply(Move.of(3, 8, 4, 8));
+        assertTrue(next.isBikjang());
+        assertEquals(GameResult.CHO_WIN, next.result());
+        assertTrue(next.isGameOver());
+        assertTrue(next.legalMoves().isEmpty());
+        assertThrows(IllegalMoveException.class, () -> next.apply(Move.of(0, 4, 0, 5)));
+        assertThrows(IllegalMoveException.class, () -> next.apply(Move.pass()));
+    }
+
+    @Test
+    void bikjangGoesToHanWhenScoresAreEqualBeforeBonus() {
+        // 양쪽 모두 장 + 사(3)라 기물 점수가 같고, 덤 1.5점으로 한이 이긴다.
+        GameState s = state(CHO, CHO, GENERAL, 3, 1, CHO, GUARD, 5, 0, HAN, GENERAL, 4, 8, HAN, GUARD, 5, 9);
+        GameState next = s.apply(Move.of(3, 1, 4, 1));
+        assertEquals(GameResult.HAN_WIN, next.result());
+    }
+
+    @Test
+    void checkmateGivesWinToOtherSide() {
+        GameState s = state(HAN,
+                HAN, GENERAL, 3, 9,
+                CHO, CHARIOT, 0, 9,
+                CHO, CHARIOT, 0, 8,
+                CHO, GENERAL, 5, 0);
+        assertEquals(GameResult.CHO_WIN, s.result());
+        assertTrue(s.legalMoves().isEmpty());
+    }
+
+    @Test
     void applySwitchesTurnAndMovesPiece() {
         GameState s = GameState.initial(Formation.MA_SANG_MA_SANG, Formation.MA_SANG_MA_SANG);
         GameState next = s.apply(Move.of(0, 3, 1, 3));
