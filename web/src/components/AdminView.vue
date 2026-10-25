@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type ShopItem } from '../api'
+import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem } from '../api'
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-type Tab = 'stats' | 'users' | 'orders' | 'logs'
+type Tab = 'stats' | 'users' | 'notices' | 'orders' | 'logs'
 const TABS: { value: Tab; label: string }[] = [
   { value: 'stats', label: '현황' },
   { value: 'users', label: '회원' },
+  { value: 'notices', label: '공지' },
   { value: 'orders', label: '주문' },
   { value: 'logs', label: '기록' },
 ]
@@ -18,6 +19,9 @@ const ACTION: Record<AdminLog['action'], string> = {
   BAN: '이용 정지',
   UNBAN: '정지 해제',
   GRANT: '테마 지급',
+  NOTICE_CREATE: '공지 등록',
+  NOTICE_UPDATE: '공지 수정',
+  NOTICE_DELETE: '공지 삭제',
 }
 const STATUS: Record<AdminOrder['status'], string> = { PENDING: '결제 전', PAID: '결제 완료', FAILED: '실패' }
 
@@ -30,6 +34,12 @@ const query = ref('')
 const page = ref<AdminUserPage | null>(null)
 const orders = ref<AdminOrder[]>([])
 const logs = ref<AdminLog[]>([])
+const notices = ref<Notice[]>([])
+
+/** 공지 쓰는 칸. editing이 null이면 새 공지. 시각은 datetime-local 값(내 시간대)이다. */
+const editing = ref<number | null>(null)
+const form = ref({ title: '', body: '', startsAt: '', endsAt: '', active: true })
+const confirmDelete = ref<number | null>(null)
 const catalog = ref<ShopItem[]>([])
 
 /** 펼쳐서 손보는 중인 회원과 입력 칸. */
@@ -70,6 +80,61 @@ async function loadLogs() {
   logs.value = (await run(api.admin.logs)) ?? logs.value
 }
 
+async function loadNotices() {
+  notices.value = (await run(api.admin.notices)) ?? notices.value
+}
+
+/** ISO 시각을 datetime-local 칸 값(내 시간대, 분까지)으로. */
+function toLocal(iso: string | null) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null)
+
+function newNotice() {
+  editing.value = null
+  form.value = { title: '', body: '', startsAt: '', endsAt: '', active: true }
+  confirmDelete.value = null
+}
+
+function editNotice(n: Notice) {
+  editing.value = n.id
+  form.value = { title: n.title, body: n.body, startsAt: toLocal(n.startsAt), endsAt: toLocal(n.endsAt), active: n.active }
+  confirmDelete.value = null
+  notice.value = ''
+}
+
+async function saveNotice() {
+  const f = form.value
+  const input = { title: f.title.trim(), body: f.body.trim(), startsAt: fromLocal(f.startsAt), endsAt: fromLocal(f.endsAt), active: f.active }
+  const id = editing.value
+  const saved = await run(() => (id === null ? api.admin.createNotice(input) : api.admin.updateNotice(id, input)))
+  if (!saved) return
+  notice.value = id === null ? '공지를 올렸어요.' : '공지를 고쳤어요. 이미 닫은 사람에게도 다시 떠요.'
+  newNotice()
+  await loadNotices()
+}
+
+async function deleteNotice(n: Notice) {
+  if (await run(() => api.admin.deleteNotice(n.id))) {
+    notice.value = `'${n.title}' 공지를 지웠어요.`
+    if (editing.value === n.id) newNotice()
+    confirmDelete.value = null
+    await loadNotices()
+  }
+}
+
+/** 공지가 지금 사용자에게 보이는지. */
+function noticeState(n: Notice): { label: string; cls: string } {
+  const now = Date.now()
+  if (!n.active) return { label: '꺼짐', cls: '' }
+  if (new Date(n.startsAt).getTime() > now) return { label: '예약', cls: 'pending' }
+  if (n.endsAt && new Date(n.endsAt).getTime() <= now) return { label: '끝남', cls: '' }
+  return { label: '보이는 중', cls: 'paid' }
+}
+
 async function loadOrders() {
   orders.value = (await run(api.admin.orders)) ?? orders.value
 }
@@ -79,6 +144,7 @@ function show(t: Tab) {
   notice.value = ''
   if (t === 'stats') void loadStats()
   if (t === 'users' && !page.value) void search()
+  if (t === 'notices') void loadNotices()
   if (t === 'orders') void loadOrders()
   if (t === 'logs') void loadLogs()
 }
@@ -213,6 +279,51 @@ const cards = computed(() => {
       </div>
     </div>
 
+    <div v-else-if="tab === 'notices'" class="notices">
+      <form class="notice-form" @submit.prevent="saveNotice">
+        <h2>{{ editing === null ? '새 공지' : '공지 고치기' }}</h2>
+        <input v-model="form.title" maxlength="60" placeholder="제목" aria-label="공지 제목" required />
+        <textarea v-model="form.body" maxlength="2000" rows="5" placeholder="내용(줄바꿈 그대로 보여요)" aria-label="공지 내용" required />
+        <div class="when-fields">
+          <label>
+            <span>보이기 시작</span>
+            <input v-model="form.startsAt" type="datetime-local" aria-label="보이기 시작" />
+          </label>
+          <label>
+            <span>끝</span>
+            <input v-model="form.endsAt" type="datetime-local" aria-label="끝" />
+          </label>
+        </div>
+        <p class="count">시작을 비우면 지금부터, 끝을 비우면 끌 때까지 보여요. 사용자가 로비에 들어올 때 팝업으로 떠요.</p>
+        <label class="check">
+          <input v-model="form.active" type="checkbox" />
+          켜기
+        </label>
+        <div class="form-actions">
+          <button v-if="editing !== null" type="button" class="ghost" :disabled="busy" @click="newNotice">취소</button>
+          <button type="submit" class="primary" :disabled="busy || !form.title.trim() || !form.body.trim()">
+            {{ editing === null ? '올리기' : '고치기' }}
+          </button>
+        </div>
+      </form>
+
+      <p v-if="!notices.length && !busy" class="count">공지가 아직 없어요.</p>
+      <ul v-else class="notice-list">
+        <li v-for="n in notices" :key="n.id" :class="{ open: editing === n.id }">
+          <div class="notice-main">
+            <span class="status" :class="noticeState(n).cls">{{ noticeState(n).label }}</span>
+            <b>{{ n.title }}</b>
+            <small>{{ date(n.startsAt) }} ~ {{ n.endsAt ? date(n.endsAt) : '끌 때까지' }}</small>
+          </div>
+          <div class="notice-buttons">
+            <button type="button" class="ghost" :disabled="busy" @click="editNotice(n)">고치기</button>
+            <button v-if="confirmDelete !== n.id" type="button" class="ghost" :disabled="busy" @click="confirmDelete = n.id">지우기</button>
+            <button v-else type="button" class="danger" :disabled="busy" @click="deleteNotice(n)">정말 지우기</button>
+          </div>
+        </li>
+      </ul>
+    </div>
+
     <div v-else-if="tab === 'logs'" class="orders">
       <p v-if="!logs.length && !busy" class="count">아직 기록이 없어요.</p>
       <table v-else>
@@ -292,8 +403,11 @@ h1 {
   border-radius: 12px;
   background: var(--accent-bg);
   width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .tabs button {
+  white-space: nowrap;
   font: inherit;
   font-weight: 700;
   padding: 7px 18px;
@@ -488,6 +602,108 @@ th {
 .orders {
   overflow-x: auto;
 }
+.status.pending {
+  color: var(--accent-deep);
+  background: var(--accent-bg);
+}
+.notice-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+}
+.notice-form h2 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+}
+.notice-form input:not([type='checkbox']),
+.notice-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.notice-form textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+.notice-form .count {
+  margin: 0;
+}
+.when-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.when-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.notice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.notice-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+}
+.notice-list li.open {
+  border-color: var(--accent);
+}
+.notice-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+}
+.notice-main b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.notice-main small {
+  flex-basis: 100%;
+}
+.notice-buttons {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
 .primary,
 .ghost,
 .danger {
@@ -529,8 +745,21 @@ button:disabled {
   font-weight: 600;
 }
 @media (max-width: 560px) {
-  .field {
+  .field,
+  .notice-list li {
     flex-wrap: wrap;
+  }
+  .when-fields {
+    grid-template-columns: 1fr;
+  }
+  .notice-main {
+    flex-basis: 100%;
+  }
+  .notice-buttons {
+    margin-left: auto;
+  }
+  .tabs button {
+    padding: 7px 12px;
   }
   .field input,
   .field select {

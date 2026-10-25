@@ -16,7 +16,7 @@ import java.time.OffsetDateTime;
 public class AdminLog {
 
     public enum Action {
-        RENAME, BAN, UNBAN, GRANT
+        RENAME, BAN, UNBAN, GRANT, NOTICE_CREATE, NOTICE_UPDATE, NOTICE_DELETE
     }
 
     @Id
@@ -41,7 +41,7 @@ public class AdminLog {
     protected AdminLog() {
     }
 
-    public AdminLog(long adminId, Action action, long targetUserId, String detail, OffsetDateTime createdAt) {
+    public AdminLog(long adminId, Action action, Long targetUserId, String detail, OffsetDateTime createdAt) {
         this.adminId = adminId;
         this.action = action;
         this.targetUserId = targetUserId;

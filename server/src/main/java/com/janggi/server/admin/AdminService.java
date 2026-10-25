@@ -2,6 +2,7 @@ package com.janggi.server.admin;
 
 import com.janggi.core.GameResult;
 import com.janggi.server.match.MatchService;
+import com.janggi.server.notice.NoticeService;
 import com.janggi.server.record.GameRecordRepository;
 import com.janggi.server.shop.OwnedItem;
 import com.janggi.server.shop.OwnedItemRepository;
@@ -72,10 +73,12 @@ public class AdminService {
     private final OwnedItemRepository owned;
     private final MatchService match;
     private final AdminLogRepository logs;
+    private final NoticeService notices;
 
     public AdminService(@Value("${janggi.admin-emails:}") String adminEmails, UserRepository users,
             UserService userService, AuthIdentityRepository identities, GameRecordRepository games,
-            PurchaseRepository purchases, OwnedItemRepository owned, MatchService match, AdminLogRepository logs) {
+            PurchaseRepository purchases, OwnedItemRepository owned, MatchService match, AdminLogRepository logs,
+            NoticeService notices) {
         this.adminEmails = Arrays.stream(adminEmails.split(","))
                 .map(e -> e.strip().toLowerCase(Locale.ROOT))
                 .filter(e -> !e.isEmpty())
@@ -88,6 +91,7 @@ public class AdminService {
         this.owned = owned;
         this.match = match;
         this.logs = logs;
+        this.notices = notices;
     }
 
     @Transactional(readOnly = true)
@@ -184,7 +188,26 @@ public class AdminService {
                 .toList();
     }
 
-    private void log(long adminId, AdminLog.Action action, long targetUserId, String detail) {
+    @Transactional
+    public NoticeService.NoticeDto createNotice(long adminId, NoticeService.NoticeRequest req) {
+        NoticeService.NoticeDto n = notices.create(adminId, req);
+        log(adminId, AdminLog.Action.NOTICE_CREATE, null, n.title());
+        return n;
+    }
+
+    @Transactional
+    public NoticeService.NoticeDto updateNotice(long adminId, long noticeId, NoticeService.NoticeRequest req) {
+        NoticeService.NoticeDto n = notices.update(noticeId, req);
+        log(adminId, AdminLog.Action.NOTICE_UPDATE, null, n.title());
+        return n;
+    }
+
+    @Transactional
+    public void deleteNotice(long adminId, long noticeId) {
+        log(adminId, AdminLog.Action.NOTICE_DELETE, null, notices.delete(noticeId));
+    }
+
+    private void log(long adminId, AdminLog.Action action, Long targetUserId, String detail) {
         logs.save(new AdminLog(adminId, action, targetUserId, detail, OffsetDateTime.now()));
     }
 
