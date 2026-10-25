@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.janggi.server.auth.AppLoginFilter;
 import com.janggi.server.auth.JwtService;
 import com.janggi.server.auth.OAuthLoginSuccessHandler;
+import com.janggi.server.user.AuthIdentityRepository;
 import com.janggi.server.user.User;
 import com.janggi.server.user.UserService;
 import java.util.List;
@@ -43,6 +44,9 @@ class AuthTest {
 
     @Autowired
     JwtService jwt;
+
+    @Autowired
+    AuthIdentityRepository identities;
 
     @Autowired
     ObjectMapper json;
@@ -122,7 +126,7 @@ class AuthTest {
     @Test
     void successHandlerRedirectsToWebWithToken() throws Exception {
         var principal = new DefaultOAuth2User(List.of(new SimpleGrantedAuthority("USER")),
-                Map.of("sub", "sub-4", "email", "choi@example.com", "name", "최"), "sub");
+                Map.of("sub", "sub-4", "email", "choi@example.com", "email_verified", true, "name", "최"), "sub");
         var auth = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
         var response = new MockHttpServletResponse();
 
@@ -133,6 +137,19 @@ class AuthTest {
         assertTrue(location.startsWith("https://janggi.example/#token="), location);
         long userId = jwt.verify(location.substring(location.indexOf('=') + 1)).orElseThrow();
         assertEquals("장기꾼" + userId, users.find(userId).orElseThrow().getNickname());
+    }
+
+    @Test
+    void unverifiedEmailIsNotKept() throws Exception {
+        var principal = new DefaultOAuth2User(List.of(new SimpleGrantedAuthority("USER")),
+                Map.of("sub", "sub-6", "email", "boss@example.com", "email_verified", false), "sub");
+        var auth = new OAuth2AuthenticationToken(principal, principal.getAuthorities(), "google");
+        var response = new MockHttpServletResponse();
+        new OAuthLoginSuccessHandler(users, jwt, "https://janggi.example", APP).onAuthenticationSuccess(
+                new MockHttpServletRequest(), response, auth);
+        String location = response.getRedirectedUrl();
+        long userId = jwt.verify(location.substring(location.indexOf('=') + 1)).orElseThrow();
+        assertTrue(identities.findByUserId(userId).stream().allMatch(i -> i.getEmail() == null));
     }
 
     @Test

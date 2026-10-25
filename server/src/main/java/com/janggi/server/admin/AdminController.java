@@ -44,31 +44,37 @@ public class AdminController {
     @PutMapping("/users/{id}/nickname")
     public AdminService.UserRow rename(@PathVariable long id, @RequestBody Map<String, String> body) {
         admin.requireAdmin(CurrentUser.id());
-        return admin.rename(id, body.get("nickname"));
+        return admin.rename(CurrentUser.id(), id, body.get("nickname"));
     }
 
     @PostMapping("/users/{id}/ban")
     public AdminService.UserRow ban(@PathVariable long id, @RequestBody Map<String, String> body) {
         admin.requireAdmin(CurrentUser.id());
-        return admin.ban(id, body.get("reason"));
+        return admin.ban(CurrentUser.id(), id, body.get("reason"));
     }
 
     @DeleteMapping("/users/{id}/ban")
     public AdminService.UserRow unban(@PathVariable long id) {
         admin.requireAdmin(CurrentUser.id());
-        return admin.unban(id);
+        return admin.unban(CurrentUser.id(), id);
     }
 
     @PostMapping("/users/{id}/items")
     public AdminService.UserRow grant(@PathVariable long id, @RequestBody Map<String, String> body) {
         admin.requireAdmin(CurrentUser.id());
-        return admin.grant(id, body.get("itemId"));
+        return admin.grant(CurrentUser.id(), id, body.get("itemId"));
     }
 
     @GetMapping("/orders")
     public List<AdminService.OrderRow> orders() {
         admin.requireAdmin(CurrentUser.id());
         return admin.orders();
+    }
+
+    @GetMapping("/logs")
+    public List<AdminService.LogRow> logs() {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.logs();
     }
 
     @ExceptionHandler(AdminException.Forbidden.class)
