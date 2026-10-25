@@ -41,7 +41,7 @@ const rows = computed(() =>
     const ms = left(side)
     return {
       side,
-      name: p ? `${p.nickname} (${p.rating})` : '?',
+      name: p ? `${p.nickname} · ${p.grade} (${p.rating})` : '?',
       change: change === null ? '' : change >= 0 ? `+${change}` : `${change}`,
       time: format(ms),
       running: props.clock.running === side,

@@ -22,12 +22,13 @@ public class MeController {
      * nicknameChosen이 false면 아직 임시 닉네임(장기꾼+번호)이라 웹이 닉네임을 정하라고 묻는다.
      * boardTheme, pieceTheme은 장착한 테마의 상점 상품 id. banReason은 정지된 회원일 때만 있다.
      */
-    public record MeDto(long id, String nickname, boolean nicknameChosen, int rating, String boardTheme,
-            String pieceTheme, boolean admin, boolean banned, String banReason) {
+    public record MeDto(long id, String nickname, boolean nicknameChosen, int rating, String grade,
+            String boardTheme, String pieceTheme, boolean admin, boolean banned, String banReason) {
 
         static MeDto of(User u, boolean admin) {
-            return new MeDto(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(), u.getBoardTheme(),
-                    u.getPieceTheme(), admin, u.isBanned(), u.getBanReason());
+            return new MeDto(u.getId(), u.getNickname(), u.isNicknameChosen(), u.getRating(),
+                    Grade.name(u.getRating()), u.getBoardTheme(), u.getPieceTheme(), admin, u.isBanned(),
+                    u.getBanReason());
         }
     }
 

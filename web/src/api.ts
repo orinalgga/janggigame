@@ -58,11 +58,12 @@ export interface ChatMessage {
 
 export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT'
 
-/** rating은 대국을 시작할 때의 레이팅. */
+/** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
 export interface Player {
   id: number
   nickname: string
   rating: number
+  grade: string
 }
 
 /** 서버가 보낸 시점의 남은 시간. running 쪽은 받은 뒤로도 계속 줄어든다. */
@@ -107,6 +108,8 @@ export interface Me {
   /** false면 가입할 때 받은 임시 닉네임(장기꾼+번호). */
   nicknameChosen: boolean
   rating: number
+  /** 레이팅에 따른 급수: 18급~1급, 초단~9단. */
+  grade: string
   /** 장착한 테마의 상점 상품 id. */
   boardTheme: string
   pieceTheme: string
@@ -133,6 +136,7 @@ export interface AdminUser {
   nickname: string
   nicknameChosen: boolean
   rating: number
+  grade: string
   createdAt: string
   emails: string[]
   banned: boolean

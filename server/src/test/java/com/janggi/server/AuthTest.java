@@ -60,7 +60,8 @@ class AuthTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nickname").value("장기꾼" + user.getId()))
                 .andExpect(jsonPath("$.nicknameChosen").value(false))
-                .andExpect(jsonPath("$.rating").value(1200));
+                .andExpect(jsonPath("$.rating").value(1200))
+                .andExpect(jsonPath("$.grade").value("9급"));
     }
 
     @Test

@@ -32,8 +32,8 @@ public record GameDto(
         RatingChange ratingChange,
         ChatMessage aiComment) {
 
-    /** rating은 대국을 시작할 때의 레이팅. */
-    public record PlayerDto(long id, String nickname, int rating) {
+    /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
+    public record PlayerDto(long id, String nickname, int rating, String grade) {
     }
 
     /** 남은 시간(밀리초)과 지금 시계가 가는 쪽. 웹은 받은 뒤부터 running 쪽을 직접 줄여 보여 준다. */
