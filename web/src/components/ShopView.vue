@@ -23,6 +23,7 @@ const items = ref<ShopItem[]>([])
 const packs = ref<CoinPack[]>([])
 /** 엽전 잔액. 로그인하지 않았으면 null. */
 const coins = ref<number | null>(null)
+const freeCoins = ref(0)
 const loading = ref(true)
 const error = ref('')
 const notice = ref('')
@@ -49,6 +50,7 @@ function apply(state: ShopState) {
   items.value = state.items
   packs.value = state.packs
   coins.value = state.coins
+  freeCoins.value = state.freeCoins ?? 0
   if (historyOpen.value) void loadHistory()
 }
 
@@ -199,6 +201,7 @@ const date = (s: string) =>
       <span class="balance">
         <small>내 엽전</small>
         <b>{{ nyang(coins) }}</b>
+        <small v-if="freeCoins">운영자 지급 {{ nyang(freeCoins) }} 포함</small>
       </span>
       <button type="button" class="text-link" :aria-expanded="historyOpen" @click="toggleHistory">내역</button>
       <button type="button" class="buy" @click="openCharge()">충전</button>
@@ -208,7 +211,13 @@ const date = (s: string) =>
       <ul v-else-if="history">
         <li v-for="h in history" :key="h.id">
           <span class="h-kind">{{ KIND[h.kind] }}</span>
-          <span class="h-memo">{{ h.memo ?? '' }}<small>{{ date(h.at) }}</small></span>
+          <span class="h-memo">
+            {{ h.memo ?? '' }}
+            <small>
+              {{ date(h.at) }}
+              <template v-if="h.kind === 'SPEND' && h.freeDelta"> · 운영자 지급분 {{ -h.freeDelta }}닢 사용</template>
+            </small>
+          </span>
           <span class="h-delta" :class="{ plus: h.delta > 0 }">{{ h.delta > 0 ? '+' : '' }}{{ h.delta }}</span>
           <span class="h-balance">{{ nyang(h.balance) }}</span>
         </li>
@@ -284,7 +293,7 @@ const date = (s: string) =>
           <b>{{ nyang(buying.price) }}</b>
         </div>
         <p class="sub-line">
-          가진 엽전 {{ nyang(coins ?? 0) }}
+          가진 엽전 {{ nyang(coins ?? 0) }}<template v-if="freeCoins">(운영자 지급분부터 써요)</template>
           <template v-if="!short"> · 사고 나면 {{ nyang((coins ?? 0) - buying.price) }}</template>
           <b v-else class="short"> · {{ nyang(short) }} 모자라요</b>
         </p>

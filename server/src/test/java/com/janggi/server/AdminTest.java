@@ -7,9 +7,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.janggi.server.auth.JwtService;
 import com.janggi.server.user.User;
 import com.janggi.server.user.UserService;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,6 +31,9 @@ class AdminTest {
 
     @Autowired
     JwtService jwt;
+
+    @Autowired
+    ObjectMapper json;
 
     private String bearer(User u) {
         return "Bearer " + jwt.issue(u.getId());
@@ -140,9 +145,35 @@ class AdminTest {
                 .andExpect(jsonPath("$.coins").value(70));
         mvc.perform(get("/api/admin/logs").header("Authorization", boss))
                 .andExpect(jsonPath("$[0].action").value("COINS"))
-                .andExpect(jsonPath("$[0].detail").value("-30닢 (잔액 70) 운영자 회수"));
+                .andExpect(jsonPath("$[0].detail").value("-30닢 (운영자 엽전 70, 전체 70) 운영자 회수"));
         mvc.perform(get("/api/shop/coins/history").header("Authorization", bearer(target)))
                 .andExpect(jsonPath("$[1].memo").value("대회 보상"))
                 .andExpect(jsonPath("$[1].kind").value("ADMIN"));
+
+        // 회원이 직접 충전한 엽전은 운영자가 뺄 수 없다.
+        String member = bearer(target);
+        String order = json.readTree(mvc.perform(post("/api/shop/orders").header("Authorization", member)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"packId\":\"coins.10\"}"))
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8)).get("orderId").asText();
+        mvc.perform(post("/api/shop/orders/" + order + "/confirm").header("Authorization", member)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"paymentKey\":\"test-key\"}"))
+                .andExpect(jsonPath("$.coins").value(80))
+                .andExpect(jsonPath("$.freeCoins").value(70));
+        mvc.perform(post(path).header("Authorization", boss).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":-80}"))
+                .andExpect(status().isBadRequest());
+
+        // 살 때는 운영자 엽전부터 쓴다.
+        mvc.perform(post("/api/shop/items/board.jade/buy").header("Authorization", member))
+                .andExpect(jsonPath("$.coins").value(41))
+                .andExpect(jsonPath("$.freeCoins").value(31));
+        mvc.perform(post(path).header("Authorization", boss).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":-31}"))
+                .andExpect(jsonPath("$.coins").value(10))
+                .andExpect(jsonPath("$.freeCoins").value(0));
+        mvc.perform(get("/api/shop/coins/history").header("Authorization", member))
+                .andExpect(jsonPath("$[1].kind").value("SPEND"))
+                .andExpect(jsonPath("$[1].delta").value(-39))
+                .andExpect(jsonPath("$[1].freeDelta").value(-39));
     }
 }

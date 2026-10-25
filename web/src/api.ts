@@ -144,8 +144,10 @@ export interface AdminUser {
   /** 산 테마(무료 제외)의 상품 id. */
   items: string[]
   admin: boolean
-  /** 엽전 잔액. */
+  /** 엽전 잔액(전체). */
   coins: number
+  /** 그중 운영자가 준 엽전. 운영자는 이것만 뺄 수 있다. */
+  freeCoins: number
 }
 
 export interface AdminUserPage {
@@ -254,6 +256,8 @@ export interface CoinPack {
 export interface ShopState {
   /** 엽전 잔액. 로그인하지 않았으면 null. */
   coins: number | null
+  /** 그중 운영자가 준 엽전. 살 때 이것부터 쓴다. */
+  freeCoins: number | null
   items: ShopItem[]
   packs: CoinPack[]
 }
@@ -261,6 +265,8 @@ export interface ShopState {
 export interface CoinLedgerRow {
   id: number
   delta: number
+  /** delta 중 운영자 엽전 몫. */
+  freeDelta: number
   balance: number
   kind: 'CHARGE' | 'SPEND' | 'ADMIN'
   ref: string | null
