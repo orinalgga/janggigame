@@ -58,6 +58,30 @@ public class GameRecord {
     @Column(name = "ended_at")
     private OffsetDateTime endedAt;
 
+    @Column(nullable = false)
+    private boolean online;
+
+    @Column(name = "base_seconds")
+    private Integer baseSeconds;
+
+    @Column(name = "increment_seconds")
+    private Integer incrementSeconds;
+
+    @Column(name = "cho_ms_left")
+    private Long choMsLeft;
+
+    @Column(name = "han_ms_left")
+    private Long hanMsLeft;
+
+    @Column(name = "clock_updated_at")
+    private OffsetDateTime clockUpdatedAt;
+
+    @Column(name = "cho_rating_change")
+    private Integer choRatingChange;
+
+    @Column(name = "han_rating_change")
+    private Integer hanRatingChange;
+
     protected GameRecord() {
     }
 
@@ -74,8 +98,27 @@ public class GameRecord {
         this.startedAt = startedAt;
     }
 
+    /** 온라인 대국으로 표시하고 두 시계를 기본 시간으로 맞춘다. */
+    public void startClock(int baseSeconds, int incrementSeconds, OffsetDateTime at) {
+        this.online = true;
+        this.baseSeconds = baseSeconds;
+        this.incrementSeconds = incrementSeconds;
+        clock(baseSeconds * 1000L, baseSeconds * 1000L, at);
+    }
+
     public void moved(int moveCount) {
         this.moveCount = moveCount;
+    }
+
+    public void clock(long choMsLeft, long hanMsLeft, OffsetDateTime at) {
+        this.choMsLeft = choMsLeft;
+        this.hanMsLeft = hanMsLeft;
+        this.clockUpdatedAt = at;
+    }
+
+    public void ratingChanged(int cho, int han) {
+        this.choRatingChange = cho;
+        this.hanRatingChange = han;
     }
 
     public void finish(GameResult result, String endReason, OffsetDateTime endedAt) {
@@ -130,5 +173,37 @@ public class GameRecord {
 
     public OffsetDateTime getEndedAt() {
         return endedAt;
+    }
+
+    public boolean isOnline() {
+        return online;
+    }
+
+    public Integer getBaseSeconds() {
+        return baseSeconds;
+    }
+
+    public Integer getIncrementSeconds() {
+        return incrementSeconds;
+    }
+
+    public Long getChoMsLeft() {
+        return choMsLeft;
+    }
+
+    public Long getHanMsLeft() {
+        return hanMsLeft;
+    }
+
+    public OffsetDateTime getClockUpdatedAt() {
+        return clockUpdatedAt;
+    }
+
+    public Integer getChoRatingChange() {
+        return choRatingChange;
+    }
+
+    public Integer getHanRatingChange() {
+        return hanRatingChange;
     }
 }

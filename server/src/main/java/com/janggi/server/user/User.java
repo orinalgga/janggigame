@@ -47,4 +47,8 @@ public class User {
     public int getRating() {
         return rating;
     }
+
+    public void changeRating(int delta) {
+        this.rating += delta;
+    }
 }

@@ -49,7 +49,19 @@ public class GameController {
 
     @PostMapping("/{id}/moves")
     public GameDto move(@PathVariable String id, @RequestBody GameDto.MoveDto move) {
-        return games.play(id, move.toMove());
+        return games.play(id, move.toMove(), CurrentUser.id());
+    }
+
+    /** 온라인 대국 기권. */
+    @PostMapping("/{id}/resign")
+    public GameDto resign(@PathVariable String id) {
+        return games.resign(id, CurrentUser.id());
+    }
+
+    @ExceptionHandler(NotYourGameException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> notYours(NotYourGameException e) {
+        return Map.of("error", e.getMessage());
     }
 
     @ExceptionHandler(IllegalMoveException.class)

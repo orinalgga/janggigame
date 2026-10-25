@@ -34,6 +34,33 @@ export interface GameDto {
   aiSide: Side | null
   aiLevel: Level | null
   lastMove: MoveDto | null
+  endReason: EndReason | null
+  online: boolean
+  cho: Player | null
+  han: Player | null
+  clock: ClockDto | null
+  ratingChange: { cho: number; han: number } | null
+}
+
+export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT'
+
+/** rating은 대국을 시작할 때의 레이팅. */
+export interface Player {
+  id: number
+  nickname: string
+  rating: number
+}
+
+/** 서버가 보낸 시점의 남은 시간. running 쪽은 받은 뒤로도 계속 줄어든다. */
+export interface ClockDto {
+  choMs: number
+  hanMs: number
+  running: Side | null
+}
+
+export interface MatchStatus {
+  status: 'WAITING' | 'MATCHED' | 'CANCELLED'
+  gameId: string | null
 }
 
 export type Result = 'ONGOING' | 'CHO_WIN' | 'HAN_WIN' | 'DRAW'
@@ -43,9 +70,10 @@ export interface GameSummary {
   aiSide: Side | null
   aiLevel: Level | null
   result: Result
-  endReason: 'CHECKMATE' | 'BIKJANG' | null
+  endReason: EndReason | null
   moveCount: number
   startedAt: string
+  online: boolean
 }
 
 export interface ReplayDto {
@@ -103,12 +131,12 @@ export const auth = {
   },
 }
 
-async function request<T>(path: string, body?: unknown): Promise<T> {
+async function request<T>(path: string, body?: unknown, method?: string): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const token = auth.token()
   if (token) headers.Authorization = `Bearer ${token}`
   const res = await fetch(BASE + path, {
-    method: body === undefined ? 'GET' : 'POST',
+    method: method ?? (body === undefined ? 'GET' : 'POST'),
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
@@ -127,4 +155,14 @@ export const api = {
   me: () => request<Me>('/api/me'),
   providers: () => request<{ providers: string[] }>('/api/auth/providers'),
   replay: (id: string, ply: number) => request<ReplayDto>(`/api/games/${id}/replay?ply=${ply}`),
+  game: (id: string) => request<GameDto>(`/api/games/${id}`),
+  resign: (id: string) => request<GameDto>(`/api/games/${id}/resign`, {}),
+  match: (formation: Formation) => request<MatchStatus>('/api/match', { formation }),
+  cancelMatch: () => request<MatchStatus>('/api/match', undefined, 'DELETE'),
+}
+
+/** 실시간 알림(STOMP) 주소. API와 같은 서버의 /ws. */
+export function wsUrl(): string {
+  const base = BASE ? new URL(BASE) : location
+  return `${base.protocol === 'https:' ? 'wss' : 'ws'}://${base.host}/ws`
 }

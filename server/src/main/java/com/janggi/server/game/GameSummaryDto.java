@@ -13,10 +13,11 @@ public record GameSummaryDto(
         GameResult result,
         String endReason,
         int moveCount,
-        OffsetDateTime startedAt) {
+        OffsetDateTime startedAt,
+        boolean online) {
 
     static GameSummaryDto from(GameRecord g) {
         return new GameSummaryDto(g.getId().toString(), g.getAiSide(), g.getAiLevel(), g.getResult(),
-                g.getEndReason(), g.getMoveCount(), g.getStartedAt());
+                g.getEndReason(), g.getMoveCount(), g.getStartedAt(), g.isOnline());
     }
 }

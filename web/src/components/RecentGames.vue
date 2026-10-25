@@ -9,12 +9,13 @@ const games = ref<GameSummary[]>([])
 const LEVEL: Record<string, string> = { BEGINNER: '초급', INTERMEDIATE: '중급', ADVANCED: '상급' }
 
 function opponent(g: GameSummary) {
+  if (g.online) return '온라인 대전'
   return g.aiSide && g.aiLevel ? `AI ${LEVEL[g.aiLevel]} (${g.aiSide === 'CHO' ? '초' : '한'})` : '2인 대국'
 }
 
 function result(g: GameSummary) {
   if (g.result === 'ONGOING') return '진행 중'
-  const how = g.endReason === 'BIKJANG' ? '빅장' : '외통'
+  const how = { CHECKMATE: '외통', BIKJANG: '빅장', RESIGN: '기권', TIMEOUT: '시간패' }[g.endReason ?? 'CHECKMATE']
   if (g.result === 'DRAW') return `${how} 무승부`
   return `${how} ${g.result === 'CHO_WIN' ? '초' : '한'} 승`
 }
