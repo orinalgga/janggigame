@@ -26,12 +26,26 @@ npm run dev
 
 테스트는 `./gradlew build`로 돌립니다.
 
+로컬에서는 메모리 DB(H2)를 쓰므로 서버를 끄면 기보가 사라집니다. Postgres에 남기려면 `DB_URL`, `DB_USER`, `DB_PASSWORD` 환경변수를 넣고 실행합니다. 스키마는 Flyway(`server/src/main/resources/db/migration`)가 만듭니다.
+
 ## 규칙 엔진 좌표
 
 - x는 0~8(세로줄), y는 0~9(가로줄)이고 초가 y=0 쪽, 한이 y=9 쪽입니다.
 - 초가 먼저 둡니다. 한은 덤 1.5점을 받아 시작 점수가 초 72, 한 73.5입니다.
 - 상차림은 각 진영이 자기 쪽에서 본 왼쪽부터 정합니다.
 - 장군이 아닐 때는 한수쉼(패스)을 둘 수 있습니다. 빅장(두 장이 사이에 아무것도 없이 마주 봄)이 되면 바로 점수 판정으로 끝나고 점수가 높은 쪽이 이깁니다. 한의 덤 1.5점 때문에 동점은 나오지 않습니다. 외통과 빅장이 동시에 생기면 외통이 우선입니다.
+
+## 로그인
+
+구글 로그인은 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` 환경변수가 있을 때만 켜지고, 없으면 로그인 없이 그대로 쓸 수 있습니다. 키는 저장소나 채팅에 올리지 않습니다.
+
+```bash
+GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
+```
+
+- Google Cloud 콘솔의 OAuth 클라이언트에 승인된 리디렉션 URI `http://localhost:8080/login/oauth2/code/google`(배포 후에는 `https://<서버 주소>/login/oauth2/code/google`)를 등록합니다.
+- 로그인이 끝나면 서버가 `JANGGI_WEB_BASE_URL/#token=...`으로 돌려보내고, 웹은 이 토큰을 `Authorization: Bearer`로 보냅니다.
+- 운영에서는 `JANGGI_JWT_SECRET`에 32자 이상 임의 문자열을 꼭 넣습니다. docker compose는 이 값이 없으면 시작하지 않습니다.
 
 ## AI
 
