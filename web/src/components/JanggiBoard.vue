@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { MoveDto, PieceDto, SquareDto } from '../api'
 
 const props = defineProps<{
@@ -75,10 +75,66 @@ const palaceDiagonals = [
 function clickPoint(x: number, y: number) {
   emit('select', { x, y })
 }
+
+/** 수를 둘 때의 연출: 알이 미끄러져 가고, 지나간 자리에 잔상이 남고, 잡힌 알은 터지듯 사라진다. */
+const MOVE_MS = 320
+const svg = ref<SVGSVGElement | null>(null)
+
+type EffectBody =
+  | { kind: 'trail'; from: SquareDto; to: SquareDto; piece: PieceDto }
+  | { kind: 'captured'; piece: PieceDto }
+  | { kind: 'ripple'; at: SquareDto }
+type Effect = EffectBody & { id: number }
+const effects = ref<Effect[]>([])
+const captures = computed(() =>
+  effects.value.filter((e): e is Extract<Effect, { kind: 'captured' }> => e.kind === 'captured'),
+)
+let effectId = 0
+
+function addEffect(e: EffectBody, ms: number) {
+  const id = ++effectId
+  effects.value.push({ ...e, id })
+  setTimeout(() => (effects.value = effects.value.filter((x) => x.id !== id)), ms)
+}
+
+const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+const at = (list: PieceDto[], sq: SquareDto) => list.find((p) => p.x === sq.x && p.y === sq.y)
+
+watch(
+  () => props.pieces,
+  (now, before) => {
+    const m = props.lastMove
+    if (!before || !m?.from || !m.to || reduceMotion()) return
+    const moved = at(now, m.to)
+    const origin = at(before, m.from)
+    // 이 수가 방금 판에 반영된 경우에만 움직인다(같은 국면을 다시 받거나 복기에서 건너뛸 때는 그냥 그린다).
+    if (!moved || !origin || at(now, m.from) || origin.side !== moved.side || origin.type !== moved.type) return
+    const captured = at(before, m.to)
+    if (captured && captured.side === moved.side) return
+
+    const dx = px(m.from.x) - px(m.to.x)
+    const dy = py(m.from.y) - py(m.to.y)
+    const el = svg.value?.querySelector<SVGGElement>(`g.piece[data-sq="${m.to.x},${m.to.y}"]`)
+    el?.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px) scale(1)` },
+        { transform: `translate(${dx * 0.5}px, ${dy * 0.5}px) scale(1.14)`, offset: 0.5 },
+        { transform: 'translate(0, 0) scale(0.96)', offset: 0.85 },
+        { transform: 'translate(0, 0) scale(1)' },
+      ],
+      { duration: MOVE_MS, easing: 'cubic-bezier(0.3, 0.7, 0.3, 1)' },
+    )
+    addEffect({ kind: 'trail', from: m.from, to: m.to, piece: moved }, 700)
+    if (captured) addEffect({ kind: 'captured', piece: captured }, MOVE_MS + 450)
+    setTimeout(() => addEffect({ kind: 'ripple', at: m.to! }, 600), MOVE_MS * 0.8)
+  },
+  { flush: 'post' },
+)
 </script>
 
 <template>
-  <svg :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" class="board" role="img" aria-label="장기판">
+  <svg ref="svg" :viewBox="`0 0 ${WIDTH} ${HEIGHT}`" class="board" role="img" aria-label="장기판">
     <defs>
       <!-- 나무결: 가로로 길게 늘인 잡음을 판 색에 얹는다. -->
       <filter id="grain" x="0" y="0" width="100%" height="100%">
@@ -146,9 +202,58 @@ function clickPoint(x: number, y: number) {
       />
     </template>
 
+    <template v-for="e in effects" :key="'fx' + e.id">
+      <g v-if="e.kind === 'trail'" class="trail" :class="e.piece.side.toLowerCase()">
+        <line :x1="px(e.from.x)" :y1="py(e.from.y)" :x2="px(e.to.x)" :y2="py(e.to.y)" class="streak" />
+        <polygon
+          v-for="k in 3"
+          :key="k"
+          :points="
+            octagon(
+              px(e.from.x) + (px(e.to.x) - px(e.from.x)) * (k - 1) * 0.28,
+              py(e.from.y) + (py(e.to.y) - py(e.from.y)) * (k - 1) * 0.28,
+              RADIUS[e.piece.type],
+            )
+          "
+          class="ghost"
+          :style="{ animationDelay: `${(k - 1) * 70}ms` }"
+        />
+      </g>
+      <polygon
+        v-else-if="e.kind === 'ripple'"
+        :points="octagon(px(e.at.x), py(e.at.y), 30)"
+        class="ripple"
+      />
+    </template>
+
+    <g
+      v-for="e in captures"
+      :key="'cap' + e.id"
+      class="piece captured"
+      :class="e.piece.side.toLowerCase()"
+      filter="url(#shadow)"
+    >
+      <polygon :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type])" class="edge" />
+      <polygon
+        :points="octagon(px(e.piece.x), py(e.piece.y), RADIUS[e.piece.type] - 2.5)"
+        fill="url(#face)"
+        class="face"
+      />
+      <text
+        :x="px(e.piece.x)"
+        :y="py(e.piece.y)"
+        :font-size="RADIUS[e.piece.type] * 1.12"
+        dy="0.36em"
+        text-anchor="middle"
+      >
+        {{ e.piece.label }}
+      </text>
+    </g>
+
     <g
       v-for="p in pieces"
       :key="`${p.x},${p.y}`"
+      :data-sq="`${p.x},${p.y}`"
       class="piece"
       :class="[p.side.toLowerCase(), { selected: isSelected(p) }]"
       :filter="isSelected(p) ? 'url(#lift)' : 'url(#shadow)'"
@@ -255,6 +360,106 @@ function clickPoint(x: number, y: number) {
 }
 .piece.selected .edge {
   fill: var(--select);
+}
+.piece {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: filter 0.15s;
+}
+.piece.selected {
+  animation: breathe 1.2s ease-in-out infinite;
+}
+.piece.captured {
+  pointer-events: none;
+  animation: shatter 0.5s ease-in 0.24s both;
+}
+.trail {
+  pointer-events: none;
+}
+.trail .streak {
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-opacity: 0.35;
+  animation: fade 0.6s ease-out both;
+}
+.trail .ghost {
+  fill: var(--piece-light);
+  stroke-width: 2;
+  animation: ghost 0.5s ease-out both;
+}
+.trail.cho .streak,
+.trail.cho .ghost {
+  stroke: var(--cho-color);
+}
+.trail.han .streak,
+.trail.han .ghost {
+  stroke: var(--han-color);
+}
+.ripple {
+  fill: none;
+  stroke: var(--last-move-strong);
+  stroke-width: 3;
+  pointer-events: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ripple 0.55s ease-out both;
+}
+@keyframes breathe {
+  50% {
+    transform: scale(1.06);
+  }
+}
+@keyframes shatter {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.2) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(25deg);
+  }
+}
+@keyframes fade {
+  to {
+    stroke-opacity: 0;
+  }
+}
+@keyframes ghost {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .piece.selected {
+    animation: none;
+  }
+}
+.target {
+  animation: pop-in 0.18s ease-out both;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
 }
 .last {
   fill: var(--last-move);
