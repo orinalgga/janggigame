@@ -329,7 +329,7 @@ const date = (s: string) =>
       <button type="button" class="back" @click="emit('close')">‹ 로비</button>
       <div>
         <h1>상점</h1>
-        <p>인형·애니메이션·민화 화풍으로 내 캐릭터를 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
+        <p>인형·애니메이션 화풍으로 내 캐릭터를 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
       </div>
     </div>
 

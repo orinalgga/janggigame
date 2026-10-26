@@ -1,10 +1,8 @@
 import type { Look } from './api'
 
 /**
- * 그림체 캐릭터(애니메이션풍·조선 민화풍). 같은 부품 id를 120×150 상반신 SVG로 그린다.
- * 얼굴과 선만 화풍마다 다르고, 옷·머리·모자·배경 그림은 함께 쓴다. 얼굴은 (60, 52) 언저리다.
+ * 애니메이션풍 캐릭터. 같은 부품 id를 120×150 상반신 SVG로 그린다. 얼굴은 (60, 52) 언저리다.
  */
-export type Skin = 'anime' | 'joseon'
 
 const GOLD = '#d4a83a'
 
@@ -79,53 +77,41 @@ function animalMarks(b: Body): string {
 }
 
 /** 얼굴 모양(선을 두를 것). */
-function faceShape(b: Body, skin: Skin): string {
+function faceShape(b: Body): string {
   if (b.animal) return `${animalEars(b)}<ellipse cx="60" cy="54" rx="19.4" ry="17.6" fill="${b.skin}"/>`
   const ears = `<ellipse cx="43.6" cy="54" rx="2.8" ry="4.4" fill="${b.skin}"/><ellipse cx="76.4" cy="54" rx="2.8" ry="4.4" fill="${b.skin}"/>`
-  return skin === 'anime'
-    ? `${ears}<path d="M43.6 46 Q43.4 61 50 68.4 Q55 73.4 60 74 Q65 73.4 70 68.4 Q76.6 61 76.4 46 Q76 30 60 30 Q44 30 43.6 46 Z" fill="${b.skin}"/>`
-    : `${ears}<ellipse cx="60" cy="52.6" rx="17" ry="19.6" fill="${b.skin}"/>`
+  return b.woman
+      ? `<ellipse cx="44.6" cy="54" rx="2.4" ry="4" fill="${b.skin}"/><ellipse cx="75.4" cy="54" rx="2.4" ry="4" fill="${b.skin}"/>
+         <path d="M44.6 47 Q44.6 60 50.6 67.4 Q55.6 72.6 60 72.8 Q64.4 72.6 69.4 67.4 Q75.4 60 75.4 47 Q75 31 60 31 Q45 31 44.6 47 Z" fill="${b.skin}"/>`
+      : `${ears}<path d="M43.4 46 Q43.4 62 48.8 68.4 Q54.4 74.2 60 74.4 Q65.6 74.2 71.2 68.4 Q76.6 62 76.6 46 Q76 30 60 30 Q44 30 43.4 46 Z" fill="${b.skin}"/>`
 }
 
 /** 눈·코·입·볼(선을 두르지 않는 것). */
-function features(b: Body, skin: Skin, id: string): string {
+function features(b: Body, id: string): string {
   const line = '#2a1a14'
   if (b.animal) {
-    const human = features({ ...b, animal: undefined, woman: false, elder: false, hair: b.shade }, skin, id)
+    const human = features({ ...b, animal: undefined, woman: false, elder: false, hair: b.shade }, id)
     // 사람 얼굴에서 눈만 쓰고(코·입·볼 빼고), 털무늬·주둥이 위에 얹는다.
     const eyes = human.slice(0, human.indexOf('<!--nose-->'))
     return animalMarks(b) + eyes + `<ellipse cx="48" cy="60" rx="3.4" ry="1.7" fill="#f59a9a" opacity="0.4"/><ellipse cx="72" cy="60" rx="3.4" ry="1.7" fill="#f59a9a" opacity="0.4"/>`
   }
-  if (skin === 'anime') {
-    const iris = b.woman ? ['#5a2e1c', '#c27a3e'] : ['#232838', '#5f7396']
-    const eye = (x: number, flip: number) =>
-      b.elder
-        ? `<path d="M${x - 3.8} 54 Q${x} 49.6 ${x + 3.8} 54" stroke="${line}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`
-        : `<ellipse cx="${x}" cy="53" rx="3.9" ry="4.7" fill="#ffffff"/>
-           <ellipse cx="${x}" cy="53.6" rx="3.2" ry="4.1" fill="url(#${id}iris)"/>
-           <ellipse cx="${x}" cy="54" rx="1.4" ry="2.1" fill="#120c0a"/>
-           <circle cx="${x - 1.3}" cy="51.6" r="1.15" fill="#ffffff"/><circle cx="${x + 1.2}" cy="55.6" r="0.55" fill="#ffffff"/>
-           <path d="M${x - 4.6} 50.4 Q${x} 46.6 ${x + 4.6} 50" stroke="${line}" stroke-width="${b.woman ? 2 : 1.7}" fill="none" stroke-linecap="round"/>
-           ${b.woman ? `<path d="M${x + 4.4 * flip} ${flip > 0 ? 50 : 50.4} l${1.8 * flip} -1.4" stroke="${line}" stroke-width="1.2" stroke-linecap="round"/>` : ''}`
-    const brow = b.elder ? '#a29a90' : b.hair
-    return `<defs><linearGradient id="${id}iris" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${iris[0]}"/><stop offset="1" stop-color="${iris[1]}"/></linearGradient></defs>
-      <path d="M48.6 45.4 Q52.6 43.6 56.4 44.8 M63.6 44.8 Q67.4 43.6 71.4 45.4" stroke="${brow}" stroke-width="1.3" fill="none" stroke-linecap="round"/>
-      ${eye(52.4, -1)}${eye(67.6, 1)}<!--nose-->
-      <path d="M60.2 58.4 L59.4 60" stroke="${b.shade}" stroke-width="0.9" stroke-linecap="round"/>
-      <ellipse cx="49.4" cy="60.6" rx="3.6" ry="1.8" fill="#f59a9a" opacity="0.38"/><ellipse cx="70.6" cy="60.6" rx="3.6" ry="1.8" fill="#f59a9a" opacity="0.38"/>
-      ${b.woman ? `<path d="M57.8 64.4 Q60 66.6 62.2 64.4 Z" fill="#d2675e"/>` : `<path d="M57.6 64.6 Q60 65.8 62.4 64.6" stroke="#a0524a" stroke-width="1.1" fill="none" stroke-linecap="round"/>`}`
-  }
-  // 민화풍: 먹으로 찍은 작은 눈과 동그란 볼
-  const eye = (x: number) =>
+  const iris = b.woman ? ['#5a2e1c', '#c27a3e'] : ['#232838', '#5f7396']
+  const eye = (x: number, flip: number) =>
     b.elder
-      ? `<path d="M${x - 2.8} 53 Q${x} 50.4 ${x + 2.8} 53" stroke="${line}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`
-      : `<ellipse cx="${x}" cy="52.6" rx="1.5" ry="1.9" fill="${line}"/>${b.woman ? `<path d="M${x - 2.6} 50.8 Q${x} 49.6 ${x + 2.6} 50.8" stroke="${line}" stroke-width="0.8" fill="none"/>` : ''}`
-  const brow = b.elder ? '#d8d2c8' : line
-  return `<path d="M49.4 46.6 Q53 45 56.4 46.4 M63.6 46.4 Q67 45 70.6 46.6" stroke="${brow}" stroke-width="${b.woman ? 0.9 : 1.6}" fill="none" stroke-linecap="round"/>
-    ${eye(53)}${eye(67)}<!--nose-->
-    <path d="M60 55.6 Q58.8 58.6 60.6 59.2" stroke="${b.shade}" stroke-width="1" fill="none" stroke-linecap="round"/>
-    <circle cx="49.6" cy="60" r="3.4" fill="#f08a7a" opacity="0.42"/><circle cx="70.4" cy="60" r="3.4" fill="#f08a7a" opacity="0.42"/>
-    ${b.woman ? `<ellipse cx="60" cy="64.6" rx="2" ry="1.3" fill="#c8443a"/>` : `<path d="M57.8 64.4 Q60 65.6 62.2 64.4" stroke="#9a4a3e" stroke-width="1.2" fill="none" stroke-linecap="round"/>`}`
+      ? `<path d="M${x - 3.8} 54 Q${x} 49.6 ${x + 3.8} 54" stroke="${line}" stroke-width="1.7" fill="none" stroke-linecap="round"/>`
+      : `<ellipse cx="${x}" cy="53" rx="3.9" ry="4.7" fill="#ffffff"/>
+         <ellipse cx="${x}" cy="53.6" rx="3.2" ry="4.1" fill="url(#${id}iris)"/>
+         <ellipse cx="${x}" cy="54" rx="1.4" ry="2.1" fill="#120c0a"/>
+         <circle cx="${x - 1.3}" cy="51.6" r="1.15" fill="#ffffff"/><circle cx="${x + 1.2}" cy="55.6" r="0.55" fill="#ffffff"/>
+         <path d="M${x - 4.6} 50.4 Q${x} 46.6 ${x + 4.6} 50" stroke="${line}" stroke-width="${b.woman ? 2 : 1.7}" fill="none" stroke-linecap="round"/>
+         ${b.woman ? `<path d="M${x + 4.4 * flip} ${flip > 0 ? 50 : 50.4} l${1.8 * flip} -1.4" stroke="${line}" stroke-width="1.2" stroke-linecap="round"/>` : ''}`
+  const brow = b.elder ? '#a29a90' : b.hair
+  return `<defs><linearGradient id="${id}iris" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${iris[0]}"/><stop offset="1" stop-color="${iris[1]}"/></linearGradient></defs>
+    <path d="M48.6 45.4 Q52.6 43.6 56.4 44.8 M63.6 44.8 Q67.4 43.6 71.4 45.4" stroke="${brow}" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    ${eye(52.4, -1)}${eye(67.6, 1)}<!--nose-->
+    <path d="M60.2 58.4 L59.4 60" stroke="${b.shade}" stroke-width="0.9" stroke-linecap="round"/>
+    <ellipse cx="49.4" cy="60.6" rx="3.6" ry="1.8" fill="#f59a9a" opacity="0.38"/><ellipse cx="70.6" cy="60.6" rx="3.6" ry="1.8" fill="#f59a9a" opacity="0.38"/>
+    ${b.woman ? `<path d="M57.8 64.4 Q60 66.6 62.2 64.4 Z" fill="#d2675e"/>` : `<path d="M57.6 64.6 Q60 65.8 62.4 64.6" stroke="#a0524a" stroke-width="1.1" fill="none" stroke-linecap="round"/>`}`
 }
 
 // ---- 머리 ----
@@ -482,7 +468,6 @@ const HATS: Record<string, string> = {
 
 interface Backdrop {
   paint: (id: string) => string
-  seal?: string
 }
 
 const plain = (top: string, bottom: string) => (id: string) =>
@@ -556,12 +541,10 @@ const BACKDROPS: Record<string, Backdrop> = {
       <path d="M64 80 Q76 36 88 52 Q96 20 108 46 Q114 60 120 58 L120 150 L64 150 Z" fill="#6f746f" opacity="0.55"/>
       <path d="M0 116 Q30 96 60 112 T120 104 L120 150 L0 150 Z" fill="#4c514d" opacity="0.5"/>
       <path d="M10 90 L40 90 M76 72 L110 72" stroke="#ffffff" stroke-width="3" opacity="0.6" stroke-linecap="round"/>`,
-    seal: '山',
   },
   'avatar.pine': {
     paint: (id) => `${plain('#efe6d2', '#dccdae')(id)}${PINE(-4, 30, 1.1)}${CRANE(84, 22)}
       <path d="M0 140 Q40 130 120 138 L120 150 L0 150 Z" fill="#c6b48f" opacity="0.6"/>`,
-    seal: '松',
   },
   'avatar.crane': {
     paint: (id) => `${plain('#bfd9cf', '#e9e0c8')(id)}
@@ -570,7 +553,6 @@ const BACKDROPS: Record<string, Backdrop> = {
       <path d="M78 150 L78 70 Q92 40 106 64 Q114 48 120 56 L120 150 Z" fill="#2f7a5d"/>
       <path d="M30 18 Q40 10 54 16 Q46 22 30 18 Z M58 24 Q66 18 76 22" fill="#ffffff" stroke="#ffffff" opacity="0.85"/>
       ${CRANE(60, 40)}`,
-    seal: '壽',
   },
   'avatar.tiger': {
     paint: (id) => `${plain('#f1e4c4', '#e2cd9f')(id)}${PINE(66, 18, 0.9)}
@@ -583,7 +565,6 @@ const BACKDROPS: Record<string, Backdrop> = {
         <ellipse cx="19.5" cy="31" rx="7" ry="4.5" fill="#fff8e0"/><path d="M17 29 L22 29 L19.5 32 Z" fill="#2a1a10"/>
         <circle cx="5" cy="5" r="5" fill="#e9962e"/><circle cx="34" cy="5" r="5" fill="#e9962e"/>
       </g>`,
-    seal: '虎',
   },
   'avatar.dragon': {
     paint: (id) => `${plain('#1f2f4a', '#2f4d5e')(id)}
@@ -591,7 +572,6 @@ const BACKDROPS: Record<string, Backdrop> = {
       <path d="M-4 70 Q20 40 40 60 Q60 80 80 52 Q96 30 124 44" stroke="#3f8f6c" stroke-width="9" fill="none" stroke-linecap="round"/>
       <path d="M-4 70 Q20 40 40 60 Q60 80 80 52 Q96 30 124 44" stroke="${GOLD}" stroke-width="2" fill="none" stroke-dasharray="2 4"/>
       <circle cx="100" cy="72" r="5" fill="#f2e2a0"/>`,
-    seal: '龍',
   },
   'avatar.phoenix': {
     paint: (id) => `${plain('#f4e0bf', '#e5b98a')(id)}
@@ -600,7 +580,6 @@ const BACKDROPS: Record<string, Backdrop> = {
       <path d="M88 44 Q104 70 122 74 M90 48 Q100 80 116 92 M86 50 Q92 84 102 104" stroke="#2b6aa8" stroke-width="2.6" fill="none" stroke-linecap="round"/>
       <path d="M88 44 Q104 70 122 74 M90 48 Q100 80 116 92 M86 50 Q92 84 102 104" stroke="${GOLD}" stroke-width="1" fill="none" stroke-dasharray="1 3"/>
       <circle cx="96" cy="23" r="1.2" fill="#111"/>`,
-    seal: '鳳',
   },
   'avatar.irworobong': {
     paint: (id) => `${plain('#1d3a6e', '#2a5a8a')(id)}
@@ -616,31 +595,53 @@ const BACKDROPS: Record<string, Backdrop> = {
     paint: (id) => `${plain('#f2d98a', '#c99a32')(id)}
       ${[30, 60, 90].map((x) => `<path d="M${x} 0 L${x} 150" stroke="#a87b1c" stroke-width="0.8" opacity="0.6"/>`).join('')}
       ${[0, 1, 2, 3, 4, 5].map((i) => `<rect x="${(i % 3) * 40 + 6}" y="${Math.floor(i / 3) * 70 + 8}" width="${14 + (i % 2) * 8}" height="${12 + (i % 3) * 4}" fill="#fff3c4" opacity="0.35"/>`).join('')}`,
-    seal: '冠',
   },
   'avatar.king': {
     paint: (id) => `${plain('#3a1d4f', '#1d0e2c')(id)}
       ${[0, 1, 2, 3, 4].map((i) => `<circle cx="${12 + i * 24}" cy="${14 + (i % 2) * 6}" r="1.6" fill="${GOLD}"/>`).join('')}
       <path d="M0 140 Q60 120 120 140" stroke="${GOLD}" stroke-width="2" fill="none" opacity="0.6"/>`,
-    seal: '王',
   },
   'avatar.master': {
     paint: (id) => `${plain('#2a2723', '#0e0d0c')(id)}
       <path d="M-4 120 Q30 84 70 104 Q96 116 124 92" stroke="#ffffff" stroke-width="10" fill="none" opacity="0.06" stroke-linecap="round"/>
       <path d="M8 20 Q30 14 46 24" stroke="${GOLD}" stroke-width="1.4" fill="none"/>`,
-    seal: '國',
   },
 }
 
-const OUTLINE: Record<Skin, string> = {
-  anime: 'stroke="#5a3a36" stroke-width="0.75" stroke-opacity="0.8" stroke-linejoin="round"',
-  joseon: 'stroke="#3a2a20" stroke-width="1.15" stroke-linejoin="round"',
+/**
+ * 애니메이션풍 몸. 목에서 어깨로 비스듬히 내려와 둥근 어깨와 팔이 있는 상반신을 남녀 따로 그리고,
+ * 옷 무늬(extra)와 치마는 몸 모양으로 잘라 넘치지 않게 한다. 목둘레 장식은 그대로 쓴다.
+ */
+function animeBody(b: Body, o: Outfit, id: string, short: boolean, collar: string): string {
+  const w = b.woman
+  const torso = w
+    ? 'M53.6 87 Q46 90 38.4 93 Q29.6 96.6 28.4 107 L27 150 L93 150 L91.6 107 Q90.4 96.6 81.6 93 Q74 90 66.4 87 Z'
+    : 'M52.6 86.6 Q44 89.6 34 92.6 Q23.6 96 22.4 108 L21 150 L99 150 L97.6 108 Q96.4 96 86 92.6 Q76 89.6 67.4 86.6 Z'
+  const arms = w ? 'M37.6 110 Q36.6 130 37.2 150 M82.4 110 Q83.4 130 82.8 150' : 'M32.8 110 Q31.6 130 32.2 150 M87.2 110 Q88.4 130 87.8 150'
+  const neck = w
+    ? `<path d="M55.4 64 L55.4 80 Q55 86 53.6 88 L66.4 88 Q65 86 64.6 80 L64.6 64 Z" fill="${b.skin}"/>`
+    : `<path d="M54.4 64 L54.4 80 Q54 85.6 52.6 87.6 L67.4 87.6 Q66 85.6 65.6 80 L65.6 64 Z" fill="${b.skin}"/>`
+  const chin = `<path d="M54.6 67 Q60 75 65.4 67 L65.4 72 Q60 78.6 54.6 72 Z" fill="${b.shade}" stroke="none"/>`
+  return `<defs><clipPath id="${id}body"><path d="${torso}"/></clipPath></defs>
+    ${o.back ? `<g transform="translate(60 0) scale(0.84 1) translate(-60 0)">${o.back}</g>` : ''}
+    ${neck}${chin}
+    <path d="${torso}" fill="${o.coat}"/>
+    <g clip-path="url(#${id}body)" stroke="none">
+      ${short ? `<rect x="0" y="124" width="120" height="26" fill="${o.skirt}"/><path d="M0 124 L120 124" stroke="#00000022" stroke-width="1"/>` : ''}
+      ${o.extra?.(id) ?? ''}
+      ${collar}
+      <path d="${arms}" stroke="#00000026" stroke-width="1.3" fill="none"/>
+      <path d="M44 90 Q60 96 76 90" stroke="#00000014" stroke-width="3" fill="none"/>
+    </g>
+    <path d="${torso}" fill="none"/>`
 }
+
+const OUTLINE = 'stroke="#5a3a36" stroke-width="0.75" stroke-opacity="0.8" stroke-linejoin="round"'
 
 let uid = 0
 
 /** 그림체 캐릭터 한 장. head면 얼굴만 둥글게 잘라 작은 자리(머리글 등)에 쓴다. */
-export function paintSvg(l: Look, skin: Skin, opts: { head?: boolean } = {}): string {
+export function paintSvg(l: Look, opts: { head?: boolean } = {}): string {
   const body = BODIES[l.body] ?? BODIES['body.man']
   const outfit = OUTFITS[l.outfit] ?? OUTFITS['outfit.tee']
   const hair = HAIRS[l.hair] ?? HAIRS['hair.short']
@@ -667,47 +668,29 @@ export function paintSvg(l: Look, skin: Skin, opts: { head?: boolean } = {}): st
                <path d="M52 89 L73 124" stroke="${outfit.collar}" stroke-width="6.4" stroke-linecap="square"/>
                <path d="M51 90.5 L69.6 121.6" stroke="${outfit.trim}" stroke-width="2.2"/>`
   const short = body.woman && !outfit.modern
-  const skirt = short ? `<path d="M12 150 Q14 128 26 123 L94 123 Q106 128 108 150 Z" fill="${outfit.skirt}"/>` : ''
   const ribbon = outfit.ribbon
     ? `<path d="M66 113 Q58.5 108.5 57 113.5 Q59 118 66 115 Z M66 113 Q73.5 108.5 75 113.5 Q73 118 66 115 Z" fill="${outfit.ribbon}"/>
        <path d="M65 115 L60.5 ${short ? 140 : 146} L64 ${short ? 140 : 146} L67 115.6 Z M67 115 L73 ${short ? 138 : 144} L76.5 ${short ? 137 : 143} L68.6 114.8 Z" fill="${outfit.ribbon}"/>`
     : ''
-  const coat = short
-    ? `<path d="M8 150 Q10 106 38 96 L52 89 L68 89 L82 96 Q110 106 112 150 L112 126 L8 126 Z" fill="${outfit.coat}"/>`
-    : `<path d="${TORSO}" fill="${outfit.coat}"/>`
-  const shade = skin === 'anime' ? `<path d="M54 70 Q60 78 66 70 L66 78 Q60 82 54 78 Z" fill="${body.shade}"/>` : ''
   const hairShine =
-    skin === 'anime' && !body.animal ? `<path d="M47 36 Q60 30 73 36" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.28" stroke-linecap="round"/>` : ''
+    !body.animal ? `<path d="M47 36 Q60 30 73 36" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.28" stroke-linecap="round"/>` : ''
 
   const parts = [
     `<defs>${outfit.defs?.(id) ?? ''}<clipPath id="${id}c">${opts.head ? '<circle cx="60" cy="50" r="27"/>' : '<rect width="120" height="150" rx="14"/>'}</clipPath></defs>`,
     `<g clip-path="url(#${id}c)">`,
     bg.paint(id),
-    skin === 'joseon' ? `<rect width="120" height="150" fill="#f3e2bd" opacity="0.14"/>` : '',
-    `<g ${OUTLINE[skin]}>`,
+    `<g ${OUTLINE}>`,
     body.animal ? '' : hair.back(hairColor),
-    // 애니메이션풍은 어깨를 좁히고 몸을 올려 목을 짧게 한다.
-    skin === 'anime' ? `<g transform="translate(60 -4) scale(0.8 1) translate(-60 0)">` : '<g>',
-    outfit.back ?? '',
-    coat,
-    skirt,
-    `<g stroke="none">${outfit.extra?.(id) ?? ''}</g>`,
-    `<path d="M54 64 L54 92 L66 92 L66 64 Z" fill="${body.skin}"/>`,
-    `<g stroke="none">${shade}${neck}${ribbon}</g>`,
-    skin === 'anime' ? `<path d="M30 112 Q28 130 29 150 M90 112 Q92 130 91 150" stroke="#00000024" stroke-width="1.4" fill="none"/>` : '',
+    animeBody(body, outfit, id, short, neck + ribbon),
+    faceShape(body),
     `</g>`,
-    faceShape(body, skin),
-    `</g>`,
-    features(body, skin, id),
-    `<g ${OUTLINE[skin]}>`,
+    features(body, id),
+    `<g ${OUTLINE}>`,
     beard,
     body.animal ? '' : hair.front(hairColor),
     `</g>`,
     hairShine,
-    `<g ${OUTLINE[skin]}>${hat}</g>`,
-    bg.seal && skin === 'joseon' && !opts.head
-      ? `<g transform="translate(101 128)"><rect x="-8" y="-8" width="16" height="16" rx="2" fill="#b8231f" opacity="0.92"/><text y="5" text-anchor="middle" font-size="12" font-family="'Noto Serif KR', serif" font-weight="900" fill="#f8e9d8">${bg.seal}</text></g>`
-      : '',
+    `<g ${OUTLINE}>${hat}</g>`,
     `</g>`,
   ]
   const frame = opts.head
