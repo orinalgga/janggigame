@@ -61,6 +61,9 @@ public class User {
     private String beard = "beard.none";
 
     @Column(nullable = false)
+    private String style = "style.doll";
+
+    @Column(nullable = false)
     private String outfit = "outfit.tee";
 
     @Column(nullable = false)
@@ -152,6 +155,14 @@ public class User {
 
     public String getBeard() {
         return beard;
+    }
+
+    public String getStyle() {
+        return style;
+    }
+
+    public void equipStyle(String itemId) {
+        this.style = itemId;
     }
 
     public String getOutfit() {

@@ -61,6 +61,8 @@ export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT'
 /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
 /** 캐릭터 차림. 모두 상점 상품 id이고 background는 배경 패다. */
 export interface Look {
+  /** 화풍: 인형·애니메이션·민화. */
+  style: string
   background: string
   body: string
   hair: string
@@ -349,7 +351,7 @@ export interface TournamentPaired {
   gameId: string
 }
 
-export type ShopSlot = 'BOARD' | 'PIECES' | 'AVATAR' | 'BODY' | 'HAIR' | 'BEARD' | 'OUTFIT' | 'HAT'
+export type ShopSlot = 'BOARD' | 'PIECES' | 'STYLE' | 'AVATAR' | 'BODY' | 'HAIR' | 'BEARD' | 'OUTFIT' | 'HAT'
 
 /** 상점 상품. 로그인하지 않았으면 owned, equipped는 무료 상품과 기본 장착 기준이다. */
 export interface ShopItem {

@@ -5,7 +5,7 @@ import java.util.Optional;
 
 /**
  * 상점에서 파는 테마와 캐릭터 부품. 모양은 웹의 themes.ts, character.ts가 같은 id로 정한다.
- * 값은 엽전(1닢 = 100원)이고, 0닢인 상품은 모두가 처음부터 가지고 있다.
+ * 값은 엽전(1닢 = 100원)이고, 캐릭터 부품은 10~50닢(1,000~5,000원)이다. 0닢인 상품은 모두가 처음부터 가지고 있다.
  * 보상(reward) 상품은 팔지 않고 운영 대회 우승으로만(또는 운영자 지급으로) 얻는다.
  */
 public enum ShopItem {
@@ -19,20 +19,23 @@ public enum ShopItem {
     PIECES_CELADON("pieces.celadon", Slot.PIECES, "청자 알", "비취빛 청자 유약", 39),
     PIECES_INK("pieces.ink", Slot.PIECES, "먹빛 알", "검은 알에 밝게 빛나는 글씨", 39),
     PIECES_GOLD("pieces.gold", Slot.PIECES, "금박 알", "금박을 입힌 화려한 알", 49),
-    AVATAR_BASIC("avatar.basic", Slot.AVATAR, "기본 미니룸", "창이 난 아늑한 내 방", 0),
-    AVATAR_CAFE("avatar.cafe", Slot.AVATAR, "카페", "벽돌 벽에 조명이 걸린 카페", 29),
-    AVATAR_BEACH("avatar.beach", Slot.AVATAR, "바닷가", "야자수가 서 있는 여름 바다", 39),
-    AVATAR_GOLF("avatar.golf", Slot.AVATAR, "골프장", "깃발이 꽂힌 푸른 그린", 49),
-    AVATAR_CITY("avatar.city", Slot.AVATAR, "도시 야경", "불 켜진 빌딩 숲의 밤", 49),
-    AVATAR_PLUM("avatar.plum", Slot.AVATAR, "매화도", "고목에 핀 홍매화", 29),
-    AVATAR_MOON("avatar.moon", Slot.AVATAR, "월하산수", "보름달 뜬 밤 산", 29),
-    AVATAR_TURTLE("avatar.turtle", Slot.AVATAR, "수묵 산수화", "안개 낀 먹빛 산수", 39),
-    AVATAR_PINE("avatar.pine", Slot.AVATAR, "송학도", "노송 위로 나는 학", 39),
-    AVATAR_CRANE("avatar.crane", Slot.AVATAR, "십장생도", "해와 산, 학이 어우러진 장수 그림", 49),
-    AVATAR_TIGER("avatar.tiger", Slot.AVATAR, "까치호랑이", "민화 속 호랑이와 까치", 59),
-    AVATAR_DRAGON("avatar.dragon", Slot.AVATAR, "운룡도", "구름 속을 나는 청룡", 69),
-    AVATAR_PHOENIX("avatar.phoenix", Slot.AVATAR, "봉황도", "붉은 해 아래 봉황", 69),
-    AVATAR_IRWOROBONG("avatar.irworobong", Slot.AVATAR, "일월오봉도", "임금의 자리 뒤에 두던 해·달·다섯 봉우리 병풍", 99),
+    STYLE_DOLL("style.doll", Slot.STYLE, "인형", "큰 머리의 작고 귀여운 인형", 0),
+    STYLE_ANIME("style.anime", Slot.STYLE, "애니메이션", "반짝이는 큰 눈의 만화 그림체", 25),
+    STYLE_JOSEON("style.joseon", Slot.STYLE, "조선 민화", "먹선과 발그레한 볼의 옛 그림체", 25),
+    AVATAR_BASIC("avatar.basic", Slot.AVATAR, "기본 방", "창이 난 아늑한 내 방", 0),
+    AVATAR_CAFE("avatar.cafe", Slot.AVATAR, "카페", "벽돌 벽에 조명이 걸린 카페", 15),
+    AVATAR_BEACH("avatar.beach", Slot.AVATAR, "바닷가", "야자수가 서 있는 여름 바다", 20),
+    AVATAR_GOLF("avatar.golf", Slot.AVATAR, "골프장", "깃발이 꽂힌 푸른 그린", 25),
+    AVATAR_CITY("avatar.city", Slot.AVATAR, "도시 야경", "불 켜진 빌딩 숲의 밤", 25),
+    AVATAR_PLUM("avatar.plum", Slot.AVATAR, "매화도", "고목에 핀 홍매화", 15),
+    AVATAR_MOON("avatar.moon", Slot.AVATAR, "월하산수", "보름달 뜬 밤 산", 15),
+    AVATAR_TURTLE("avatar.turtle", Slot.AVATAR, "수묵 산수화", "안개 낀 먹빛 산수", 20),
+    AVATAR_PINE("avatar.pine", Slot.AVATAR, "송학도", "노송 위로 나는 학", 20),
+    AVATAR_CRANE("avatar.crane", Slot.AVATAR, "십장생도", "해와 산, 학이 어우러진 장수 그림", 25),
+    AVATAR_TIGER("avatar.tiger", Slot.AVATAR, "까치호랑이", "민화 속 호랑이와 까치", 30),
+    AVATAR_DRAGON("avatar.dragon", Slot.AVATAR, "운룡도", "구름 속을 나는 청룡", 35),
+    AVATAR_PHOENIX("avatar.phoenix", Slot.AVATAR, "봉황도", "붉은 해 아래 봉황", 35),
+    AVATAR_IRWOROBONG("avatar.irworobong", Slot.AVATAR, "일월오봉도", "임금의 자리 뒤에 두던 해·달·다섯 봉우리 병풍", 50),
     AVATAR_CROWN("avatar.crown", Slot.AVATAR, "우승 금관", "운영 대회 우승자만 두는 금박 병풍", 0, true),
     AVATAR_KING("avatar.king", Slot.AVATAR, "정기 리그 왕", "정기 리그 우승자만 두는 자줏빛 비단", 0, true),
     AVATAR_MASTER("avatar.master", Slot.AVATAR, "국수", "특별 리그 우승자만 두는 묵향 배경", 0, true),
@@ -42,49 +45,49 @@ public enum ShopItem {
     BODY_ELDER_WOMAN("body.elder.woman", Slot.BODY, "은발 여자", "희끗한 머리의 여자", 0),
     HAIR_SHORT("hair.short", Slot.HAIR, "짧은 머리", "단정하게 자른 머리", 0),
     HAIR_BOB("hair.bob", Slot.HAIR, "단발머리", "앞머리를 내린 단발", 0),
-    HAIR_PERM("hair.perm", Slot.HAIR, "뽀글 파마", "풍성하게 볶은 파마", 29),
-    HAIR_LONG("hair.long", Slot.HAIR, "긴 생머리", "허리까지 내려오는 머리", 39),
+    HAIR_PERM("hair.perm", Slot.HAIR, "뽀글 파마", "풍성하게 볶은 파마", 15),
+    HAIR_LONG("hair.long", Slot.HAIR, "긴 생머리", "허리까지 내려오는 머리", 20),
     HAIR_SANGTU("hair.sangtu", Slot.HAIR, "상투와 망건", "금관자를 단 망건", 0),
     HAIR_JJOK("hair.jjok", Slot.HAIR, "쪽진머리", "옥비녀를 꽂은 쪽", 0),
-    HAIR_LOOSE("hair.loose", Slot.HAIR, "무관 머리", "붉은 머리띠로 묶은 머리", 29),
-    HAIR_GACHE("hair.gache", Slot.HAIR, "가채", "궁중 여인의 큰머리", 59),
+    HAIR_LOOSE("hair.loose", Slot.HAIR, "무관 머리", "붉은 머리띠로 묶은 머리", 15),
+    HAIR_GACHE("hair.gache", Slot.HAIR, "가채", "궁중 여인의 큰머리", 30),
     BEARD_NONE("beard.none", Slot.BEARD, "수염 없음", "말끔한 얼굴", 0),
-    BEARD_MUSTACHE("beard.mustache", Slot.BEARD, "콧수염", "단정한 팔자 콧수염", 19),
-    BEARD_SCHOLAR("beard.scholar", Slot.BEARD, "선비 수염", "가늘고 긴 염소수염", 29),
-    BEARD_FULL("beard.full", Slot.BEARD, "장군 수염", "위엄 있는 구레나룻", 39),
-    BEARD_SAGE("beard.sage", Slot.BEARD, "신선 수염", "가슴까지 내려오는 흰 수염", 49),
+    BEARD_MUSTACHE("beard.mustache", Slot.BEARD, "콧수염", "단정한 팔자 콧수염", 10),
+    BEARD_SCHOLAR("beard.scholar", Slot.BEARD, "선비 수염", "가늘고 긴 염소수염", 15),
+    BEARD_FULL("beard.full", Slot.BEARD, "장군 수염", "위엄 있는 구레나룻", 20),
+    BEARD_SAGE("beard.sage", Slot.BEARD, "신선 수염", "가슴까지 내려오는 흰 수염", 25),
     OUTFIT_TEE("outfit.tee", Slot.OUTFIT, "흰 티와 청바지", "어디에나 어울리는 기본 차림", 0),
-    OUTFIT_HOODIE("outfit.hoodie", Slot.OUTFIT, "후드티", "편한 후드티와 조거 바지", 29),
-    OUTFIT_KNIT("outfit.knit", Slot.OUTFIT, "니트와 슬랙스", "셔츠 깃을 낸 베이지 니트", 39),
-    OUTFIT_SUIT("outfit.suit", Slot.OUTFIT, "정장", "붉은 넥타이를 맨 남색 정장", 49),
-    OUTFIT_DRESS("outfit.dress", Slot.OUTFIT, "원피스", "꽃무늬 분홍 원피스", 49),
-    OUTFIT_GOLF("outfit.golf", Slot.OUTFIT, "골프웨어", "줄무늬 폴로셔츠와 면바지", 59),
+    OUTFIT_HOODIE("outfit.hoodie", Slot.OUTFIT, "후드티", "편한 후드티와 조거 바지", 15),
+    OUTFIT_KNIT("outfit.knit", Slot.OUTFIT, "니트와 슬랙스", "셔츠 깃을 낸 베이지 니트", 20),
+    OUTFIT_SUIT("outfit.suit", Slot.OUTFIT, "정장", "붉은 넥타이를 맨 남색 정장", 25),
+    OUTFIT_DRESS("outfit.dress", Slot.OUTFIT, "원피스", "꽃무늬 분홍 원피스", 25),
+    OUTFIT_GOLF("outfit.golf", Slot.OUTFIT, "골프웨어", "줄무늬 폴로셔츠와 면바지", 30),
     OUTFIT_PLAIN("outfit.plain", Slot.OUTFIT, "저고리", "남자는 무명 바지저고리, 여자는 노랑 저고리에 다홍치마", 0),
-    OUTFIT_DURUMAGI("outfit.durumagi", Slot.OUTFIT, "자주 두루마기", "점잖은 자줏빛 겉옷", 29),
-    OUTFIT_DOPO("outfit.dopo", Slot.OUTFIT, "옥색 도포", "쪽빛 세조대를 맨 선비 도포", 39),
-    OUTFIT_CHEOLLIK("outfit.cheollik", Slot.OUTFIT, "무관 철릭", "붉은 띠를 두른 무관 옷", 49),
-    OUTFIT_DANGUI("outfit.dangui", Slot.OUTFIT, "금박 녹당의", "금박 무늬 초록 당의와 홍치마", 59),
-    OUTFIT_GWANBOK("outfit.gwanbok", Slot.OUTFIT, "홍단령 관복", "쌍학 흉배를 단 당상관 관복", 69),
-    OUTFIT_ARMOR("outfit.armor", Slot.OUTFIT, "두정갑", "금빛 징을 박은 장수의 갑옷", 79),
-    OUTFIT_WONSAM("outfit.wonsam", Slot.OUTFIT, "원삼", "색동 소매에 금박을 올린 예복", 89),
-    OUTFIT_GONRYONGPO("outfit.gonryongpo", Slot.OUTFIT, "곤룡포", "가슴과 어깨에 용보를 단 임금의 옷", 99),
+    OUTFIT_DURUMAGI("outfit.durumagi", Slot.OUTFIT, "자주 두루마기", "점잖은 자줏빛 겉옷", 15),
+    OUTFIT_DOPO("outfit.dopo", Slot.OUTFIT, "옥색 도포", "쪽빛 세조대를 맨 선비 도포", 20),
+    OUTFIT_CHEOLLIK("outfit.cheollik", Slot.OUTFIT, "무관 철릭", "붉은 띠를 두른 무관 옷", 25),
+    OUTFIT_DANGUI("outfit.dangui", Slot.OUTFIT, "금박 녹당의", "금박 무늬 초록 당의와 홍치마", 30),
+    OUTFIT_GWANBOK("outfit.gwanbok", Slot.OUTFIT, "홍단령 관복", "쌍학 흉배를 단 당상관 관복", 35),
+    OUTFIT_ARMOR("outfit.armor", Slot.OUTFIT, "두정갑", "금빛 징을 박은 장수의 갑옷", 40),
+    OUTFIT_WONSAM("outfit.wonsam", Slot.OUTFIT, "원삼", "색동 소매에 금박을 올린 예복", 45),
+    OUTFIT_GONRYONGPO("outfit.gonryongpo", Slot.OUTFIT, "곤룡포", "가슴과 어깨에 용보를 단 임금의 옷", 50),
     HAT_NONE("hat.none", Slot.HAT, "없음", "맨머리", 0),
-    HAT_CAP("hat.cap", Slot.HAT, "야구 모자", "파란 야구 모자", 19),
-    HAT_BEANIE("hat.beanie", Slot.HAT, "방울 비니", "방울 달린 빨간 털모자", 19),
-    HAT_GLASSES("hat.glasses", Slot.HAT, "뿔테 안경", "점잖은 검은 뿔테", 19),
-    HAT_SUNGLASSES("hat.sunglasses", Slot.HAT, "선글라스", "멋을 낸 까만 선글라스", 29),
-    HAT_GAT("hat.gat", Slot.HAT, "흑립", "호박 갓끈을 단 선비의 갓", 29),
-    HAT_BINYEO("hat.binyeo", Slot.HAT, "금봉잠", "봉황을 새긴 금비녀", 39),
-    HAT_JEONGJAGWAN("hat.jeongjagwan", Slot.HAT, "정자관", "학자가 집에서 쓰던 관", 39),
-    HAT_JOKDURI("hat.jokduri", Slot.HAT, "족두리", "칠보를 단 족두리", 49),
-    HAT_SAMO("hat.samo", Slot.HAT, "사모", "관리가 쓰던 날개 달린 관모", 59),
-    HAT_JEONRIP("hat.jeonrip", Slot.HAT, "전립", "공작 깃과 상모를 단 무관의 모자", 59),
-    HAT_TTEOLJAM("hat.tteoljam", Slot.HAT, "떨잠", "칠보 구슬이 떨리는 머리 장식", 69),
-    HAT_IKSEON("hat.ikseon", Slot.HAT, "익선관", "임금이 쓰던 관", 99);
+    HAT_CAP("hat.cap", Slot.HAT, "야구 모자", "파란 야구 모자", 10),
+    HAT_BEANIE("hat.beanie", Slot.HAT, "방울 비니", "방울 달린 빨간 털모자", 10),
+    HAT_GLASSES("hat.glasses", Slot.HAT, "뿔테 안경", "점잖은 검은 뿔테", 10),
+    HAT_SUNGLASSES("hat.sunglasses", Slot.HAT, "선글라스", "멋을 낸 까만 선글라스", 15),
+    HAT_GAT("hat.gat", Slot.HAT, "흑립", "호박 갓끈을 단 선비의 갓", 15),
+    HAT_BINYEO("hat.binyeo", Slot.HAT, "금봉잠", "봉황을 새긴 금비녀", 20),
+    HAT_JEONGJAGWAN("hat.jeongjagwan", Slot.HAT, "정자관", "학자가 집에서 쓰던 관", 20),
+    HAT_JOKDURI("hat.jokduri", Slot.HAT, "족두리", "칠보를 단 족두리", 25),
+    HAT_SAMO("hat.samo", Slot.HAT, "사모", "관리가 쓰던 날개 달린 관모", 30),
+    HAT_JEONRIP("hat.jeonrip", Slot.HAT, "전립", "공작 깃과 상모를 단 무관의 모자", 30),
+    HAT_TTEOLJAM("hat.tteoljam", Slot.HAT, "떨잠", "칠보 구슬이 떨리는 머리 장식", 35),
+    HAT_IKSEON("hat.ikseon", Slot.HAT, "익선관", "임금이 쓰던 관", 50);
 
     /** 같은 칸에는 하나만 장착한다. */
     public enum Slot {
-        BOARD, PIECES, AVATAR, BODY, HAIR, BEARD, OUTFIT, HAT
+        BOARD, PIECES, STYLE, AVATAR, BODY, HAIR, BEARD, OUTFIT, HAT
     }
 
     private final String id;
@@ -138,7 +141,7 @@ public enum ShopItem {
 
     /** 로그인하지 않은 사람이 기본으로 입고 있는 것. 칸마다 하나. */
     public boolean starter() {
-        return this == BOARD_CLASSIC || this == PIECES_CLASSIC || this == AVATAR_BASIC || this == BODY_MAN
+        return this == BOARD_CLASSIC || this == PIECES_CLASSIC || this == STYLE_DOLL || this == AVATAR_BASIC || this == BODY_MAN
                 || this == HAIR_SHORT || this == BEARD_NONE || this == OUTFIT_TEE || this == HAT_NONE;
     }
 
