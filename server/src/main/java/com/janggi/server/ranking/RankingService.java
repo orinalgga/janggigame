@@ -80,7 +80,7 @@ public class RankingService {
     }
 
     private static final String SQL = """
-            SELECT g.user_id, u.nickname, u.avatar, u.body, u.hair, u.outfit, u.hat, u.rating, SUM(g.delta) AS points, COUNT(*) AS games,
+            SELECT g.user_id, u.nickname, u.avatar, u.body, u.hair, u.beard, u.outfit, u.hat, u.rating, SUM(g.delta) AS points, COUNT(*) AS games,
                    SUM(CASE WHEN g.outcome = 1 THEN 1 ELSE 0 END) AS wins,
                    SUM(CASE WHEN g.outcome = 0 THEN 1 ELSE 0 END) AS draws,
                    SUM(CASE WHEN g.outcome = -1 THEN 1 ELSE 0 END) AS losses
@@ -99,7 +99,7 @@ public class RankingService {
             ) g
             JOIN users u ON u.id = g.user_id
             WHERE u.banned_at IS NULL
-            GROUP BY g.user_id, u.nickname, u.avatar, u.body, u.hair, u.outfit, u.hat, u.rating
+            GROUP BY g.user_id, u.nickname, u.avatar, u.body, u.hair, u.beard, u.outfit, u.hat, u.rating
             ORDER BY points DESC, wins DESC, games ASC, g.user_id ASC
             """;
 
@@ -127,7 +127,7 @@ public class RankingService {
             int rating = rs.getInt("rating");
             Row row = new Row(ranked ? rows.size() + 1 : null, rs.getLong("user_id"), rs.getString("nickname"),
                     new Look(rs.getString("avatar"), rs.getString("body"), rs.getString("hair"),
-                            rs.getString("outfit"), rs.getString("hat")),
+                            rs.getString("beard"), rs.getString("outfit"), rs.getString("hat")),
                     Grade.name(rating), rating, rs.getInt("points"), games, rs.getInt("wins"), rs.getInt("draws"),
                     rs.getInt("losses"));
             if (ranked) {

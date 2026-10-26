@@ -64,6 +64,7 @@ export interface Look {
   background: string
   body: string
   hair: string
+  beard: string
   outfit: string
   hat: string
 }
@@ -348,7 +349,7 @@ export interface TournamentPaired {
   gameId: string
 }
 
-export type ShopSlot = 'BOARD' | 'PIECES' | 'AVATAR' | 'BODY' | 'HAIR' | 'OUTFIT' | 'HAT'
+export type ShopSlot = 'BOARD' | 'PIECES' | 'AVATAR' | 'BODY' | 'HAIR' | 'BEARD' | 'OUTFIT' | 'HAT'
 
 /** 상점 상품. 로그인하지 않았으면 owned, equipped는 무료 상품과 기본 장착 기준이다. */
 export interface ShopItem {
@@ -379,7 +380,20 @@ export interface ShopState {
   /** 그중 운영자가 준 엽전. 살 때 이것부터 쓴다. */
   freeCoins: number | null
   items: ShopItem[]
+  bundles: ShopBundle[]
   packs: CoinPack[]
+}
+
+/** 캐릭터 세트. price는 깎은 값(로그인했으면 아직 없는 부품만 센 값), fullPrice는 깎기 전 값. */
+export interface ShopBundle {
+  id: string
+  title: string
+  description: string
+  items: string[]
+  fullPrice: number
+  price: number
+  /** 부품을 다 가진 세트. */
+  owned: boolean
 }
 
 export interface CoinLedgerRow {
@@ -489,6 +503,7 @@ export const api = {
   confirmOrder: (orderId: string, paymentKey: string) =>
     request<ShopState>(`/api/shop/orders/${orderId}/confirm`, { paymentKey }),
   buy: (itemId: string) => request<ShopState>(`/api/shop/items/${itemId}/buy`, {}),
+  buyBundle: (bundleId: string) => request<ShopState>(`/api/shop/bundles/${bundleId}/buy`, {}),
   equip: (itemId: string) => request<ShopState>('/api/shop/equipped', { itemId }, 'PUT'),
   coinHistory: () => request<CoinLedgerRow[]>('/api/shop/coins/history'),
   notices: () => request<Notice[]>('/api/notices'),

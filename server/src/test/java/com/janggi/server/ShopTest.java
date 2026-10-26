@@ -123,15 +123,15 @@ class ShopTest {
     void avatarsAreBoughtWithCoinsButRewardsAreNotForSale() throws Exception {
         String token = login("shop-avatar");
         charge(token, "coins.50", 5000);
-        send(token, "POST", "/api/shop/items/avatar.tiger/buy", "")
+        send(token, "POST", "/api/shop/items/avatar.pine/buy", "")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.coins").value(11))
                 .andExpect(jsonPath("$.items[?(@.id=='avatar.basic')].equipped").value(true));
-        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"avatar.tiger\"}")
-                .andExpect(jsonPath("$.items[?(@.id=='avatar.tiger')].equipped").value(true))
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"avatar.pine\"}")
+                .andExpect(jsonPath("$.items[?(@.id=='avatar.pine')].equipped").value(true))
                 .andExpect(jsonPath("$.items[?(@.id=='avatar.basic')].equipped").value(false))
                 .andExpect(jsonPath("$.items[?(@.id=='board.classic')].equipped").value(true));
-        mvc.perform(get("/api/me").header("Authorization", token)).andExpect(jsonPath("$.look.background").value("avatar.tiger"));
+        mvc.perform(get("/api/me").header("Authorization", token)).andExpect(jsonPath("$.look.background").value("avatar.pine"));
         // 대회 보상은 엽전으로 살 수 없고, 얻기 전에는 장착할 수도 없다.
         send(token, "POST", "/api/shop/items/avatar.crown/buy", "")
                 .andExpect(status().isBadRequest())
@@ -147,30 +147,50 @@ class ShopTest {
     void characterPartsAreWornTogether() throws Exception {
         String token = login("shop-character");
         mvc.perform(get("/api/me").header("Authorization", token))
-                .andExpect(jsonPath("$.look.body").value("body.human"))
-                .andExpect(jsonPath("$.look.hair").value("hair.bob"))
-                .andExpect(jsonPath("$.look.outfit").value("outfit.white"))
-                .andExpect(jsonPath("$.look.hat").value("hat.none"));
-        // 무료 부품은 사지 않고 바로 입는다. 유료 부품은 사야 한다.
-        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"hair.sangtu\"}")
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[?(@.id=='hair.sangtu')].equipped").value(true))
-                .andExpect(jsonPath("$.items[?(@.id=='hair.bob')].equipped").value(false));
-        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"body.rabbit\"}").andExpect(status().isBadRequest());
-        charge(token, "coins.100", 10000);
-        send(token, "POST", "/api/shop/items/body.rabbit/buy", "").andExpect(status().isOk());
-        send(token, "POST", "/api/shop/items/outfit.hwarot/buy", "")
-                .andExpect(jsonPath("$.coins").value(100 - 29 - 49));
-        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"body.rabbit\"}").andExpect(status().isOk());
-        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"outfit.hwarot\"}")
-                .andExpect(jsonPath("$.items[?(@.id=='outfit.hwarot')].equipped").value(true))
-                .andExpect(jsonPath("$.items[?(@.id=='body.rabbit')].equipped").value(true))
-                .andExpect(jsonPath("$.items[?(@.id=='hair.sangtu')].equipped").value(true));
-        mvc.perform(get("/api/me").header("Authorization", token))
-                .andExpect(jsonPath("$.look.body").value("body.rabbit"))
+                .andExpect(jsonPath("$.look.body").value("body.man"))
                 .andExpect(jsonPath("$.look.hair").value("hair.sangtu"))
-                .andExpect(jsonPath("$.look.outfit").value("outfit.hwarot"))
+                .andExpect(jsonPath("$.look.beard").value("beard.none"))
+                .andExpect(jsonPath("$.look.outfit").value("outfit.plain"))
+                .andExpect(jsonPath("$.look.hat").value("hat.none"));
+        // 무료 부품(몸, 기본 머리)은 사지 않고 바로 입는다. 유료 부품은 사야 한다.
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"body.woman\"}").andExpect(status().isOk());
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"hair.jjok\"}")
+                .andExpect(jsonPath("$.items[?(@.id=='hair.jjok')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='hair.sangtu')].equipped").value(false));
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"outfit.dangui\"}").andExpect(status().isBadRequest());
+        charge(token, "coins.100", 10000);
+        send(token, "POST", "/api/shop/items/outfit.dangui/buy", "")
+                .andExpect(jsonPath("$.coins").value(100 - 59));
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"outfit.dangui\"}")
+                .andExpect(jsonPath("$.items[?(@.id=='outfit.dangui')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='body.woman')].equipped").value(true));
+        mvc.perform(get("/api/me").header("Authorization", token))
+                .andExpect(jsonPath("$.look.body").value("body.woman"))
+                .andExpect(jsonPath("$.look.hair").value("hair.jjok"))
+                .andExpect(jsonPath("$.look.outfit").value("outfit.dangui"))
                 .andExpect(jsonPath("$.look.background").value("avatar.basic"));
+    }
+
+    @Test
+    void bundleChargesOnlyMissingPartsAtADiscountAndWearsThem() throws Exception {
+        String token = login("shop-bundle");
+        mvc.perform(get("/api/shop").header("Authorization", token))
+                .andExpect(jsonPath("$.bundles[?(@.id=='set.seonbi')].fullPrice").value(39 + 29 + 29 + 39))
+                .andExpect(jsonPath("$.bundles[?(@.id=='set.seonbi')].price").value((39 + 29 + 29 + 39) * 80 / 100));
+        charge(token, "coins.300", 30000);
+        // 흑립을 먼저 사 두면 세트 값에서 빠진다.
+        send(token, "POST", "/api/shop/items/hat.gat/buy", "").andExpect(jsonPath("$.coins").value(300 - 29));
+        send(token, "POST", "/api/shop/bundles/set.seonbi/buy", "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coins").value(300 - 29 - (39 + 29 + 39) * 80 / 100))
+                .andExpect(jsonPath("$.bundles[?(@.id=='set.seonbi')].owned").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='outfit.dopo')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='avatar.pine')].equipped").value(true));
+        mvc.perform(get("/api/me").header("Authorization", token))
+                .andExpect(jsonPath("$.look.beard").value("beard.scholar"))
+                .andExpect(jsonPath("$.look.hat").value("hat.gat"));
+        send(token, "POST", "/api/shop/bundles/set.seonbi/buy", "").andExpect(status().isBadRequest());
+        send(token, "POST", "/api/shop/bundles/set.nope/buy", "").andExpect(status().isBadRequest());
     }
 
     @Test
