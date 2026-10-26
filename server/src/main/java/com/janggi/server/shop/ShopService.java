@@ -59,11 +59,13 @@ public class ShopService {
                 : owned.findByUserId(user.getId()).stream().map(OwnedItem::getItemId).collect(Collectors.toSet());
         String board = user == null ? ShopItem.BOARD_CLASSIC.id() : user.getBoardTheme();
         String pieces = user == null ? ShopItem.PIECES_CLASSIC.id() : user.getPieceTheme();
-        String avatar = user == null ? ShopItem.AVATAR_BASIC.id() : user.getAvatar();
+        Set<String> worn = user == null
+                ? Arrays.stream(ShopItem.values()).filter(ShopItem::starter).map(ShopItem::id).collect(Collectors.toSet())
+                : Set.of(user.getAvatar(), user.getBody(), user.getHair(), user.getOutfit(), user.getHat());
         List<ItemDto> items = Arrays.stream(ShopItem.values())
                 .map(i -> new ItemDto(i.id(), i.slot(), i.title(), i.description(), i.price(), i.reward(),
                         i.free() || mine.contains(i.id()),
-                        i.id().equals(board) || i.id().equals(pieces) || i.id().equals(avatar)))
+                        i.id().equals(board) || i.id().equals(pieces) || worn.contains(i.id())))
                 .toList();
         CoinService.Wallet wallet = user == null ? null : coins.wallet(user.getId());
         return new ShopDto(wallet == null ? null : wallet.total(), wallet == null ? null : wallet.free(), items, PACKS);
@@ -132,6 +134,10 @@ public class ShopService {
             case BOARD -> user.equipBoard(item.id());
             case PIECES -> user.equipPieces(item.id());
             case AVATAR -> user.equipAvatar(item.id());
+            case BODY -> user.equipBody(item.id());
+            case HAIR -> user.equipHair(item.id());
+            case OUTFIT -> user.equipOutfit(item.id());
+            case HAT -> user.equipHat(item.id());
         }
         return shop(userId);
     }

@@ -10,6 +10,7 @@ import com.janggi.server.chat.ChatService;
 import com.janggi.server.record.GameRecord;
 import com.janggi.server.record.GameRecorder;
 import com.janggi.server.user.Grade;
+import com.janggi.server.user.Look;
 import com.janggi.server.user.UserService;
 import java.util.List;
 import java.util.Map;
@@ -195,7 +196,7 @@ public class GameService {
     private GameDto.PlayerDto player(long userId, int ratingChange) {
         return users.find(userId)
                 .map(u -> new GameDto.PlayerDto(u.getId(), u.getNickname(), u.getRating() - ratingChange,
-                        Grade.name(u.getRating() - ratingChange), u.getAvatar()))
+                        Grade.name(u.getRating() - ratingChange), Look.of(u)))
                 .orElse(null);
     }
 

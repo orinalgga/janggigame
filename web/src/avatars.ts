@@ -17,7 +17,7 @@ export interface AvatarLook {
 export const DEFAULT_AVATAR = 'avatar.basic'
 
 export const AVATARS: Record<string, AvatarLook> = {
-  'avatar.basic': { glyph: null, from: '#a8642a', to: '#7a4116', fg: '#fff', ring: 'transparent' },
+  'avatar.basic': { glyph: null, from: '#f7ead6', to: '#e6cba3', fg: '#7a4116', ring: 'transparent' },
   'avatar.pine': { glyph: '松', from: '#3f7a4c', to: '#1b3a24', fg: '#eaf5dd', ring: '#9cc68a' },
   'avatar.plum': { glyph: '梅', from: '#fbe3ea', to: '#e597ad', fg: '#7a1f3d', ring: '#c9587a' },
   'avatar.turtle': { glyph: '龜', from: '#c8eadc', to: '#5ea68d', fg: '#123d2f', ring: '#2f7560' },

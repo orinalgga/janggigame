@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api, auth, type Me, type TournamentDetail, type TournamentMatch, type TournamentPlayer } from '../api'
 import { DIVISION, countdown, kindLabel, roundName, startLabel, timeControl } from '../tournaments'
 import UserAvatar from './UserAvatar.vue'
+import CharacterAvatar from './CharacterAvatar.vue'
 import { rewardTitle } from '../avatars'
 
 const props = defineProps<{
@@ -188,7 +189,7 @@ const statusLine = computed(() => {
               <div v-for="(p, i) in [m.cho, m.han]" :key="i" class="player" :class="side(m, p)">
                 <template v-if="p">
                   <span class="seed">{{ p.seed }}</span>
-                  <UserAvatar :id="p.avatar" :name="p.nickname" :size="20" />
+                  <CharacterAvatar :look="p.look" head class="face-s" />
                   <span class="name">{{ p.nickname }}</span>
                   <span class="grade">{{ p.grade }}</span>
                 </template>
@@ -209,7 +210,7 @@ const statusLine = computed(() => {
         <ol v-else>
           <li v-for="e in detail.entries" :key="e.player.id" :class="{ me: me?.id === e.player.id, out: e.out !== null }">
             <span class="rank">{{ e.rank ?? e.player.seed ?? '·' }}</span>
-            <UserAvatar :id="e.player.avatar" :name="e.player.nickname" :size="32" />
+            <CharacterAvatar :look="e.player.look" head class="face-m" />
             <span class="who"><b>{{ e.player.nickname }}</b><small>{{ e.player.grade }} · {{ e.player.rating }}</small></span>
             <span v-if="e.rank === 1" class="medal gold">우승</span>
             <span v-else-if="e.rank === 2" class="medal silver">준우승</span>
@@ -543,6 +544,12 @@ h3 {
   background: var(--accent-bg);
   color: var(--accent-deep);
   font-weight: 600;
+}
+.face-s {
+  width: 22px;
+}
+.face-m {
+  width: 36px;
 }
 .prize-avatar {
   display: inline-flex;

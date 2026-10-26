@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { api, type Ranking, type RankingPeriod } from '../api'
-import UserAvatar from './UserAvatar.vue'
+import CharacterAvatar from './CharacterAvatar.vue'
 
 const props = defineProps<{
   /** 내 회원 번호. 순위표에서 내 줄을 표시한다. */
@@ -105,7 +105,7 @@ const record = (r: { wins: number; draws: number; losses: number }) =>
       <ol v-else-if="ranking" :class="{ dim: loading }">
         <li v-for="r in ranking.rows" :key="r.userId" :class="{ mine: r.userId === props.myId, podium: r.rank! <= 3 }">
           <span class="rank" :class="`r${r.rank}`">{{ r.rank }}</span>
-          <UserAvatar :id="r.avatar" :name="r.nickname" :size="30" />
+          <CharacterAvatar :look="r.look" head class="face" />
           <span class="who">
             <b>{{ r.nickname }}</b>
             <small>{{ r.grade }} · {{ record(r) }}</small>
@@ -301,5 +301,8 @@ li.mine {
   padding: 8px 14px 10px;
   font-size: 0.75rem;
   border-top: 1px solid var(--border);
+}
+.face {
+  width: 32px;
 }
 </style>
