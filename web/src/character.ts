@@ -35,8 +35,11 @@ export const LOOK_KEY = {
 } as const
 export type LookSlot = keyof typeof LOOK_KEY
 
-/** 여자 몸에는 수염을 그리지 않는다. */
-export const showsBeard = (body: string) => !body.includes('woman')
+/** 동물 몸에는 머리카락을 그리지 않는다. */
+export const isAnimal = (body: string) => !['body.man', 'body.woman', 'body.elder', 'body.elder.woman'].includes(body)
+
+/** 여자와 동물에는 수염을 그리지 않는다. */
+export const showsBeard = (body: string) => body === 'body.man' || body === 'body.elder'
 
 export function withPart(look: Look, slot: LookSlot, id: string): Look {
   return { ...look, [LOOK_KEY[slot]]: id }

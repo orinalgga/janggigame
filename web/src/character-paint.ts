@@ -8,12 +8,17 @@ export type Skin = 'anime' | 'joseon'
 
 const GOLD = '#d4a83a'
 
+type Animal = 'cat' | 'dog' | 'rabbit' | 'bear' | 'fox' | 'tiger' | 'panda'
+
 interface Body {
   skin: string
   shade: string
   hair: string
   woman: boolean
   elder: boolean
+  /** 동물이면 skin이 털색, inner가 주둥이·귀 안쪽 색이고 머리카락·수염을 그리지 않는다. */
+  animal?: Animal
+  inner?: string
 }
 
 const BODIES: Record<string, Body> = {
@@ -21,10 +26,61 @@ const BODIES: Record<string, Body> = {
   'body.woman': { skin: '#ffe9d9', shade: '#f2c6aa', hair: '#3a2620', woman: true, elder: false },
   'body.elder': { skin: '#fadcc2', shade: '#e8b896', hair: '#cfc9c2', woman: false, elder: true },
   'body.elder.woman': { skin: '#ffe4d0', shade: '#eebfa2', hair: '#d6cfca', woman: true, elder: true },
+  'body.cat': { skin: '#f2b66d', shade: '#d9934a', hair: '#f2b66d', woman: false, elder: false, animal: 'cat', inner: '#fff4e6' },
+  'body.dog': { skin: '#e9d2b0', shade: '#c9a57a', hair: '#e9d2b0', woman: false, elder: false, animal: 'dog', inner: '#fffaf2' },
+  'body.rabbit': { skin: '#fbf7f4', shade: '#e2d6cf', hair: '#fbf7f4', woman: true, elder: false, animal: 'rabbit', inner: '#f8c6cf' },
+  'body.bear': { skin: '#a6774f', shade: '#86593a', hair: '#a6774f', woman: false, elder: false, animal: 'bear', inner: '#e8cba6' },
+  'body.fox': { skin: '#ef8a3a', shade: '#c96a24', hair: '#ef8a3a', woman: true, elder: false, animal: 'fox', inner: '#fff8ef' },
+  'body.tiger': { skin: '#f4a03c', shade: '#d27f22', hair: '#f4a03c', woman: false, elder: false, animal: 'tiger', inner: '#fff8ea' },
+  'body.panda': { skin: '#ffffff', shade: '#dedede', hair: '#ffffff', woman: false, elder: false, animal: 'panda', inner: '#ffffff' },
+}
+
+const DARK = '#2a2224'
+
+/** 동물 귀(머리 뒤). */
+function animalEars(b: Body): string {
+  const f = b.skin
+  const i = b.inner!
+  switch (b.animal) {
+    case 'cat':
+    case 'fox': {
+      const big = b.animal === 'fox' ? 4 : 0
+      return `<path d="M43 44 L${40 - big} ${22 - big} L56 35 Z M77 44 L${80 + big} ${22 - big} L64 35 Z" fill="${f}"/>
+        <path d="M45.4 40 L${43 - big / 2} ${27 - big} L52.6 35.6 Z M74.6 40 L${77 + big / 2} ${27 - big} L67.4 35.6 Z" fill="${b.animal === 'fox' ? DARK : '#f7c6c0'}" stroke="none"/>`
+    }
+    case 'rabbit':
+      return `<ellipse cx="51" cy="20" rx="5.6" ry="16" fill="${f}" transform="rotate(-10 51 20)"/><ellipse cx="69" cy="20" rx="5.6" ry="16" fill="${f}" transform="rotate(10 69 20)"/>
+        <ellipse cx="51" cy="21" rx="2.6" ry="12" fill="${i}" stroke="none" transform="rotate(-10 51 21)"/><ellipse cx="69" cy="21" rx="2.6" ry="12" fill="${i}" stroke="none" transform="rotate(10 69 21)"/>`
+    case 'dog':
+      return `<path d="M44 40 Q34 40 34 56 Q36 66 43 62 Z M76 40 Q86 40 86 56 Q84 66 77 62 Z" fill="${b.shade}"/>`
+    case 'panda':
+      return `<circle cx="45" cy="37" r="6.4" fill="${DARK}"/><circle cx="75" cy="37" r="6.4" fill="${DARK}"/>`
+    default:
+      return `<circle cx="45" cy="37" r="6.4" fill="${f}"/><circle cx="75" cy="37" r="6.4" fill="${f}"/>
+        <circle cx="45" cy="37.6" r="3.4" fill="${i}" stroke="none"/><circle cx="75" cy="37.6" r="3.4" fill="${i}" stroke="none"/>`
+  }
+}
+
+/** 동물 털무늬와 주둥이(선을 두르지 않는 것, 눈보다 먼저). */
+function animalMarks(b: Body): string {
+  const muzzle = `<ellipse cx="60" cy="61.4" rx="8.4" ry="6" fill="${b.inner}"/>`
+  const nose = `<path d="M57.6 58.2 Q60 57 62.4 58.2 Q61.6 60.4 60 60.8 Q58.4 60.4 57.6 58.2 Z" fill="${DARK}"/>
+    <path d="M60 60.8 L60 62.6 M56.6 62.6 Q58.4 64.4 60 62.6 Q61.6 64.4 63.4 62.6" stroke="${DARK}" stroke-width="0.9" fill="none" stroke-linecap="round"/>`
+  let marks = ''
+  if (b.animal === 'tiger')
+    marks = `<path d="M60 36 L60 42 M55 37 L56 41 M65 37 L64 41 M43.4 52 L48 53 M43.6 57 L47.6 57 M76.6 52 L72 53 M76.4 57 L72.4 57" stroke="${DARK}" stroke-width="1.6" stroke-linecap="round"/>`
+  if (b.animal === 'panda')
+    marks = `<ellipse cx="51.6" cy="53" rx="5" ry="6" fill="${DARK}" transform="rotate(20 51.6 53)"/><ellipse cx="68.4" cy="53" rx="5" ry="6" fill="${DARK}" transform="rotate(-20 68.4 53)"/>`
+  if (b.animal === 'fox') marks = `<path d="M43 52 Q50 64 60 66 Q70 64 77 52 Q76 70 60 72 Q44 70 43 52 Z" fill="${b.inner}"/>`
+  const whiskers = b.animal === 'cat' || b.animal === 'tiger'
+    ? `<path d="M50 61 L42 60 M50 63 L42.6 64 M70 61 L78 60 M70 63 L77.4 64" stroke="${DARK}" stroke-width="0.6" opacity="0.7"/>`
+    : ''
+  return marks + muzzle + nose + whiskers
 }
 
 /** 얼굴 모양(선을 두를 것). */
 function faceShape(b: Body, skin: Skin): string {
+  if (b.animal) return `${animalEars(b)}<ellipse cx="60" cy="54" rx="19.4" ry="17.6" fill="${b.skin}"/>`
   const ears = `<ellipse cx="43.6" cy="54" rx="2.8" ry="4.4" fill="${b.skin}"/><ellipse cx="76.4" cy="54" rx="2.8" ry="4.4" fill="${b.skin}"/>`
   return skin === 'anime'
     ? `${ears}<path d="M43.6 46 Q43.4 61 50 68.4 Q55 73.4 60 74 Q65 73.4 70 68.4 Q76.6 61 76.4 46 Q76 30 60 30 Q44 30 43.6 46 Z" fill="${b.skin}"/>`
@@ -34,6 +90,12 @@ function faceShape(b: Body, skin: Skin): string {
 /** 눈·코·입·볼(선을 두르지 않는 것). */
 function features(b: Body, skin: Skin, id: string): string {
   const line = '#2a1a14'
+  if (b.animal) {
+    const human = features({ ...b, animal: undefined, woman: false, elder: false, hair: b.shade }, skin, id)
+    // 사람 얼굴에서 눈만 쓰고(코·입·볼 빼고), 털무늬·주둥이 위에 얹는다.
+    const eyes = human.slice(0, human.indexOf('<!--nose-->'))
+    return animalMarks(b) + eyes + `<ellipse cx="48" cy="60" rx="3.4" ry="1.7" fill="#f59a9a" opacity="0.4"/><ellipse cx="72" cy="60" rx="3.4" ry="1.7" fill="#f59a9a" opacity="0.4"/>`
+  }
   if (skin === 'anime') {
     const iris = b.woman ? ['#5a2e1c', '#c27a3e'] : ['#232838', '#5f7396']
     const eye = (x: number, flip: number) =>
@@ -48,7 +110,7 @@ function features(b: Body, skin: Skin, id: string): string {
     const brow = b.elder ? '#a29a90' : b.hair
     return `<defs><linearGradient id="${id}iris" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${iris[0]}"/><stop offset="1" stop-color="${iris[1]}"/></linearGradient></defs>
       <path d="M48.6 45.4 Q52.6 43.6 56.4 44.8 M63.6 44.8 Q67.4 43.6 71.4 45.4" stroke="${brow}" stroke-width="1.3" fill="none" stroke-linecap="round"/>
-      ${eye(52.4, -1)}${eye(67.6, 1)}
+      ${eye(52.4, -1)}${eye(67.6, 1)}<!--nose-->
       <path d="M60.2 58.4 L59.4 60" stroke="${b.shade}" stroke-width="0.9" stroke-linecap="round"/>
       <ellipse cx="49.4" cy="60.6" rx="3.6" ry="1.8" fill="#f59a9a" opacity="0.38"/><ellipse cx="70.6" cy="60.6" rx="3.6" ry="1.8" fill="#f59a9a" opacity="0.38"/>
       ${b.woman ? `<path d="M57.8 64.4 Q60 66.6 62.2 64.4 Z" fill="#d2675e"/>` : `<path d="M57.6 64.6 Q60 65.8 62.4 64.6" stroke="#a0524a" stroke-width="1.1" fill="none" stroke-linecap="round"/>`}`
@@ -60,7 +122,7 @@ function features(b: Body, skin: Skin, id: string): string {
       : `<ellipse cx="${x}" cy="52.6" rx="1.5" ry="1.9" fill="${line}"/>${b.woman ? `<path d="M${x - 2.6} 50.8 Q${x} 49.6 ${x + 2.6} 50.8" stroke="${line}" stroke-width="0.8" fill="none"/>` : ''}`
   const brow = b.elder ? '#d8d2c8' : line
   return `<path d="M49.4 46.6 Q53 45 56.4 46.4 M63.6 46.4 Q67 45 70.6 46.6" stroke="${brow}" stroke-width="${b.woman ? 0.9 : 1.6}" fill="none" stroke-linecap="round"/>
-    ${eye(53)}${eye(67)}
+    ${eye(53)}${eye(67)}<!--nose-->
     <path d="M60 55.6 Q58.8 58.6 60.6 59.2" stroke="${b.shade}" stroke-width="1" fill="none" stroke-linecap="round"/>
     <circle cx="49.6" cy="60" r="3.4" fill="#f08a7a" opacity="0.42"/><circle cx="70.4" cy="60" r="3.4" fill="#f08a7a" opacity="0.42"/>
     ${b.woman ? `<ellipse cx="60" cy="64.6" rx="2" ry="1.3" fill="#c8443a"/>` : `<path d="M57.8 64.4 Q60 65.6 62.2 64.4" stroke="#9a4a3e" stroke-width="1.2" fill="none" stroke-linecap="round"/>`}`
@@ -583,7 +645,7 @@ export function paintSvg(l: Look, skin: Skin, opts: { head?: boolean } = {}): st
   const outfit = OUTFITS[l.outfit] ?? OUTFITS['outfit.tee']
   const hair = HAIRS[l.hair] ?? HAIRS['hair.short']
   const hairColor = body.hair
-  const beard = body.woman ? '' : (BEARDS[l.beard] ?? BEARDS['beard.none'])(body.elder ? '#eeeae2' : hairColor)
+  const beard = body.woman || body.animal ? '' : (BEARDS[l.beard] ?? BEARDS['beard.none'])(body.elder ? '#eeeae2' : hairColor)
   const hat = HATS[l.hat] ?? ''
   const bg = BACKDROPS[l.background] ?? BACKDROPS['avatar.basic']
   const id = `pt${++uid}`
@@ -615,7 +677,7 @@ export function paintSvg(l: Look, skin: Skin, opts: { head?: boolean } = {}): st
     : `<path d="${TORSO}" fill="${outfit.coat}"/>`
   const shade = skin === 'anime' ? `<path d="M54 70 Q60 78 66 70 L66 78 Q60 82 54 78 Z" fill="${body.shade}"/>` : ''
   const hairShine =
-    skin === 'anime' ? `<path d="M47 36 Q60 30 73 36" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.28" stroke-linecap="round"/>` : ''
+    skin === 'anime' && !body.animal ? `<path d="M47 36 Q60 30 73 36" stroke="#ffffff" stroke-width="2.2" fill="none" opacity="0.28" stroke-linecap="round"/>` : ''
 
   const parts = [
     `<defs>${outfit.defs?.(id) ?? ''}<clipPath id="${id}c">${opts.head ? '<circle cx="60" cy="50" r="27"/>' : '<rect width="120" height="150" rx="14"/>'}</clipPath></defs>`,
@@ -623,7 +685,7 @@ export function paintSvg(l: Look, skin: Skin, opts: { head?: boolean } = {}): st
     bg.paint(id),
     skin === 'joseon' ? `<rect width="120" height="150" fill="#f3e2bd" opacity="0.14"/>` : '',
     `<g ${OUTLINE[skin]}>`,
-    hair.back(hairColor),
+    body.animal ? '' : hair.back(hairColor),
     // 애니메이션풍은 어깨를 좁히고 몸을 올려 목을 짧게 한다.
     skin === 'anime' ? `<g transform="translate(60 -4) scale(0.8 1) translate(-60 0)">` : '<g>',
     outfit.back ?? '',
@@ -639,7 +701,7 @@ export function paintSvg(l: Look, skin: Skin, opts: { head?: boolean } = {}): st
     features(body, skin, id),
     `<g ${OUTLINE[skin]}>`,
     beard,
-    hair.front(hairColor),
+    body.animal ? '' : hair.front(hairColor),
     `</g>`,
     hairShine,
     `<g ${OUTLINE[skin]}>${hat}</g>`,

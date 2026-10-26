@@ -150,12 +150,18 @@ interface Paint {
 
 // ---- 몸과 얼굴 ----
 
+type Animal = 'cat' | 'dog' | 'rabbit' | 'bear' | 'fox' | 'tiger' | 'panda'
+
 interface Body {
   skin: string
   blush: string
   hair: string
   woman: boolean
   elder: boolean
+  /** 동물이면 skin이 털색, inner가 주둥이·귀 안쪽 색이고 머리카락·수염을 그리지 않는다. */
+  animal?: Animal
+  inner?: string
+  shade?: string
 }
 
 const BODIES: Record<string, Body> = {
@@ -163,6 +169,72 @@ const BODIES: Record<string, Body> = {
   'body.woman': { skin: '#ffe6d3', blush: '#f7a3a6', hair: '#3a2620', woman: true, elder: false },
   'body.elder': { skin: '#fbd9b9', blush: '#f2ae9c', hair: '#c9c4bc', woman: false, elder: true },
   'body.elder.woman': { skin: '#ffe2cc', blush: '#f2a8a2', hair: '#cdc6c2', woman: true, elder: true },
+  'body.cat': { skin: '#f2b66d', blush: '#f7a3a6', hair: '', woman: false, elder: false, animal: 'cat', inner: '#fff4e6' },
+  'body.dog': { skin: '#e9d2b0', blush: '#f7a3a6', hair: '', woman: false, elder: false, animal: 'dog', inner: '#fffaf2', shade: '#b98f62' },
+  'body.rabbit': { skin: '#fbf7f4', blush: '#f7a3a6', hair: '', woman: true, elder: false, animal: 'rabbit', inner: '#f8c6cf' },
+  'body.bear': { skin: '#a6774f', blush: '#f2a08a', hair: '', woman: false, elder: false, animal: 'bear', inner: '#e8cba6' },
+  'body.fox': { skin: '#ef8a3a', blush: '#f7a3a6', hair: '', woman: true, elder: false, animal: 'fox', inner: '#fff8ef' },
+  'body.tiger': { skin: '#f4a03c', blush: '#f7a3a6', hair: '', woman: false, elder: false, animal: 'tiger', inner: '#fff8ea' },
+  'body.panda': { skin: '#ffffff', blush: '#f7a3a6', hair: '', woman: false, elder: false, animal: 'panda', inner: '#ffffff' },
+}
+
+const DARK = '#2a2224'
+
+/** 동물 귀(머리보다 먼저, 테두리를 두른다). */
+function animalEars(p: Paint, b: Body) {
+  const d = p.doll
+  switch (b.animal) {
+    case 'cat':
+    case 'fox': {
+      const tall = b.animal === 'fox' ? 6 : 5
+      for (let i = 0; i < tall; i++) {
+        d.fill(11, 9 - tall + i, i + 1, 1, b.skin)
+        d.fill(29 - i, 9 - tall + i, i + 1, 1, b.skin)
+      }
+      const c = b.animal === 'fox' ? DARK : '#f7c6c0'
+      p.ink.fill(12, 7, 1, 2, c)
+      p.ink.fill(27, 7, 1, 2, c)
+      break
+    }
+    case 'rabbit':
+      d.fill(14, 0, 3, 10, b.skin)
+      d.fill(23, 0, 3, 10, b.skin)
+      p.ink.fill(15, 1, 1, 8, b.inner!)
+      p.ink.fill(24, 1, 1, 8, b.inner!)
+      break
+    case 'dog':
+      d.fill(7, 12, 3, 9, b.shade!)
+      d.fill(30, 12, 3, 9, b.shade!)
+      break
+    case 'panda':
+      d.circle(12, 9, 2.4, DARK)
+      d.circle(27, 9, 2.4, DARK)
+      break
+    default:
+      d.circle(12, 9, 2.4, b.skin)
+      d.circle(27, 9, 2.4, b.skin)
+      p.ink.dot(12, 9, b.inner!)
+      p.ink.dot(27, 9, b.inner!)
+  }
+}
+
+/** 털무늬와 주둥이. */
+function animalMarks(p: Paint, b: Body) {
+  if (b.animal === 'fox') p.ink.sym(20, [8, 7, 6, 4], b.inner!)
+  if (b.animal === 'tiger') {
+    p.ink.fill(19, 9, 2, 3, DARK)
+    p.ink.fill(16, 10, 1, 2, DARK)
+    p.ink.fill(23, 10, 1, 2, DARK)
+    for (const y of [17, 19]) {
+      p.ink.fill(10, y, 2, 1, DARK)
+      p.ink.fill(28, y, 2, 1, DARK)
+    }
+  }
+  if (b.animal === 'panda') {
+    p.ink.fill(14, 16, 3, 4, DARK)
+    p.ink.fill(23, 16, 3, 4, DARK)
+  }
+  p.ink.sym(19, [3, 4, 4, 3], b.inner!)
 }
 
 /** 머리는 y 9~25, 가장 넓은 곳이 x 10~29. */
@@ -170,7 +242,9 @@ const HEAD = [5, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 9, 8, 6]
 
 function head(p: Paint, b: Body) {
   p.doll.fill(18, 26, 4, 1, b.skin) // 목
+  if (b.animal) animalEars(p, b)
   p.doll.sym(9, HEAD, b.skin)
+  if (b.animal) return animalMarks(p, b)
   p.doll.fill(9, 17, 1, 3, b.skin) // 귀
   p.doll.fill(30, 17, 1, 3, b.skin)
 }
@@ -186,12 +260,17 @@ function face(hi: Layer, b: Body) {
       // 웃는 눈
       for (let t = -1; t <= 1; t += 0.05) hi.ellipse((cx + t * 1.3) * k, (18.4 - (1 - t * t) * 0.8) * k, 0.32 * k, 0.32 * k, eye)
     } else {
+      if (b.animal === 'panda') hi.ellipse(cx * k, 18 * k, 0.95 * k, 1.25 * k, '#ffffff')
       hi.ellipse(cx * k, 18 * k, 0.62 * k, 0.95 * k, eye)
       hi.ellipse((cx - 0.2) * k, 17.6 * k, 0.2 * k, 0.2 * k, '#ffffff')
       if (b.woman) hi.ellipse((cx + (cx < 20 ? -0.75 : 0.75)) * k, 17.05 * k, 0.32 * k, 0.22 * k, eye)
     }
   }
-  if (b.woman) hi.ellipse(20 * k, 21.6 * k, 0.8 * k, 0.45 * k, '#d9473f')
+  if (b.animal) {
+    hi.ellipse(20 * k, 19.9 * k, 0.75 * k, 0.5 * k, DARK)
+    for (const x of [19.35, 20.65]) hi.ellipse(x * k, 21.2 * k, 0.55 * k, 0.32 * k, DARK)
+    for (const x of [19.35, 20.65]) hi.ellipse(x * k, 21.0 * k, 0.45 * k, 0.3 * k, b.inner!)
+  } else if (b.woman) hi.ellipse(20 * k, 21.6 * k, 0.8 * k, 0.45 * k, '#d9473f')
   else hi.fill(19.3 * k, 21.4 * k, 1.4 * k, 0.4 * k, '#c46a5a')
 }
 
@@ -938,13 +1017,13 @@ function draw(l: Look): Paint {
 
   backdrop(p)
   p.bg.sym(44, [8], '#00000022') // 발밑 그림자
-  hair.back?.(p, body.hair)
+  if (!body.animal) hair.back?.(p, body.hair)
   outfit.back?.(p)
   dress(p, body, outfit)
   head(p, body)
-  hair.front(p, body.hair)
+  if (!body.animal) hair.front(p, body.hair)
   hat(p)
-  if (!body.woman) (BEARDS[l.beard] ?? BEARDS['beard.none'])(p, body.elder ? '#eeeae2' : body.hair)
+  if (!body.woman && !body.animal) (BEARDS[l.beard] ?? BEARDS['beard.none'])(p, body.elder ? '#eeeae2' : body.hair)
   return p
 }
 
