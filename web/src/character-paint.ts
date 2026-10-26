@@ -75,6 +75,34 @@ interface Hair {
 }
 
 const MODERN_HAIRS: Record<string, Hair> = {
+  'hair.sidepart': {
+    back: () => '',
+    front: (c) => `<path d="M42.4 54 Q40 27 60 26.4 Q80 27 77.6 54 L76.4 47 Q73 41 66 40.4 Q56 40 48 45 Q45.6 48 44.6 52 Z" fill="${c}"/>
+      <path d="M52 28 Q50 34 51 40" stroke="#00000040" stroke-width="0.9" fill="none"/>`,
+  },
+  'hair.slick': {
+    back: () => '',
+    front: (c) => `<path d="M43 52 Q41 25.6 60 25 Q79 25.6 77 52 Q76.4 39 69 35.6 Q60 33.6 51 35.6 Q43.6 39 43 52 Z" fill="${c}"/>
+      ${[50, 56, 62, 68].map((x) => `<path d="M${x} 27 Q${x + 2} 31 ${x + 1} 35" stroke="#ffffff40" stroke-width="0.9" fill="none"/>`).join('')}`,
+  },
+  'hair.buzz': {
+    back: () => '',
+    front: (c) => `<path d="M43.4 48 Q42.6 28 60 27.6 Q77.4 28 76.6 48 Q75 38.6 66 37.2 Q60 36.6 54 37.2 Q45 38.6 43.4 48 Z" fill="${c}" opacity="0.9"/>`,
+  },
+  'hair.ponytail': {
+    back: (c) => `<path d="M70 38 Q92 44 88 78 Q86 98 92 108 Q76 104 76 84 Q76 62 66 46 Z" fill="${c}"/>`,
+    front: (c) => `<path d="M42.6 56 Q40 27 60 26.6 Q80 27 77.4 52 Q76 44 70 41 L65 45 L61 40 L55 45.6 L49.6 42.4 Q45 47 44.6 58 Z" fill="${c}"/>
+      <circle cx="74.6" cy="39" r="2.6" fill="#d9483b"/>`,
+  },
+  'hair.wave': {
+    back: (c) => `<path d="M37 60 Q34 28 60 27 Q86 28 83 60 Q90 74 84 88 Q92 102 86 118 Q74 128 60 128 Q46 128 34 118 Q28 102 36 88 Q30 74 37 60 Z" fill="${c}"/>`,
+    front: (c) => `<path d="M39.4 96 Q35 80 38.6 66 Q35 46 42 36 Q48 27 60 27 Q72 27 78 36 Q85 46 81.4 66 Q85 80 80.6 96 L77 96 Q80 82 76.6 70 Q79 56 75 48 Q68 42 60 41 Q56 46 50 49 Q44 52 43.4 66 Q40 80 43.4 96 Z" fill="${c}"/>`,
+  },
+  'hair.bun': {
+    back: () => '',
+    front: (c) => `<circle cx="60" cy="21" r="8.6" fill="${c}"/><path d="M53 27.6 Q60 30.4 67 27.6" stroke="#d9483b" stroke-width="2.2" fill="none"/>
+      <path d="M40 62 Q37 29 60 28 Q83 29 80 62 L76.4 62 Q77 52 75.4 46 Q66 44 60 45.6 Q54 44 44.6 46 Q43 52 43.6 62 Z" fill="${c}"/>`,
+  },
   'hair.short': {
     back: () => '',
     front: (c) => `<path d="M42.4 54 Q40 27 60 26.4 Q80 27 77.6 54 L75 45 L71 48 L68 41 L63 46.6 L58 40.6 L53 46 L49 41.4 L46 47 Z" fill="${c}"/>`,
@@ -596,12 +624,16 @@ export function paintSvg(l: Look, skin: Skin, opts: { head?: boolean } = {}): st
     skin === 'joseon' ? `<rect width="120" height="150" fill="#f3e2bd" opacity="0.14"/>` : '',
     `<g ${OUTLINE[skin]}>`,
     hair.back(hairColor),
+    // 애니메이션풍은 어깨를 좁히고 몸을 올려 목을 짧게 한다.
+    skin === 'anime' ? `<g transform="translate(60 -4) scale(0.8 1) translate(-60 0)">` : '<g>',
     outfit.back ?? '',
     coat,
     skirt,
     `<g stroke="none">${outfit.extra?.(id) ?? ''}</g>`,
     `<path d="M54 64 L54 92 L66 92 L66 64 Z" fill="${body.skin}"/>`,
     `<g stroke="none">${shade}${neck}${ribbon}</g>`,
+    skin === 'anime' ? `<path d="M30 112 Q28 130 29 150 M90 112 Q92 130 91 150" stroke="#00000024" stroke-width="1.4" fill="none"/>` : '',
+    `</g>`,
     faceShape(body, skin),
     `</g>`,
     features(body, skin, id),
