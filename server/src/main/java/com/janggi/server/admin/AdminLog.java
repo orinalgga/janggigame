@@ -16,7 +16,8 @@ import java.time.OffsetDateTime;
 public class AdminLog {
 
     public enum Action {
-        RENAME, BAN, UNBAN, GRANT, COINS, NOTICE_CREATE, NOTICE_UPDATE, NOTICE_DELETE
+        RENAME, BAN, UNBAN, GRANT, COINS, NOTICE_CREATE, NOTICE_UPDATE, NOTICE_DELETE,
+        TOURNAMENT_CREATE, TOURNAMENT_UPDATE, TOURNAMENT_CANCEL
     }
 
     @Id

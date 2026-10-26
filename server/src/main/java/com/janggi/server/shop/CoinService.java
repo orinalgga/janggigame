@@ -21,7 +21,13 @@ public class CoinService {
         /** 상점에서 씀. */
         SPEND,
         /** 운영자가 넣거나 뺌(운영자 엽전). */
-        ADMIN
+        ADMIN,
+        /** 대회 참가비. 쓰는 순서는 SPEND와 같다. */
+        ENTRY,
+        /** 대회 참가비 환불. 낸 그대로 충전·운영자 엽전으로 돌려준다. */
+        REFUND,
+        /** 대회 상금. 운영자 엽전으로 들어간다. */
+        PRIZE
     }
 
     public record Wallet(int paid, int free) {
@@ -61,13 +67,33 @@ public class CoinService {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     public Wallet change(long userId, int delta, Kind kind, String ref, String memo) {
+        return apply(userId, delta, kind, ref, memo, null).after();
+    }
+
+    /** 대회 참가비를 낸다. 그중 운영자 엽전으로 낸 양을 돌려준다(나머지는 충전 엽전). */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public int payEntry(long userId, int fee, String ref, String memo) {
+        return -apply(userId, -fee, Kind.ENTRY, ref, memo, null).freeDelta();
+    }
+
+    /** 참가비 환불: 낸 그대로(충전 paid닢, 운영자 free닢) 돌려준다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Wallet refund(long userId, int paid, int free, String ref, String memo) {
+        return apply(userId, paid + free, Kind.REFUND, ref, memo, free).after();
+    }
+
+    private record Applied(Wallet after, int freeDelta) {
+    }
+
+    private Applied apply(long userId, int delta, Kind kind, String ref, String memo, Integer refundFree) {
         Wallet before = jdbc.query("SELECT paid_coins, free_coins FROM users WHERE id = ? FOR UPDATE",
                         (rs, i) -> new Wallet(rs.getInt(1), rs.getInt(2)), userId)
                 .stream().findFirst().orElseThrow(() -> new ShopException("회원을 찾을 수 없습니다"));
         int freeDelta = switch (kind) {
             case CHARGE -> 0;
-            case ADMIN -> delta;
-            case SPEND -> -Math.min(before.free(), -delta);
+            case ADMIN, PRIZE -> delta;
+            case SPEND, ENTRY -> -Math.min(before.free(), -delta);
+            case REFUND -> refundFree;
         };
         Wallet after = new Wallet(before.paid() + delta - freeDelta, before.free() + freeDelta);
         if (after.free() < 0) {
@@ -80,7 +106,7 @@ public class CoinService {
         jdbc.update("INSERT INTO coin_ledger (user_id, delta, free_delta, balance, kind, ref, memo, created_at)"
                 + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)", userId, delta, freeDelta, after.total(), kind.name(), ref, memo,
                 OffsetDateTime.now());
-        return after;
+        return new Applied(after, freeDelta);
     }
 
     /** 최근 50건, 새것부터. */

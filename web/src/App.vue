@@ -11,6 +11,9 @@ import RankingBoard from './components/RankingBoard.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
 import ShopView from './components/ShopView.vue'
+import HostTournamentDialog from './components/HostTournamentDialog.vue'
+import TournamentList from './components/TournamentList.vue'
+import TournamentView from './components/TournamentView.vue'
 import {
   api,
   auth,
@@ -21,6 +24,7 @@ import {
   type Me,
   type Side,
   type SquareDto,
+  type TournamentPaired,
 } from './api'
 import { Live } from './live'
 import { PERSONAS, type StartOptions } from './options'
@@ -66,10 +70,45 @@ async function loadMe() {
   setEquipped(me.value?.boardTheme, me.value?.pieceTheme)
   nicknameOpen.value = me.value?.nicknameChosen === false
   recent.value?.refresh()
+  if (me.value) watchTournaments()
+}
+
+// 대회 상태: 보고 있는 대회, 개인전 만들기 창, 대회 목록
+const tournamentId = ref<number | null>(null)
+const hostOpen = ref(false)
+const tournaments = ref<InstanceType<typeof TournamentList> | null>(null)
+let stopTournamentSub: (() => void) | null = null
+
+/** 대회에서 다음 상대가 정해지면 서버가 알려 준다. 어느 화면에 있든 바로 그 대국으로 간다. */
+function watchTournaments() {
+  if (stopTournamentSub) return
+  live ??= new Live()
+  stopTournamentSub = live.subscribe<TournamentPaired>('/user/queue/tournament', (p) => {
+    if (game.value?.online && game.value.result === 'ONGOING' && mySide.value) return
+    replayId.value = null
+    shopOpen.value = false
+    adminOpen.value = false
+    tournamentId.value = p.tournamentId
+    void openOnline(p.gameId)
+  })
+}
+
+function openTournament(id: number) {
+  hostOpen.value = false
+  tournamentId.value = id
+}
+
+/** 대회 화면에서 대국을 고르면 두거나 구경한다. */
+function tournamentGame(id: string) {
+  live ??= new Live()
+  error.value = ''
+  selected.value = null
+  void openOnline(id)
 }
 
 function logout() {
   leaveOnline()
+  stopTournamentSub = null
   live?.close()
   live = null
   auth.clear()
@@ -136,8 +175,10 @@ const status = computed(() => {
 
 /** 채팅 상대. 같은 화면 2인 대국에는 채팅이 없다. */
 const chatKind = computed<'ai' | 'online' | null>(() =>
-  game.value?.online ? 'online' : game.value?.aiSide ? 'ai' : null,
+  game.value?.online ? (mySide.value ? 'online' : null) : game.value?.aiSide ? 'ai' : null,
 )
+/** 내가 두고 있는 온라인 대국. 구경할 때는 언제든 나갈 수 있다. */
+const playingOnline = computed(() => !!game.value?.online && ongoing.value && mySide.value !== null)
 const persona = computed(() => (game.value?.aiLevel ? PERSONAS[game.value.aiLevel] : null))
 const chatTitle = computed(() => {
   const g = game.value
@@ -161,6 +202,7 @@ async function start(options: StartOptions) {
     replayId.value = null
     shopOpen.value = false
     adminOpen.value = false
+    tournamentId.value = null
     recent.value?.refresh()
   } catch (e) {
     error.value = `서버에 연결할 수 없습니다: ${(e as Error).message}`
@@ -169,7 +211,16 @@ async function start(options: StartOptions) {
   }
 }
 
-/** 대국을 접고 로비로 돌아간다. 진행 중인 온라인 대국에서는 쓰지 않는다. */
+/** 머리글의 '장기'를 누르면 어느 화면에서든 로비로 간다. */
+function goHome() {
+  if (game.value) toLobby()
+  replayId.value = null
+  shopOpen.value = false
+  adminOpen.value = false
+  tournamentId.value = null
+}
+
+/** 대국을 접고 로비로 돌아간다. 대회 대국이었으면 대회 화면으로 돌아간다. 진행 중인 온라인 대국에서는 쓰지 않는다. */
 function toLobby() {
   leaveOnline()
   game.value = null
@@ -196,6 +247,7 @@ async function findMatch(formation: Formation) {
   selected.value = null
   game.value = null
   replayId.value = null
+  tournamentId.value = null
   live ??= new Live()
   const connected = await Promise.race([
     live.connected().then(() => true),
@@ -331,13 +383,13 @@ async function gameEnded() {
 </script>
 
 <template>
-  <main :class="{ wide: (game && chatKind) || ((shopOpen || adminOpen) && !game && !replayId) }">
+  <main :class="{ wide: (game && chatKind) || ((shopOpen || adminOpen || tournamentId) && !game && !replayId) }">
     <header class="top">
-      <button v-if="game || replayId || shopOpen || adminOpen" type="button" class="brand link" :disabled="game?.online && ongoing" @click="replayId ? (replayId = null) : game ? toLobby() : ((shopOpen = false), (adminOpen = false))">
+      <button v-if="game || replayId || shopOpen || adminOpen || tournamentId" type="button" class="brand link" :disabled="playingOnline" @click="goHome">
         장기
       </button>
       <span v-else class="brand">장기</span>
-      <template v-if="!game && !replayId && !shopOpen && !adminOpen">
+      <template v-if="!game && !replayId && !shopOpen && !adminOpen && !tournamentId">
         <button type="button" class="shop-link" @click="shopOpen = true">상점</button>
         <button v-if="me?.admin" type="button" class="shop-link admin-link" @click="adminOpen = true">관리자</button>
       </template>
@@ -351,6 +403,8 @@ async function gameEnded() {
     </header>
 
     <NoticePopup :paused="!!game || nicknameOpen" />
+
+    <HostTournamentDialog v-if="me && hostOpen" :me="me" @created="openTournament" @close="hostOpen = false" />
 
     <NicknameDialog
       v-if="me && nicknameOpen"
@@ -378,7 +432,8 @@ async function gameEnded() {
 
     <section v-else-if="game" class="game-screen">
       <div class="topbar">
-        <button v-if="!(game.online && ongoing)" type="button" class="back" @click="toLobby">‹ 로비</button>
+        <button v-if="!playingOnline" type="button" class="back" @click="toLobby">{{ tournamentId ? '‹ 대회' : '‹ 로비' }}</button>
+        <span v-if="game.online && !mySide" class="watching">구경 중</span>
         <div v-if="!game.online" class="opponent">
           <template v-if="persona">
             <span class="badge han" aria-hidden="true">{{ persona.badge }}</span>
@@ -423,7 +478,8 @@ async function gameEnded() {
                 <button type="button" @click="confirmResign = false">계속 두기</button>
               </span>
             </template>
-            <button v-if="!ongoing && lastOptions" type="button" class="again" @click="start(lastOptions)">
+            <button v-if="!ongoing && tournamentId" type="button" class="again" @click="toLobby">대회로 돌아가기</button>
+            <button v-else-if="!ongoing && lastOptions" type="button" class="again" @click="start(lastOptions)">
               {{ game.online ? '새 상대 찾기' : '한 판 더' }}
             </button>
           </div>
@@ -443,12 +499,23 @@ async function gameEnded() {
       </div>
     </section>
 
+    <TournamentView
+      v-else-if="tournamentId"
+      :id="tournamentId"
+      :key="tournamentId"
+      :me="me"
+      :providers="providers"
+      @close="tournamentId = null"
+      @game="tournamentGame"
+    />
+
     <AdminView v-else-if="adminOpen && me?.admin" @close="adminOpen = false" />
 
     <ShopView v-else-if="shopOpen" :me="me" :providers="providers" @close="shopOpen = false" />
 
     <template v-else>
       <LobbyView :me="me" :providers="providers" :searching="searching" :error="error" @start="start" @cancel="cancelMatch" />
+      <TournamentList ref="tournaments" :me="me" @open="openTournament" @host="hostOpen = true" />
       <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" @resume="resume" />
       <RankingBoard :key="me?.id ?? 0" :my-id="me?.id ?? null" />
     </template>
@@ -623,6 +690,13 @@ main.wide {
   flex-wrap: wrap;
   margin-bottom: 12px;
 }
+.watching {
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--line, rgba(0, 0, 0, 0.08));
+}
+
 .back {
   padding: 7px 12px;
   border-radius: 10px;

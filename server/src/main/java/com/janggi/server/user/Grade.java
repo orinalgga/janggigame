@@ -22,6 +22,11 @@ public final class Grade {
         return Math.min(1 + (rating - FLOOR) / STEP, KYU + DAN - 1);
     }
 
+    /** 초단 이상(유단자)인지. */
+    public static boolean dan(int rating) {
+        return level(rating) >= KYU;
+    }
+
     public static String name(int rating) {
         int level = level(rating);
         if (level < KYU) {

@@ -3,6 +3,8 @@ package com.janggi.server.admin;
 import com.janggi.server.auth.CurrentUser;
 import com.janggi.server.notice.NoticeService;
 import com.janggi.server.shop.ShopException;
+import com.janggi.server.tournament.TournamentException;
+import com.janggi.server.tournament.TournamentService;
 import com.janggi.server.user.NicknameException;
 import java.util.List;
 import java.util.Map;
@@ -26,10 +28,12 @@ public class AdminController {
 
     private final AdminService admin;
     private final NoticeService notices;
+    private final TournamentService tournaments;
 
-    public AdminController(AdminService admin, NoticeService notices) {
+    public AdminController(AdminService admin, NoticeService notices, TournamentService tournaments) {
         this.admin = admin;
         this.notices = notices;
+        this.tournaments = tournaments;
     }
 
     @GetMapping("/stats")
@@ -115,6 +119,31 @@ public class AdminController {
         return Map.of("deleted", true);
     }
 
+    @GetMapping("/tournaments")
+    public List<TournamentService.SummaryDto> tournaments() {
+        admin.requireAdmin(CurrentUser.id());
+        return tournaments.all();
+    }
+
+    @PostMapping("/tournaments")
+    public List<TournamentService.SummaryDto> createTournament(@RequestBody TournamentService.TournamentRequest body) {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.createTournament(CurrentUser.id(), body);
+    }
+
+    @PutMapping("/tournaments/{id}")
+    public TournamentService.SummaryDto updateTournament(@PathVariable long id,
+            @RequestBody TournamentService.TournamentRequest body) {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.updateTournament(CurrentUser.id(), id, body);
+    }
+
+    @PostMapping("/tournaments/{id}/cancel")
+    public TournamentService.SummaryDto cancelTournament(@PathVariable long id) {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.cancelTournament(CurrentUser.id(), id);
+    }
+
     @ExceptionHandler(AdminException.Forbidden.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public Map<String, String> forbidden(AdminException e) {
@@ -122,7 +151,7 @@ public class AdminController {
     }
 
     @ExceptionHandler({AdminException.BadRequest.class, NicknameException.class, NoticeService.InvalidNotice.class,
-            ShopException.class})
+            ShopException.class, TournamentException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> bad(RuntimeException e) {
         return Map.of("error", e.getMessage());
