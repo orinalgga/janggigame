@@ -70,6 +70,12 @@ public class GameService {
 
     /** 매칭된 두 회원의 온라인 대국. 만들자마자 초의 시계가 간다. */
     public GameDto createOnline(long choUserId, Formation cho, long hanUserId, Formation han) {
+        return createOnline(choUserId, cho, hanUserId, han, baseSeconds, incrementSeconds);
+    }
+
+    /** 시간 규칙을 정해 만드는 온라인 대국(대회). */
+    public GameDto createOnline(long choUserId, Formation cho, long hanUserId, Formation han, int baseSeconds,
+            int incrementSeconds) {
         UUID id = UUID.randomUUID();
         recorder.startOnline(id, cho, han, choUserId, hanUserId, baseSeconds, incrementSeconds);
         GameClock clock = new GameClock(baseSeconds * 1000L, baseSeconds * 1000L, incrementSeconds * 1000L);

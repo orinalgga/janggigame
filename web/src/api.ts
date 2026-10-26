@@ -161,7 +161,18 @@ export interface AdminLog {
   at: string
   adminId: number
   admin: string
-  action: 'RENAME' | 'BAN' | 'UNBAN' | 'GRANT' | 'COINS' | 'NOTICE_CREATE' | 'NOTICE_UPDATE' | 'NOTICE_DELETE'
+  action:
+    | 'RENAME'
+    | 'BAN'
+    | 'UNBAN'
+    | 'GRANT'
+    | 'COINS'
+    | 'NOTICE_CREATE'
+    | 'NOTICE_UPDATE'
+    | 'NOTICE_DELETE'
+    | 'TOURNAMENT_CREATE'
+    | 'TOURNAMENT_UPDATE'
+    | 'TOURNAMENT_CANCEL'
   targetId: number | null
   target: string | null
   detail: string | null
@@ -228,6 +239,96 @@ export interface Ranking {
   rows: RankingRow[]
   /** 로그인했고 이 기간에 둔 판이 있을 때만. */
   me: RankingRow | null
+}
+
+export type TournamentStatus = 'SCHEDULED' | 'RUNNING' | 'FINISHED' | 'CANCELLED'
+/** 누구나, 유단자(초단 이상), 급. */
+export type Division = 'ALL' | 'DAN' | 'KYU'
+/** 정기 리그는 repeatDays마다 다음 회차가 저절로 생긴다. */
+export type TournamentKind = 'REGULAR' | 'SPECIAL'
+
+export interface TournamentPlayer {
+  id: number
+  nickname: string
+  grade: string
+  rating: number
+  seed: number | null
+}
+
+export interface TournamentSummary {
+  id: number
+  title: string
+  startsAt: string
+  status: TournamentStatus
+  division: Division
+  kind: TournamentKind
+  repeatDays: number
+  /** 회원이 연 개인 대회면 연 사람. */
+  host: TournamentPlayer | null
+  /** 운영자나 연 사람이 미리 건 우승 상금. */
+  bonusPrize: number
+  baseSeconds: number
+  incrementSeconds: number
+  entryFee: number
+  maxPlayers: number
+  players: number
+  /** 우승 상금. 참가비는 소모되고 상금에 들어가지 않는다. */
+  prizePool: number
+  currentRound: number
+  totalRounds: number
+  winner: TournamentPlayer | null
+  joined: boolean
+}
+
+/** 한쪽이 비면 부전승. */
+export interface TournamentMatch {
+  round: number
+  slot: number
+  cho: TournamentPlayer | null
+  han: TournamentPlayer | null
+  gameId: string | null
+  winnerId: number | null
+}
+
+export interface TournamentEntry {
+  player: TournamentPlayer
+  /** 탈락한 라운드. */
+  out: number | null
+  /** 끝난 대회의 순위. */
+  rank: number | null
+}
+
+export interface TournamentDetail {
+  summary: TournamentSummary
+  description: string | null
+  entries: TournamentEntry[]
+  matches: TournamentMatch[]
+  nextRoundAt: string | null
+  /** 내가 지금 둬야 하는 대회 대국. */
+  myGameId: string | null
+  eliminated: boolean
+}
+
+export interface TournamentInput {
+  title: string
+  description: string | null
+  startsAt: string
+  baseSeconds: number
+  incrementSeconds: number
+  entryFee: number
+  maxPlayers: number
+  bonusPrize: number
+  division?: Division
+  both?: boolean
+  kind?: TournamentKind
+  repeatDays?: number
+}
+
+/** 다음 대회 대국이 짝지어졌다는 알림(/user/queue/tournament). */
+export interface TournamentPaired {
+  tournamentId: number
+  round: number
+  gameId: string
 }
 
 export type ShopSlot = 'BOARD' | 'PIECES'
@@ -372,6 +473,12 @@ export const api = {
   equip: (itemId: string) => request<ShopState>('/api/shop/equipped', { itemId }, 'PUT'),
   coinHistory: () => request<CoinLedgerRow[]>('/api/shop/coins/history'),
   notices: () => request<Notice[]>('/api/notices'),
+  tournaments: () => request<TournamentSummary[]>('/api/tournaments'),
+  tournament: (id: number) => request<TournamentDetail>(`/api/tournaments/${id}`),
+  joinTournament: (id: number) => request<TournamentDetail>(`/api/tournaments/${id}/join`, {}),
+  leaveTournament: (id: number) => request<TournamentDetail>(`/api/tournaments/${id}/leave`, {}),
+  hostTournament: (t: TournamentInput) => request<TournamentDetail>('/api/tournaments', t),
+  cancelHosted: (id: number) => request<TournamentDetail>(`/api/tournaments/${id}/cancel`, {}),
   rankings: (period: RankingPeriod, offset = 0) =>
     request<Ranking>(`/api/rankings?period=${period.toLowerCase()}&offset=${offset}`),
   admin: {
@@ -387,6 +494,9 @@ export const api = {
     orders: () => request<AdminOrder[]>('/api/admin/orders'),
     logs: () => request<AdminLog[]>('/api/admin/logs'),
     notices: () => request<Notice[]>('/api/admin/notices'),
+    tournaments: () => request<TournamentSummary[]>('/api/admin/tournaments'),
+    createTournament: (t: TournamentInput) => request<TournamentSummary[]>('/api/admin/tournaments', t),
+    cancelTournament: (id: number) => request<TournamentSummary>(`/api/admin/tournaments/${id}/cancel`, {}),
     createNotice: (n: NoticeInput) => request<Notice>('/api/admin/notices', n),
     updateNotice: (id: number, n: NoticeInput) => request<Notice>(`/api/admin/notices/${id}`, n, 'PUT'),
     deleteNotice: (id: number) => request<{ deleted: boolean }>(`/api/admin/notices/${id}`, undefined, 'DELETE'),

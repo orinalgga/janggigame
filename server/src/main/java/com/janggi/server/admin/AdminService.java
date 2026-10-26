@@ -3,6 +3,7 @@ package com.janggi.server.admin;
 import com.janggi.core.GameResult;
 import com.janggi.server.match.MatchService;
 import com.janggi.server.notice.NoticeService;
+import com.janggi.server.tournament.TournamentService;
 import com.janggi.server.record.GameRecordRepository;
 import com.janggi.server.shop.CoinPack;
 import com.janggi.server.shop.CoinService;
@@ -78,11 +79,12 @@ public class AdminService {
     private final AdminLogRepository logs;
     private final NoticeService notices;
     private final CoinService coins;
+    private final TournamentService tournaments;
 
     public AdminService(@Value("${janggi.admin-emails:}") String adminEmails, UserRepository users,
             UserService userService, AuthIdentityRepository identities, GameRecordRepository games,
             PurchaseRepository purchases, OwnedItemRepository owned, MatchService match, AdminLogRepository logs,
-            NoticeService notices, CoinService coins) {
+            NoticeService notices, CoinService coins, TournamentService tournaments) {
         this.adminEmails = Arrays.stream(adminEmails.split(","))
                 .map(e -> e.strip().toLowerCase(Locale.ROOT))
                 .filter(e -> !e.isEmpty())
@@ -97,6 +99,7 @@ public class AdminService {
         this.logs = logs;
         this.notices = notices;
         this.coins = coins;
+        this.tournaments = tournaments;
     }
 
     @Transactional(readOnly = true)
@@ -175,6 +178,27 @@ public class AdminService {
         owned.save(new OwnedItem(userId, item.id(), OffsetDateTime.now()));
         log(adminId, AdminLog.Action.GRANT, userId, item.title());
         return row(user);
+    }
+
+    @Transactional
+    public List<TournamentService.SummaryDto> createTournament(long adminId, TournamentService.TournamentRequest req) {
+        List<TournamentService.SummaryDto> made = tournaments.create(adminId, req);
+        made.forEach(t -> log(adminId, AdminLog.Action.TOURNAMENT_CREATE, null, t.title()));
+        return made;
+    }
+
+    @Transactional
+    public TournamentService.SummaryDto updateTournament(long adminId, long id, TournamentService.TournamentRequest req) {
+        TournamentService.SummaryDto t = tournaments.update(id, req);
+        log(adminId, AdminLog.Action.TOURNAMENT_UPDATE, null, t.title());
+        return t;
+    }
+
+    @Transactional
+    public TournamentService.SummaryDto cancelTournament(long adminId, long id) {
+        TournamentService.SummaryDto t = tournaments.cancel(id);
+        log(adminId, AdminLog.Action.TOURNAMENT_CANCEL, null, t.title() + " (참가비 " + t.players() + "명 환불)");
+        return t;
     }
 
     /** 운영자 엽전을 넣거나(양수) 뺀다(음수). 충전한 엽전은 뺄 수 없다. 사유는 회원의 엽전 기록에도 남는다. */

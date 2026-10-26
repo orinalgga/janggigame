@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem } from '../api'
+import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem, type TournamentSummary } from '../api'
+import { DIVISION, emptyInput, fromLocal as isoFrom, kindLabel, localIn, startLabel, timeControl } from '../tournaments'
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-type Tab = 'stats' | 'users' | 'notices' | 'orders' | 'logs'
+type Tab = 'stats' | 'users' | 'notices' | 'tournaments' | 'orders' | 'logs'
 const TABS: { value: Tab; label: string }[] = [
   { value: 'stats', label: '현황' },
   { value: 'users', label: '회원' },
   { value: 'notices', label: '공지' },
+  { value: 'tournaments', label: '대회' },
   { value: 'orders', label: '주문' },
   { value: 'logs', label: '기록' },
 ]
@@ -23,6 +25,9 @@ const ACTION: Record<AdminLog['action'], string> = {
   NOTICE_CREATE: '공지 등록',
   NOTICE_UPDATE: '공지 수정',
   NOTICE_DELETE: '공지 삭제',
+  TOURNAMENT_CREATE: '대회 생성',
+  TOURNAMENT_UPDATE: '대회 수정',
+  TOURNAMENT_CANCEL: '대회 취소',
 }
 const STATUS: Record<AdminOrder['status'], string> = { PENDING: '결제 전', PAID: '결제 완료', FAILED: '실패' }
 
@@ -138,6 +143,53 @@ function noticeState(n: Notice): { label: string; cls: string } {
   return { label: '보이는 중', cls: 'paid' }
 }
 
+/** 대회 만들기 칸. league는 누구나·유단자·급·둘 다(유단자와 급 리그를 한 번에). repeat 0이면 특별 대회. */
+const tournaments = ref<TournamentSummary[]>([])
+const tform = ref({ ...emptyInput(), startsAt: localIn(60), league: 'ALL' as 'ALL' | 'DAN' | 'KYU' | 'BOTH', repeat: 0 })
+const confirmCancel = ref<number | null>(null)
+const T_STATUS: Record<TournamentSummary['status'], { label: string; cls: string }> = {
+  SCHEDULED: { label: '모집 중', cls: 'pending' },
+  RUNNING: { label: '진행 중', cls: 'paid' },
+  FINISHED: { label: '끝남', cls: '' },
+  CANCELLED: { label: '취소', cls: 'failed' },
+}
+
+async function loadTournaments() {
+  tournaments.value = (await run(api.admin.tournaments)) ?? tournaments.value
+}
+
+async function createTournament() {
+  const f = tform.value
+  const both = f.league === 'BOTH'
+  const input = {
+    title: f.title.trim(),
+    description: f.description?.trim() || null,
+    startsAt: isoFrom(f.startsAt),
+    baseSeconds: f.baseSeconds,
+    incrementSeconds: f.incrementSeconds,
+    entryFee: f.entryFee,
+    maxPlayers: f.maxPlayers,
+    bonusPrize: f.bonusPrize,
+    division: f.league === 'BOTH' ? 'ALL' : f.league,
+    both,
+    kind: f.repeat ? ('REGULAR' as const) : ('SPECIAL' as const),
+    repeatDays: f.repeat,
+  }
+  const made = await run(() => api.admin.createTournament(input))
+  if (!made) return
+  notice.value = `${made.map((t) => `'${t.title}'`).join(', ')} 대회를 만들었어요.`
+  tform.value = { ...emptyInput(), startsAt: localIn(60), league: 'ALL', repeat: 0 }
+  await loadTournaments()
+}
+
+async function cancelTournament(t: TournamentSummary) {
+  if (await run(() => api.admin.cancelTournament(t.id))) {
+    notice.value = `'${t.title}' 대회를 취소하고 참가비를 돌려줬어요.`
+    confirmCancel.value = null
+    await loadTournaments()
+  }
+}
+
 async function loadOrders() {
   orders.value = (await run(api.admin.orders)) ?? orders.value
 }
@@ -148,6 +200,7 @@ function show(t: Tab) {
   if (t === 'stats') void loadStats()
   if (t === 'users' && !page.value) void search()
   if (t === 'notices') void loadNotices()
+  if (t === 'tournaments') void loadTournaments()
   if (t === 'orders') void loadOrders()
   if (t === 'logs') void loadLogs()
 }
@@ -343,6 +396,88 @@ const cards = computed(() => {
       </ul>
     </div>
 
+    <div v-else-if="tab === 'tournaments'" class="notices">
+      <form class="notice-form" @submit.prevent="createTournament">
+        <h2>새 대회</h2>
+        <input v-model="tform.title" maxlength="40" placeholder="이름(예: 토요 정기전)" aria-label="대회 이름" required />
+        <textarea v-model="tform.description" maxlength="500" rows="2" placeholder="소개(선택)" aria-label="대회 소개" />
+        <div class="when-fields">
+          <label>
+            <span>시작</span>
+            <input v-model="tform.startsAt" type="datetime-local" aria-label="시작" required />
+          </label>
+          <label>
+            <span>종류</span>
+            <select v-model.number="tform.repeat" aria-label="종류">
+              <option :value="0">특별 리그(한 번)</option>
+              <option :value="1">정기 리그(매일)</option>
+              <option :value="7">정기 리그(매주)</option>
+            </select>
+          </label>
+          <label>
+            <span>리그</span>
+            <select v-model="tform.league" aria-label="리그">
+              <option value="ALL">누구나</option>
+              <option value="DAN">유단자(초단 이상)</option>
+              <option value="KYU">급</option>
+              <option value="BOTH">유단자·급 둘 다</option>
+            </select>
+          </label>
+          <label>
+            <span>인원</span>
+            <select v-model.number="tform.maxPlayers" aria-label="인원">
+              <option :value="4">4명</option>
+              <option :value="8">8명</option>
+              <option :value="16">16명</option>
+            </select>
+          </label>
+          <label>
+            <span>기본 시간(초)</span>
+            <input v-model.number="tform.baseSeconds" type="number" min="30" max="1800" step="10" aria-label="기본 시간" />
+          </label>
+          <label>
+            <span>한 수마다 더할 초</span>
+            <input v-model.number="tform.incrementSeconds" type="number" min="0" max="60" aria-label="추가 시간" />
+          </label>
+          <label>
+            <span>참가비(닢)</span>
+            <input v-model.number="tform.entryFee" type="number" min="0" max="100" aria-label="참가비" />
+          </label>
+          <label>
+            <span>우승 상금(닢)</span>
+            <input v-model.number="tform.bonusPrize" type="number" min="0" max="100000" aria-label="우승 상금" />
+          </label>
+        </div>
+        <p class="count">
+          참가비는 참가 비용으로 소모되고, 우승자는 여기 정한 상금만 받아요(운영자 지급 엽전으로). 정기 리그는 시작할 때 다음 회차가 저절로 생겨요.
+          '둘 다'는 유단자 리그와 급 리그를 따로 만들어요.
+        </p>
+        <div class="form-actions">
+          <button type="submit" class="primary" :disabled="busy || !tform.title.trim() || !tform.startsAt">만들기</button>
+        </div>
+      </form>
+
+      <p v-if="!tournaments.length && !busy" class="count">대회가 아직 없어요.</p>
+      <ul v-else class="notice-list">
+        <li v-for="t in tournaments" :key="t.id">
+          <div class="notice-main">
+            <span class="status" :class="T_STATUS[t.status].cls">{{ T_STATUS[t.status].label }}</span>
+            <b>{{ t.title }}</b>
+            <small>
+              {{ kindLabel(t) }} · {{ DIVISION[t.division] }} · {{ startLabel(t.startsAt) }} · {{ timeControl(t) }} ·
+              {{ t.players }}/{{ t.maxPlayers }}명 · 참가비 {{ t.entryFee }}닢 · 상금 {{ t.prizePool }}닢
+              <template v-if="t.host"> · 연 사람 {{ t.host.nickname }}</template>
+              <template v-if="t.winner"> · 우승 {{ t.winner.nickname }}</template>
+            </small>
+          </div>
+          <div v-if="t.status === 'SCHEDULED' || t.status === 'RUNNING'" class="notice-buttons">
+            <button v-if="confirmCancel !== t.id" type="button" class="ghost" :disabled="busy" @click="confirmCancel = t.id">취소</button>
+            <button v-else type="button" class="danger" :disabled="busy" @click="cancelTournament(t)">정말 취소(환불)</button>
+          </div>
+        </li>
+      </ul>
+    </div>
+
     <div v-else-if="tab === 'logs'" class="orders">
       <p v-if="!logs.length && !busy" class="count">아직 기록이 없어요.</p>
       <table v-else>
@@ -359,7 +494,7 @@ const cards = computed(() => {
           <tr v-for="(l, i) in logs" :key="i">
             <td>{{ date(l.at) }}</td>
             <td>{{ l.admin }}</td>
-            <td><span class="status" :class="{ failed: l.action === 'BAN' }">{{ ACTION[l.action] }}</span></td>
+            <td><span class="status" :class="{ failed: l.action === 'BAN' || l.action === 'TOURNAMENT_CANCEL' }">{{ ACTION[l.action] }}</span></td>
             <td>{{ l.target ?? '-' }} <small v-if="l.targetId">#{{ l.targetId }}</small></td>
             <td>{{ l.detail ?? '' }}</td>
           </tr>
@@ -645,6 +780,7 @@ th {
   font-size: 1rem;
 }
 .notice-form input:not([type='checkbox']),
+.notice-form select,
 .notice-form textarea {
   box-sizing: border-box;
   width: 100%;
