@@ -55,13 +55,13 @@ public class User {
     private String body = "body.man";
 
     @Column(nullable = false)
-    private String hair = "hair.sangtu";
+    private String hair = "hair.short";
 
     @Column(nullable = false)
     private String beard = "beard.none";
 
     @Column(nullable = false)
-    private String outfit = "outfit.plain";
+    private String outfit = "outfit.tee";
 
     @Column(nullable = false)
     private String hat = "hat.none";

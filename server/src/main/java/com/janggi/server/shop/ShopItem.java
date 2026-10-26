@@ -19,7 +19,11 @@ public enum ShopItem {
     PIECES_CELADON("pieces.celadon", Slot.PIECES, "청자 알", "비취빛 청자 유약", 39),
     PIECES_INK("pieces.ink", Slot.PIECES, "먹빛 알", "검은 알에 밝게 빛나는 글씨", 39),
     PIECES_GOLD("pieces.gold", Slot.PIECES, "금박 알", "금박을 입힌 화려한 알", 49),
-    AVATAR_BASIC("avatar.basic", Slot.AVATAR, "한지", "은은한 한지 바탕", 0),
+    AVATAR_BASIC("avatar.basic", Slot.AVATAR, "기본 미니룸", "창이 난 아늑한 내 방", 0),
+    AVATAR_CAFE("avatar.cafe", Slot.AVATAR, "카페", "벽돌 벽에 조명이 걸린 카페", 29),
+    AVATAR_BEACH("avatar.beach", Slot.AVATAR, "바닷가", "야자수가 서 있는 여름 바다", 39),
+    AVATAR_GOLF("avatar.golf", Slot.AVATAR, "골프장", "깃발이 꽂힌 푸른 그린", 49),
+    AVATAR_CITY("avatar.city", Slot.AVATAR, "도시 야경", "불 켜진 빌딩 숲의 밤", 49),
     AVATAR_PLUM("avatar.plum", Slot.AVATAR, "매화도", "고목에 핀 홍매화", 29),
     AVATAR_MOON("avatar.moon", Slot.AVATAR, "월하산수", "보름달 뜬 밤 산", 29),
     AVATAR_TURTLE("avatar.turtle", Slot.AVATAR, "수묵 산수화", "안개 낀 먹빛 산수", 39),
@@ -32,10 +36,14 @@ public enum ShopItem {
     AVATAR_CROWN("avatar.crown", Slot.AVATAR, "우승 금관", "운영 대회 우승자만 두는 금박 병풍", 0, true),
     AVATAR_KING("avatar.king", Slot.AVATAR, "정기 리그 왕", "정기 리그 우승자만 두는 자줏빛 비단", 0, true),
     AVATAR_MASTER("avatar.master", Slot.AVATAR, "국수", "특별 리그 우승자만 두는 묵향 배경", 0, true),
-    BODY_MAN("body.man", Slot.BODY, "장년 남성", "한창때의 사내", 0),
-    BODY_WOMAN("body.woman", Slot.BODY, "장년 여성", "단아한 부인", 0),
-    BODY_ELDER("body.elder", Slot.BODY, "노년 남성", "희끗한 머리의 어르신", 0),
-    BODY_ELDER_WOMAN("body.elder.woman", Slot.BODY, "노년 여성", "곱게 늙은 마님", 0),
+    BODY_MAN("body.man", Slot.BODY, "남자", "까만 머리의 남자", 0),
+    BODY_WOMAN("body.woman", Slot.BODY, "여자", "까만 머리의 여자", 0),
+    BODY_ELDER("body.elder", Slot.BODY, "은발 남자", "희끗한 머리의 남자", 0),
+    BODY_ELDER_WOMAN("body.elder.woman", Slot.BODY, "은발 여자", "희끗한 머리의 여자", 0),
+    HAIR_SHORT("hair.short", Slot.HAIR, "짧은 머리", "단정하게 자른 머리", 0),
+    HAIR_BOB("hair.bob", Slot.HAIR, "단발머리", "앞머리를 내린 단발", 0),
+    HAIR_PERM("hair.perm", Slot.HAIR, "뽀글 파마", "풍성하게 볶은 파마", 29),
+    HAIR_LONG("hair.long", Slot.HAIR, "긴 생머리", "허리까지 내려오는 머리", 39),
     HAIR_SANGTU("hair.sangtu", Slot.HAIR, "상투와 망건", "금관자를 단 망건", 0),
     HAIR_JJOK("hair.jjok", Slot.HAIR, "쪽진머리", "옥비녀를 꽂은 쪽", 0),
     HAIR_LOOSE("hair.loose", Slot.HAIR, "무관 머리", "붉은 머리띠로 묶은 머리", 29),
@@ -45,7 +53,13 @@ public enum ShopItem {
     BEARD_SCHOLAR("beard.scholar", Slot.BEARD, "선비 수염", "가늘고 긴 염소수염", 29),
     BEARD_FULL("beard.full", Slot.BEARD, "장군 수염", "위엄 있는 구레나룻", 39),
     BEARD_SAGE("beard.sage", Slot.BEARD, "신선 수염", "가슴까지 내려오는 흰 수염", 49),
-    OUTFIT_PLAIN("outfit.plain", Slot.OUTFIT, "무명 저고리", "수수한 무명옷", 0),
+    OUTFIT_TEE("outfit.tee", Slot.OUTFIT, "흰 티와 청바지", "어디에나 어울리는 기본 차림", 0),
+    OUTFIT_HOODIE("outfit.hoodie", Slot.OUTFIT, "후드티", "편한 후드티와 조거 바지", 29),
+    OUTFIT_KNIT("outfit.knit", Slot.OUTFIT, "니트와 슬랙스", "셔츠 깃을 낸 베이지 니트", 39),
+    OUTFIT_SUIT("outfit.suit", Slot.OUTFIT, "정장", "붉은 넥타이를 맨 남색 정장", 49),
+    OUTFIT_DRESS("outfit.dress", Slot.OUTFIT, "원피스", "꽃무늬 분홍 원피스", 49),
+    OUTFIT_GOLF("outfit.golf", Slot.OUTFIT, "골프웨어", "줄무늬 폴로셔츠와 면바지", 59),
+    OUTFIT_PLAIN("outfit.plain", Slot.OUTFIT, "저고리", "남자는 무명 바지저고리, 여자는 노랑 저고리에 다홍치마", 0),
     OUTFIT_DURUMAGI("outfit.durumagi", Slot.OUTFIT, "자주 두루마기", "점잖은 자줏빛 겉옷", 29),
     OUTFIT_DOPO("outfit.dopo", Slot.OUTFIT, "옥색 도포", "쪽빛 세조대를 맨 선비 도포", 39),
     OUTFIT_CHEOLLIK("outfit.cheollik", Slot.OUTFIT, "무관 철릭", "붉은 띠를 두른 무관 옷", 49),
@@ -54,7 +68,11 @@ public enum ShopItem {
     OUTFIT_ARMOR("outfit.armor", Slot.OUTFIT, "두정갑", "금빛 징을 박은 장수의 갑옷", 79),
     OUTFIT_WONSAM("outfit.wonsam", Slot.OUTFIT, "원삼", "색동 소매에 금박을 올린 예복", 89),
     OUTFIT_GONRYONGPO("outfit.gonryongpo", Slot.OUTFIT, "곤룡포", "가슴과 어깨에 용보를 단 임금의 옷", 99),
-    HAT_NONE("hat.none", Slot.HAT, "관모 없음", "맨머리", 0),
+    HAT_NONE("hat.none", Slot.HAT, "없음", "맨머리", 0),
+    HAT_CAP("hat.cap", Slot.HAT, "야구 모자", "파란 야구 모자", 19),
+    HAT_BEANIE("hat.beanie", Slot.HAT, "방울 비니", "방울 달린 빨간 털모자", 19),
+    HAT_GLASSES("hat.glasses", Slot.HAT, "뿔테 안경", "점잖은 검은 뿔테", 19),
+    HAT_SUNGLASSES("hat.sunglasses", Slot.HAT, "선글라스", "멋을 낸 까만 선글라스", 29),
     HAT_GAT("hat.gat", Slot.HAT, "흑립", "호박 갓끈을 단 선비의 갓", 29),
     HAT_BINYEO("hat.binyeo", Slot.HAT, "금봉잠", "봉황을 새긴 금비녀", 39),
     HAT_JEONGJAGWAN("hat.jeongjagwan", Slot.HAT, "정자관", "학자가 집에서 쓰던 관", 39),
@@ -121,7 +139,7 @@ public enum ShopItem {
     /** 로그인하지 않은 사람이 기본으로 입고 있는 것. 칸마다 하나. */
     public boolean starter() {
         return this == BOARD_CLASSIC || this == PIECES_CLASSIC || this == AVATAR_BASIC || this == BODY_MAN
-                || this == HAIR_SANGTU || this == BEARD_NONE || this == OUTFIT_PLAIN || this == HAT_NONE;
+                || this == HAIR_SHORT || this == BEARD_NONE || this == OUTFIT_TEE || this == HAT_NONE;
     }
 
     /** 팔지 않고 대회 우승으로만 얻는 상품. */

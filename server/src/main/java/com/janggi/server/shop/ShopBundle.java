@@ -9,6 +9,12 @@ import java.util.Optional;
  * 이미 가진 부품은 빼고, 남은 부품 값의 합에서 DISCOUNT_PERCENT만큼 깎는다.
  */
 public enum ShopBundle {
+    GOLF("set.golf", "골프 세트", "골프웨어에 선글라스, 골프장",
+            ShopItem.OUTFIT_GOLF, ShopItem.HAT_SUNGLASSES, ShopItem.AVATAR_GOLF),
+    CEO("set.ceo", "회장님 세트", "정장에 뿔테 안경, 콧수염과 도시 야경",
+            ShopItem.OUTFIT_SUIT, ShopItem.HAT_GLASSES, ShopItem.BEARD_MUSTACHE, ShopItem.AVATAR_CITY),
+    DATE("set.date", "데이트 세트", "원피스에 긴 생머리, 카페",
+            ShopItem.OUTFIT_DRESS, ShopItem.HAIR_LONG, ShopItem.AVATAR_CAFE),
     SEONBI("set.seonbi", "선비 세트", "옥색 도포에 흑립, 선비 수염과 송학도",
             ShopItem.OUTFIT_DOPO, ShopItem.HAT_GAT, ShopItem.BEARD_SCHOLAR, ShopItem.AVATAR_PINE),
     LADY("set.lady", "정경부인 세트", "금박 녹당의에 금봉잠, 매화도",

@@ -148,15 +148,15 @@ class ShopTest {
         String token = login("shop-character");
         mvc.perform(get("/api/me").header("Authorization", token))
                 .andExpect(jsonPath("$.look.body").value("body.man"))
-                .andExpect(jsonPath("$.look.hair").value("hair.sangtu"))
+                .andExpect(jsonPath("$.look.hair").value("hair.short"))
                 .andExpect(jsonPath("$.look.beard").value("beard.none"))
-                .andExpect(jsonPath("$.look.outfit").value("outfit.plain"))
+                .andExpect(jsonPath("$.look.outfit").value("outfit.tee"))
                 .andExpect(jsonPath("$.look.hat").value("hat.none"));
         // 무료 부품(몸, 기본 머리)은 사지 않고 바로 입는다. 유료 부품은 사야 한다.
         send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"body.woman\"}").andExpect(status().isOk());
         send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"hair.jjok\"}")
                 .andExpect(jsonPath("$.items[?(@.id=='hair.jjok')].equipped").value(true))
-                .andExpect(jsonPath("$.items[?(@.id=='hair.sangtu')].equipped").value(false));
+                .andExpect(jsonPath("$.items[?(@.id=='hair.short')].equipped").value(false));
         send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"outfit.dangui\"}").andExpect(status().isBadRequest());
         charge(token, "coins.100", 10000);
         send(token, "POST", "/api/shop/items/outfit.dangui/buy", "")
