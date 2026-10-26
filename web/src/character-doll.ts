@@ -446,6 +446,69 @@ const HAIRS: Record<string, Hair> = {
       p.doll.fill(29, 14, 2, 14, c)
     },
   },
+  'hair.sidepart': {
+    front: (p, c) => {
+      cap(p, c, 5)
+      p.doll.fill(10, 13, 8, 1, c)
+      p.doll.fill(10, 14, 4, 1, c)
+      p.doll.fill(26, 13, 4, 1, c)
+      p.doll.fill(10, 15, 1, 2, c)
+      p.doll.fill(29, 14, 1, 3, c)
+      p.ink.fill(15, 9, 1, 3, '#00000040')
+    },
+  },
+  'hair.slick': {
+    front: (p, c) => {
+      cap(p, c, 4)
+      p.doll.fill(10, 12, 2, 4, c)
+      p.doll.fill(28, 12, 2, 4, c)
+      p.ink.pattern(p.doll, c, (x, y) => y < 12 && x % 3 === 1, '#ffffff38')
+    },
+  },
+  'hair.buzz': {
+    front: (p, c) => {
+      cap(p, c, 4)
+      p.doll.fill(10, 12, 1, 3, c)
+      p.doll.fill(29, 12, 1, 3, c)
+      p.ink.pattern(p.doll, c, (x, y) => y < 12 && (x + y) % 2 === 0, '#ffffff22')
+    },
+  },
+  'hair.ponytail': {
+    back: (p, c) => {
+      p.doll.fill(30, 11, 3, 3, c)
+      p.doll.fill(31, 14, 3, 9, c)
+      p.doll.fill(32, 23, 2, 3, c)
+    },
+    front: (p, c) => {
+      cap(p, c)
+      p.doll.fill(10, 14, 6, 1, c)
+      p.doll.fill(10, 15, 3, 1, c)
+      p.doll.fill(9, 14, 2, 6, c)
+      p.doll.fill(29, 14, 1, 4, c)
+      p.ink.fill(30, 12, 2, 2, '#d9483b')
+    },
+  },
+  'hair.wave': {
+    back: (p, c) => p.doll.sym(12, [11, 12, 12, 11, 11, 12, 12, 11, 11, 12, 12, 11, 11, 12, 12, 11, 11, 12, 11, 10], c),
+    front: (p, c) => {
+      cap(p, c)
+      p.doll.fill(12, 14, 5, 1, c)
+      p.doll.fill(23, 14, 5, 1, c)
+      p.doll.fill(9, 14, 2, 16, c)
+      p.doll.fill(29, 14, 2, 16, c)
+      p.ink.pattern(p.doll, c, (x, y) => y > 14 && (x * 3 + y) % 5 === 0, '#00000026')
+    },
+  },
+  'hair.bun': {
+    back: (p, c) => p.doll.sym(3, [2, 3, 3, 3, 2], c),
+    front: (p, c) => {
+      cap(p, c)
+      p.doll.fill(11, 14, 18, 1, c)
+      p.doll.fill(9, 14, 2, 5, c)
+      p.doll.fill(29, 14, 2, 5, c)
+      p.ink.sym(8, [3], '#d9483b')
+    },
+  },
   'hair.sangtu': {
     front: (p, c) => {
       p.doll.sym(4, [1, 2, 2, 1], c)
