@@ -61,7 +61,7 @@ public class User {
     private String beard = "beard.none";
 
     @Column(nullable = false)
-    private String style = "style.doll";
+    private String style = "style.chibi";
 
     @Column(nullable = false)
     private String outfit = "outfit.tee";
