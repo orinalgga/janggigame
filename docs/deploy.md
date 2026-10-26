@@ -8,6 +8,8 @@
 
 ## 1. Oracle VM 만들기
 
+빠른 방법: VM 만들기 화면의 Advanced options → Initialization script → Paste cloud-init script에 `deploy/cloud-init.sh` 내용을 붙여 넣으면 2단계(도커 설치, .env, 서버 실행)를 VM이 스스로 한다. 구글 키 등은 나중에 `.env`에 채운다.
+
 1. Oracle Cloud 콘솔 → Compute → Instances → Create instance
 2. Image: **Canonical Ubuntu 22.04** (또는 24.04)
 3. Shape: **Ampere VM.Standard.A1.Flex** (Always Free, 2 OCPU / 12GB 정도면 충분)
