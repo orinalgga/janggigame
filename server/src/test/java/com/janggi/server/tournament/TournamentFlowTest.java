@@ -18,7 +18,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@SpringBootTest(properties = "janggi.tournaments.tick=false")
+// 다른 테스트의 스프링 컨텍스트도 캐시에 남아 실제 시각으로 tick을 돈다. 같은 메모리 DB를 쓰면 그 tick이
+// 이 테스트의 대회를 진행해 버리므로(가끔 실패하던 원인) 이 테스트만 따로 DB를 쓴다.
+@SpringBootTest(properties = {"janggi.tournaments.tick=false",
+        "spring.datasource.url=jdbc:h2:mem:tournament-flow;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1"})
 class TournamentFlowTest {
 
     @Autowired
