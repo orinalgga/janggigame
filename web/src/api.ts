@@ -426,6 +426,38 @@ const BASE = import.meta.env.VITE_API_BASE ?? ''
 const AUTH_BASE = BASE || (import.meta.env.DEV ? 'http://localhost:8080' : '')
 const TOKEN_KEY = 'janggi.token'
 
+/** 확성기 한 줄. 접속한 모두의 화면 위로 지나간다. */
+export interface MegaphonePost {
+  id: number
+  userId: number
+  nickname: string
+  look: Look
+  text: string
+  at: string
+}
+
+export interface MegaphonePack {
+  id: string
+  title: string
+  count: number
+  /** 엽전. */
+  price: number
+}
+
+/** count는 내가 가진 확성기(로그인하지 않았으면 null), recent는 지난 하루 것 새것부터. */
+export interface MegaphoneState {
+  count: number | null
+  recent: MegaphonePost[]
+  packs: MegaphonePack[]
+  maxLength: number
+}
+
+/** /topic/megaphone 알림. 새 글이면 post, 운영자가 내린 글이면 hidden에 그 id. */
+export interface MegaphoneEvent {
+  post: MegaphonePost | null
+  hidden: number | null
+}
+
 export const auth = {
   token(): string | null {
     try {
@@ -515,6 +547,9 @@ export const api = {
   leaveTournament: (id: number) => request<TournamentDetail>(`/api/tournaments/${id}/leave`, {}),
   hostTournament: (t: TournamentInput) => request<TournamentDetail>('/api/tournaments', t),
   cancelHosted: (id: number) => request<TournamentDetail>(`/api/tournaments/${id}/cancel`, {}),
+  megaphone: () => request<MegaphoneState>('/api/megaphone'),
+  buyMegaphone: (packId: string) => request<MegaphoneState>('/api/megaphone/buy', { packId }),
+  shout: (text: string) => request<MegaphonePost>('/api/megaphone', { text }),
   rankings: (period: RankingPeriod, offset = 0) =>
     request<Ranking>(`/api/rankings?period=${period.toLowerCase()}&offset=${offset}`),
   admin: {
@@ -535,6 +570,7 @@ export const api = {
     cancelTournament: (id: number) => request<TournamentSummary>(`/api/admin/tournaments/${id}/cancel`, {}),
     createNotice: (n: NoticeInput) => request<Notice>('/api/admin/notices', n),
     updateNotice: (id: number, n: NoticeInput) => request<Notice>(`/api/admin/notices/${id}`, n, 'PUT'),
+    hideMegaphone: (id: number) => request<{ hidden: boolean }>(`/api/admin/megaphone/${id}`, undefined, 'DELETE'),
     deleteNotice: (id: number) => request<{ deleted: boolean }>(`/api/admin/notices/${id}`, undefined, 'DELETE'),
   },
 }

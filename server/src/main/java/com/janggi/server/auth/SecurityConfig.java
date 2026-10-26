@@ -41,6 +41,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/shop").permitAll()
                         // 대회는 누구나 보고, 참가·기권은 로그인해야 한다.
                         .requestMatchers(HttpMethod.POST, "/api/tournaments", "/api/tournaments/**").authenticated()
+                        // 확성기도 최근 것은 누구나 보고, 사기와 쓰기는 로그인해야 한다.
+                        .requestMatchers(HttpMethod.POST, "/api/megaphone", "/api/megaphone/**").authenticated()
                         .requestMatchers("/api/me", "/api/me/**", "/api/match", "/api/shop/**", "/api/admin/**").authenticated()
                         .anyRequest().permitAll())
                 .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))

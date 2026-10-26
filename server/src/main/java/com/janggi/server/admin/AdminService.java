@@ -2,6 +2,7 @@ package com.janggi.server.admin;
 
 import com.janggi.core.GameResult;
 import com.janggi.server.match.MatchService;
+import com.janggi.server.megaphone.MegaphoneService;
 import com.janggi.server.notice.NoticeService;
 import com.janggi.server.tournament.TournamentService;
 import com.janggi.server.record.GameRecordRepository;
@@ -80,11 +81,12 @@ public class AdminService {
     private final NoticeService notices;
     private final CoinService coins;
     private final TournamentService tournaments;
+    private final MegaphoneService megaphone;
 
     public AdminService(@Value("${janggi.admin-emails:}") String adminEmails, UserRepository users,
             UserService userService, AuthIdentityRepository identities, GameRecordRepository games,
             PurchaseRepository purchases, OwnedItemRepository owned, MatchService match, AdminLogRepository logs,
-            NoticeService notices, CoinService coins, TournamentService tournaments) {
+            NoticeService notices, CoinService coins, TournamentService tournaments, MegaphoneService megaphone) {
         this.adminEmails = Arrays.stream(adminEmails.split(","))
                 .map(e -> e.strip().toLowerCase(Locale.ROOT))
                 .filter(e -> !e.isEmpty())
@@ -100,6 +102,7 @@ public class AdminService {
         this.notices = notices;
         this.coins = coins;
         this.tournaments = tournaments;
+        this.megaphone = megaphone;
     }
 
     @Transactional(readOnly = true)
@@ -254,6 +257,11 @@ public class AdminService {
     @Transactional
     public void deleteNotice(long adminId, long noticeId) {
         log(adminId, AdminLog.Action.NOTICE_DELETE, null, notices.delete(noticeId));
+    }
+
+    @Transactional
+    public void hideMegaphone(long adminId, long postId) {
+        log(adminId, AdminLog.Action.MEGAPHONE_HIDE, null, megaphone.hide(postId));
     }
 
     private void log(long adminId, AdminLog.Action action, Long targetUserId, String detail) {

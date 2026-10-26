@@ -2,6 +2,7 @@ package com.janggi.server.admin;
 
 import com.janggi.server.auth.CurrentUser;
 import com.janggi.server.notice.NoticeService;
+import com.janggi.server.megaphone.MegaphoneException;
 import com.janggi.server.shop.ShopException;
 import com.janggi.server.tournament.TournamentException;
 import com.janggi.server.tournament.TournamentService;
@@ -119,6 +120,14 @@ public class AdminController {
         return Map.of("deleted", true);
     }
 
+    /** 확성기 내리기. 띄워 둔 화면에서도 바로 사라진다. */
+    @DeleteMapping("/megaphone/{id}")
+    public Map<String, Boolean> hideMegaphone(@PathVariable long id) {
+        admin.requireAdmin(CurrentUser.id());
+        admin.hideMegaphone(CurrentUser.id(), id);
+        return Map.of("hidden", true);
+    }
+
     @GetMapping("/tournaments")
     public List<TournamentService.SummaryDto> tournaments() {
         admin.requireAdmin(CurrentUser.id());
@@ -151,7 +160,7 @@ public class AdminController {
     }
 
     @ExceptionHandler({AdminException.BadRequest.class, NicknameException.class, NoticeService.InvalidNotice.class,
-            ShopException.class, TournamentException.class})
+            ShopException.class, TournamentException.class, MegaphoneException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Map<String, String> bad(RuntimeException e) {
         return Map.of("error", e.getMessage());
