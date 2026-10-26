@@ -323,7 +323,7 @@ public class TournamentService {
     /** 대회를 취소하고 모든 참가비를 돌려준다. 진행 중인 대국은 그냥 온라인 대국으로 끝까지 둔다. */
     @Transactional
     public SummaryDto cancel(long id) {
-        Tournament t = find(id);
+        Tournament t = lock(id);
         if (t.getStatus() != Tournament.Status.SCHEDULED && t.getStatus() != Tournament.Status.RUNNING) {
             throw new TournamentException("이미 끝난 대회예요");
         }
@@ -401,7 +401,7 @@ public class TournamentService {
 
     /** 대회 하나를 한 걸음 진행한다. 테스트에서 시각을 정해 부를 수 있다. */
     void advance(long id, OffsetDateTime now) {
-        Tournament t = find(id);
+        Tournament t = lock(id);
         if (t.getStatus() == Tournament.Status.SCHEDULED && !now.isBefore(t.getStartsAt())) {
             begin(t, now);
         } else if (t.getStatus() == Tournament.Status.RUNNING) {
@@ -588,6 +588,10 @@ public class TournamentService {
 
     private Tournament find(long id) {
         return tournaments.findById(id).orElseThrow(() -> new TournamentException("대회를 찾을 수 없어요"));
+    }
+
+    private Tournament lock(long id) {
+        return tournaments.findForUpdate(id).orElseThrow(() -> new TournamentException("대회를 찾을 수 없어요"));
     }
 
     private static String ref(Tournament t) {

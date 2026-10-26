@@ -12,6 +12,8 @@ import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
 import ShopView from './components/ShopView.vue'
 import CharacterAvatar from './components/CharacterAvatar.vue'
+import MegaphoneBar from './components/MegaphoneBar.vue'
+import MegaphoneDialog from './components/MegaphoneDialog.vue'
 import HostTournamentDialog from './components/HostTournamentDialog.vue'
 import TournamentList from './components/TournamentList.vue'
 import TournamentView from './components/TournamentView.vue'
@@ -51,6 +53,7 @@ const me = ref<Me | null>(null)
 const providers = ref<string[]>([])
 const shopOpen = ref(false)
 const adminOpen = ref(false)
+const megaphoneOpen = ref(false)
 /** 처음 로그인해 임시 닉네임이면 저절로 열리고, 머리글의 닉네임을 눌러도 열린다. */
 const nicknameOpen = ref(false)
 
@@ -392,6 +395,7 @@ async function gameEnded() {
       <span v-else class="brand">장기</span>
       <template v-if="!game && !replayId && !shopOpen && !adminOpen && !tournamentId">
         <button type="button" class="shop-link" @click="shopOpen = true">상점</button>
+        <button type="button" class="shop-link" @click="megaphoneOpen = true">확성기</button>
         <button v-if="me?.admin" type="button" class="shop-link admin-link" @click="adminOpen = true">관리자</button>
       </template>
       <div v-if="me" class="me">
@@ -404,6 +408,9 @@ async function gameEnded() {
     </header>
 
     <NoticePopup :paused="!!game || nicknameOpen" />
+
+    <MegaphoneBar @open="megaphoneOpen = true" />
+    <MegaphoneDialog v-if="megaphoneOpen" :me="me" @close="megaphoneOpen = false" />
 
     <HostTournamentDialog v-if="me && hostOpen" :me="me" @created="openTournament" @close="hostOpen = false" />
 
