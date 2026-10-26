@@ -4,8 +4,9 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
+    # 바깥에는 caddy(80·443)만 연다. 8080은 그 컴퓨터 안에서만 열린다.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       JANGGI_CORS_ALLOWED_ORIGINS: ${JANGGI_CORS_ALLOWED_ORIGINS:-http://localhost:5173,https://localhost,capacitor://localhost}
       DB_URL: jdbc:postgresql://postgres:5432/janggi
@@ -20,6 +21,23 @@ services:
     depends_on:
       - postgres
       - redis
+    restart: unless-stopped
+
+  # 서버 앞에서 HTTPS 인증서를 자동으로 받아 붙인다. 배포 서버의 .env에 COMPOSE_PROFILES=prod를 넣으면 같이 뜬다.
+  caddy:
+    image: caddy:2
+    profiles: ["prod"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      JANGGI_API_HOST: ${JANGGI_API_HOST:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - server
     restart: unless-stopped
 
   postgres:
@@ -39,3 +57,5 @@ services:
 
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
