@@ -23,12 +23,12 @@ const SECTIONS: { slot: ShopSlot; title: string }[] = [
 ]
 const CHAR_SECTIONS: { slot: LookSlot; title: string }[] = [
   { slot: 'STYLE', title: '화풍' },
+  { slot: 'BODY', title: '몸' },
+  { slot: 'HAIR', title: '머리' },
   { slot: 'OUTFIT', title: '의복' },
   { slot: 'HAT', title: '모자·소품' },
-  { slot: 'AVATAR', title: '배경' },
   { slot: 'BEARD', title: '수염' },
-  { slot: 'HAIR', title: '머리' },
-  { slot: 'BODY', title: '몸' },
+  { slot: 'AVATAR', title: '배경' },
 ]
 
 /** 값으로 매기는 등급. 상점에서 눈에 띄게 붙인다. */
