@@ -120,6 +120,30 @@ class ShopTest {
     }
 
     @Test
+    void avatarsAreBoughtWithCoinsButRewardsAreNotForSale() throws Exception {
+        String token = login("shop-avatar");
+        charge(token, "coins.50", 5000);
+        send(token, "POST", "/api/shop/items/avatar.tiger/buy", "")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coins").value(11))
+                .andExpect(jsonPath("$.items[?(@.id=='avatar.basic')].equipped").value(true));
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"avatar.tiger\"}")
+                .andExpect(jsonPath("$.items[?(@.id=='avatar.tiger')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='avatar.basic')].equipped").value(false))
+                .andExpect(jsonPath("$.items[?(@.id=='board.classic')].equipped").value(true));
+        mvc.perform(get("/api/me").header("Authorization", token)).andExpect(jsonPath("$.avatar").value("avatar.tiger"));
+        // 대회 보상은 엽전으로 살 수 없고, 얻기 전에는 장착할 수도 없다.
+        send(token, "POST", "/api/shop/items/avatar.crown/buy", "")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("대회 우승으로만 얻을 수 있는 상품입니다"));
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"avatar.crown\"}").andExpect(status().isBadRequest());
+        mvc.perform(get("/api/shop").header("Authorization", token))
+                .andExpect(jsonPath("$.coins").value(11))
+                .andExpect(jsonPath("$.items[?(@.id=='avatar.crown')].reward").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='avatar.crown')].owned").value(false));
+    }
+
+    @Test
     void declinedPaymentGivesNothing() throws Exception {
         String token = login("shop-2");
         String order = orderId(token, "coins.10", 1000);

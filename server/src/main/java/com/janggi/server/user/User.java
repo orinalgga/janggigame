@@ -46,6 +46,10 @@ public class User {
     @Column(name = "piece_theme", nullable = false)
     private String pieceTheme = "pieces.classic";
 
+    /** 장착한 아바타(상점 상품 id). */
+    @Column(nullable = false)
+    private String avatar = "avatar.basic";
+
     protected User() {
     }
 
@@ -112,6 +116,14 @@ public class User {
 
     public void equipPieces(String itemId) {
         this.pieceTheme = itemId;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void equipAvatar(String itemId) {
+        this.avatar = itemId;
     }
 
     public void changeRating(int delta) {

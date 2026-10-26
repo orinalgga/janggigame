@@ -92,6 +92,10 @@ public class Tournament {
     @Column(nullable = false)
     private int prize;
 
+    /** 운영 대회 우승자에게 주는 보상 아바타. */
+    @Column(name = "prize_item")
+    private String prizeItem;
+
     @Column(name = "created_by")
     private Long createdBy;
 
@@ -125,6 +129,14 @@ public class Tournament {
         this.maxPlayers = maxPlayers;
     }
 
+    void prizeItem(String itemId) {
+        this.prizeItem = itemId;
+    }
+
+    public String getPrizeItem() {
+        return prizeItem;
+    }
+
     /** 개인 대회: 연 사람과 그가 미리 낸 상금(충전 paid, 운영자 free). */
     void hostedBy(long hostId, int bonusPaid, int bonusFree) {
         this.hostId = hostId;
@@ -138,6 +150,7 @@ public class Tournament {
         t.createdBy = createdBy;
         t.edit(title, description, startsAt.plusDays(repeatDays), baseSeconds, incrementSeconds, entryFee, maxPlayers,
                 division, kind, repeatDays, bonusPrize);
+        t.prizeItem = prizeItem;
         return t;
     }
 

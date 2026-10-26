@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.janggi.server.game.GameService;
 import com.janggi.server.shop.CoinService;
+import com.janggi.server.shop.OwnedItemRepository;
 import com.janggi.server.user.User;
 import com.janggi.server.user.UserService;
 import java.time.OffsetDateTime;
@@ -33,6 +34,9 @@ class TournamentFlowTest {
     GameService games;
 
     @Autowired
+    OwnedItemRepository owned;
+
+    @Autowired
     JdbcTemplate jdbc;
 
     @Autowired
@@ -53,7 +57,7 @@ class TournamentFlowTest {
     private TournamentService.TournamentRequest req(String title, OffsetDateTime at, Integer bonus, Tournament.Kind kind,
             Integer repeat, Tournament.Division division) {
         return new TournamentService.TournamentRequest(title, null, at, 60, 10, 1, division, false, kind, repeat, bonus,
-                16);
+                16, "avatar.crown");
     }
 
     private void advance(long id, OffsetDateTime at) {
@@ -124,6 +128,9 @@ class TournamentFlowTest {
         long winner = done.summary().winner().id();
         assertThat(done.summary().prizePool()).isEqualTo(20);
         assertThat(coins.balance(winner)).isEqualTo(2 + 20);
+        assertThat(owned.existsByUserIdAndItemId(winner, "avatar.crown")).isTrue();
+        assertThat(owned.existsByUserIdAndItemId(players.get(0).getId() == winner ? players.get(1).getId()
+                : players.get(0).getId(), "avatar.crown")).isFalse();
         assertThat(done.entries().get(0).rank()).isEqualTo(1);
         assertThat(done.entries().get(1).rank()).isEqualTo(2);
     }
@@ -169,7 +176,7 @@ class TournamentFlowTest {
     void divisionsAndBoth() {
         User admin = member("admin-d", 0);
         var made = tournaments.create(admin.getId(), new TournamentService.TournamentRequest("밤 리그", null,
-                OffsetDateTime.now().plusHours(1), null, null, null, null, true, null, null, null, null));
+                OffsetDateTime.now().plusHours(1), null, null, null, null, true, null, null, null, null, null));
         assertThat(made).extracting(TournamentService.SummaryDto::title)
                 .containsExactly("밤 리그 유단자 리그", "밤 리그 급 리그");
         User kyu = member("kyu", 5);
@@ -183,11 +190,13 @@ class TournamentFlowTest {
         User host = member("host", 10);
         var d = tournaments.host(host.getId(), new TournamentService.TournamentRequest("내 대회", null,
                 OffsetDateTime.now().plusHours(2), 60, 5, 2, Tournament.Division.DAN, true, Tournament.Kind.REGULAR,
-                7, 6, 8));
+                7, 6, 8, "avatar.crown"));
         // 회원 대회는 리그·반복을 쓰지 않는다.
         assertThat(d.summary().kind()).isEqualTo(Tournament.Kind.SPECIAL);
         assertThat(d.summary().division()).isEqualTo(Tournament.Division.ALL);
         assertThat(d.summary().maxPlayers()).isEqualTo(8);
+        // 보상 아바타는 운영 대회에만 있다(개인 대회로 금관을 찍어 내지 못하게).
+        assertThat(d.summary().prizeItem()).isNull();
         assertThat(d.summary().host().id()).isEqualTo(host.getId());
         assertThat(coins.balance(host.getId())).isEqualTo(4);
         assertThatThrownBy(() -> tournaments.host(host.getId(), req("또", OffsetDateTime.now().plusHours(3), 0, null,

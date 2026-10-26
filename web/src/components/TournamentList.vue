@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { api, type Me, type TournamentSummary } from '../api'
 import { DIVISION, countdown, kindLabel, startLabel, timeControl } from '../tournaments'
+import UserAvatar from './UserAvatar.vue'
+import { rewardTitle } from '../avatars'
 
 defineProps<{ me: Me | null }>()
 const emit = defineEmits<{ (e: 'open', id: number): void; (e: 'host'): void }>()
@@ -63,6 +65,7 @@ function state(t: TournamentSummary) {
           <span class="money">
             <span>참가비 {{ t.entryFee }}닢</span>
             <span v-if="t.prizePool" class="prize">우승 상금 {{ t.prizePool.toLocaleString('ko-KR') }}닢</span>
+            <span v-if="t.prizeItem" class="prize prize-avatar"><UserAvatar :id="t.prizeItem" :size="18" />{{ rewardTitle(t.prizeItem) }}</span>
             <span v-if="t.joined" class="joined">참가 중</span>
           </span>
         </button>
@@ -188,5 +191,10 @@ ul {
   margin-left: auto;
   font-weight: 700;
   color: var(--cho-color);
+}
+.prize-avatar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 </style>

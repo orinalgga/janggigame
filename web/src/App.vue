@@ -11,6 +11,7 @@ import RankingBoard from './components/RankingBoard.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
 import ShopView from './components/ShopView.vue'
+import UserAvatar from './components/UserAvatar.vue'
 import HostTournamentDialog from './components/HostTournamentDialog.vue'
 import TournamentList from './components/TournamentList.vue'
 import TournamentView from './components/TournamentView.vue'
@@ -394,7 +395,7 @@ async function gameEnded() {
         <button v-if="me?.admin" type="button" class="shop-link admin-link" @click="adminOpen = true">관리자</button>
       </template>
       <div v-if="me" class="me">
-        <span class="avatar" aria-hidden="true">{{ me.nickname.slice(0, 1) }}</span>
+        <UserAvatar :id="me.avatar" :name="me.nickname" :size="28" />
         <button type="button" class="nickname" title="닉네임 바꾸기" @click="nicknameOpen = true">{{ me.nickname }}</button>
         <span class="rating" :title="`레이팅 ${me.rating}`">{{ me.grade }} <small>{{ me.rating }}</small></span>
         <button type="button" class="text-button" @click="logout">로그아웃</button>
@@ -511,7 +512,7 @@ async function gameEnded() {
 
     <AdminView v-else-if="adminOpen && me?.admin" @close="adminOpen = false" />
 
-    <ShopView v-else-if="shopOpen" :me="me" :providers="providers" @close="shopOpen = false" />
+    <ShopView v-else-if="shopOpen" :me="me" :providers="providers" @close="shopOpen = false" @avatar="(id) => me && (me = { ...me, avatar: id })" />
 
     <template v-else>
       <LobbyView :me="me" :providers="providers" :searching="searching" :error="error" @start="start" @cancel="cancelMatch" />
@@ -641,17 +642,6 @@ main.wide {
   align-items: center;
   gap: 8px;
   font-size: 0.9rem;
-}
-.avatar {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--accent);
-  font-weight: 700;
-  font-size: 0.8rem;
 }
 .nickname {
   font: inherit;
@@ -814,9 +804,6 @@ main.wide .layout {
 @media (max-width: 480px) {
   .top {
     gap: 8px;
-  }
-  .avatar {
-    display: none;
   }
   .me {
     gap: 6px;
