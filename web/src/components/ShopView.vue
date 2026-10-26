@@ -23,11 +23,11 @@ const SECTIONS: { slot: ShopSlot; title: string }[] = [
 ]
 const CHAR_SECTIONS: { slot: LookSlot; title: string }[] = [
   { slot: 'OUTFIT', title: '의복' },
-  { slot: 'HAT', title: '관모·장신구' },
-  { slot: 'AVATAR', title: '배경 그림' },
+  { slot: 'HAT', title: '모자·소품' },
+  { slot: 'AVATAR', title: '배경' },
   { slot: 'BEARD', title: '수염' },
   { slot: 'HAIR', title: '머리' },
-  { slot: 'BODY', title: '인물' },
+  { slot: 'BODY', title: '몸' },
 ]
 
 /** 값으로 매기는 등급. 상점에서 눈에 띄게 붙인다. */
@@ -111,23 +111,35 @@ const myLook = computed<Look>(() => {
 /** 눌러서 입어 보는 차림. 사지 않아도 바꿔 볼 수 있다. */
 const tryLook = ref<Look>({ ...DEFAULT_LOOK })
 const trying = computed(() => (Object.keys(tryLook.value) as (keyof Look)[]).some((k) => tryLook.value[k] !== myLook.value[k]))
-/** 칸 그림: 지금 입어 보는 차림에 그 부품만 바꿔 끼운다. 동물 몸이면 머리 모양이 안 보이니 사람으로 보여 준다. */
+/** 칸 그림: 지금 입어 보는 차림에 그 부품만 바꿔 끼운다. 수염은 여자에게 안 보이니 남자로 보여 준다. */
 function thumb(i: ShopItem): Look {
   const slot = i.slot as LookSlot
   const base = slot === 'BEARD' && !showsBeard(tryLook.value.body) ? withPart(tryLook.value, 'BODY', DEFAULT_LOOK.body) : tryLook.value
   return withPart(base, slot, i.id)
 }
 
-/** 세트를 입힌 모습. 인물(몸)은 지금 입어 보는 그대로 둔다. */
-/** 여인 세트는 여인으로, 그 밖의 세트는 사내로 입혀 보인다. 나이는 지금 고른 대로 둔다. */
-const WOMEN_SETS = new Set(['set.lady', 'set.queen'])
+/**
+ * 세트를 입힌 모습. 여자 세트는 여자로, 남자 세트는 남자로 바꾸고(은발은 그대로), 한복 세트는 상투·쪽진머리를 함께 입힌다.
+ * 여기 없는 세트는 지금 몸 그대로 입힌다.
+ */
+const SET_FIGURE: Record<string, { woman: boolean; hanbok: boolean }> = {
+  'set.seonbi': { woman: false, hanbok: true },
+  'set.official': { woman: false, hanbok: true },
+  'set.general': { woman: false, hanbok: true },
+  'set.king': { woman: false, hanbok: true },
+  'set.lady': { woman: true, hanbok: true },
+  'set.queen': { woman: true, hanbok: true },
+  'set.date': { woman: true, hanbok: false },
+}
 
 function setFigure(b: ShopBundle, look: Look): Look {
-  const woman = WOMEN_SETS.has(b.id)
+  const f = SET_FIGURE[b.id]
+  if (!f) return look
   const elder = look.body.startsWith('body.elder')
-  const body = woman ? (elder ? 'body.elder.woman' : 'body.woman') : elder ? 'body.elder' : 'body.man'
+  const body = f.woman ? (elder ? 'body.elder.woman' : 'body.woman') : elder ? 'body.elder' : 'body.man'
+  if (f.hanbok) return { ...look, body, hair: f.woman ? 'hair.jjok' : 'hair.sangtu' }
   if (body === look.body) return look
-  return { ...look, body, hair: woman ? 'hair.jjok' : 'hair.sangtu' }
+  return { ...look, body, hair: f.woman ? 'hair.bob' : 'hair.short' }
 }
 
 function setLook(b: ShopBundle): Look {
@@ -229,11 +241,9 @@ async function buy() {
       const bundle = bundles.value.find((b) => b.id === i.id)
       const figure = bundle ? setFigure(bundle, myLook.value) : null
       apply(await api.buyBundle(i.id))
-      // 세트에 맞는 인물·머리(무료)도 함께 갖춘다
-      if (figure && figure.body !== myLook.value.body) {
-        apply(await api.equip(figure.body))
-        if (!bundle!.items.some((id) => id.startsWith('hair.'))) apply(await api.equip(figure.hair))
-      }
+      // 세트에 맞는 몸·머리(무료)도 함께 갖춘다
+      if (figure && figure.body !== myLook.value.body) apply(await api.equip(figure.body))
+      if (figure && figure.hair !== myLook.value.hair && !bundle!.items.some((id) => id.startsWith('hair.'))) apply(await api.equip(figure.hair))
       buying.value = null
       tryLook.value = { ...myLook.value }
       emit('look', myLook.value)
@@ -316,7 +326,7 @@ const date = (s: string) =>
       <button type="button" class="back" @click="emit('close')">‹ 로비</button>
       <div>
         <h1>상점</h1>
-        <p>조선의 선비·장군·임금으로 나를 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
+        <p>미니미를 요즘 옷이나 한복으로 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
       </div>
     </div>
 
