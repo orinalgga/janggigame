@@ -194,51 +194,85 @@ const HALF = (() => {
   return v.map((c) => c / n)
 })()
 
+/** 머리와 몸이 나뉘는 줄(늘린 칸). 목 위는 머리, 아래는 몸으로 따로 빛을 받는다. */
+const NECK = 26.5 * SCALE
+
 /**
- * 인형을 말랑한 비닐 인형처럼 보이게 하는 빛. 인형 전체 윤곽으로 크게 둥글리고, 같은 색 조각마다 작게 한 번 더 부풀린 높이에서
- * 기울기를 구해 왼쪽 위에서 오는 빛으로 밝기(곱할 값)와 반짝임(더할 흰빛)을 낸다.
+ * 인형을 말랑한 비닐 인형처럼 보이게 하는 빛. 머리는 공처럼 둥근 면으로, 몸은 줄마다 원기둥처럼 둥글린 높이로 기울기를 구하고,
+ * 색 조각마다 살짝 도드라지게 한 뒤 왼쪽 위에서 오는 빛으로 밝기(곱할 값)와 반짝임(더할 흰빛)을 낸다. 머리 밑 몸에는 그늘이 진다.
  */
 function lighting(l: Layer): { shade: Float32Array; gloss: Float32Array } {
   const { w, h } = l
-  const whole = distance(l, (x, y) => !l.get(x - 1, y) || !l.get(x + 1, y) || !l.get(x, y - 1) || !l.get(x, y + 1))
+  const filled = (x: number, y: number) => !!l.get(x, y)
+  // 몸만 따로: 목 위를 비워야 머리와 몸 사이가 움푹 꺼지지 않는다.
+  const body = new Layer(w, h)
+  for (let i = NECK * w; i < w * h; i++) body.px[i] = l.px[i]
+  const whole = distance(body, (x, y) => !body.get(x - 1, y) || !body.get(x + 1, y) || !body.get(x, y - 1) || !body.get(x, y + 1))
   const part = distance(l, (x, y) => {
     const c = l.get(x, y)
     return l.get(x - 1, y) !== c || l.get(x + 1, y) !== c || l.get(x, y - 1) !== c || l.get(x, y + 1) !== c
   })
-  const ht = new Float32Array(w * h)
-  // 크게는 가로로만 둥글려(원기둥) 좁은 목에서 위아래로 꺼지지 않게 한다.
   const across = new Float32Array(w * h)
-  for (let y = 0; y < h; y++)
+  for (let y = NECK; y < h; y++)
     for (let x = 0; x < w; ) {
-      if (!l.get(x, y)) {
+      if (!filled(x, y)) {
         x++
         continue
       }
       let e = x
-      while (e < w && l.get(e, y)) e++
+      while (e < w && filled(e, y)) e++
       for (let k = x; k < e; k++) across[y * w + k] = Math.min(k - x, e - 1 - k) + 1
       x = e
     }
-  for (let i = 0; i < ht.length; i++) ht[i] = 0.5 * dome(across[i], 30) + 0.35 * dome(whole[i], 8) + 0.4 * dome(part[i], 4)
+  const ht = new Float32Array(w * h)
+  const bump = new Float32Array(w * h)
+  for (let i = 0; i < ht.length; i++) {
+    ht[i] = 0.6 * dome(across[i], 22) + 0.4 * dome(whole[i], 10)
+    bump[i] = dome(part[i], 3)
+  }
   blur(ht, w, h, 3)
-  blur(ht, w, h, 3)
+  blur(bump, w, h, 2)
   const shade = new Float32Array(w * h)
   const gloss = new Float32Array(w * h)
   const flat = LIGHT[2]
-  const at = (x: number, y: number, i: number) => (l.get(x, y) ? ht[y * w + x] : ht[i])
+  const at = (a: Float32Array, x: number, y: number, i: number) => (filled(x, y) ? a[y * w + x] : a[i])
+  // 머리 공: 가운데 (20, 17.6)칸, 반지름은 머리카락·모자까지 덮게 넉넉히.
+  const cx = 20 * SCALE
+  const cy = 17.6 * SCALE
+  const rx = 12.5 * SCALE
+  const ry = 12 * SCALE
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const i = y * w + x
-      if (!l.get(x, y)) continue
-      const dx = (at(x + 1, y, i) - at(x - 1, y, i)) / 2
-      const dy = (at(x, y + 1, i) - at(x, y - 1, i)) / 2
-      const n = Math.hypot(dx, dy, 1)
-      const nx = -dx / n
-      const ny = -dy / n
-      const nz = 1 / n
+      if (!filled(x, y)) continue
+      let nx: number
+      let ny: number
+      let nz: number
+      const bx = (at(bump, x + 1, y, i) - at(bump, x - 1, y, i)) / 2
+      const by = (at(bump, x, y + 1, i) - at(bump, x, y - 1, i)) / 2
+      if (y < NECK) {
+        const u = (x + 0.5 - cx) / rx
+        const v = (y + 0.5 - cy) / ry
+        const r = Math.hypot(u, v)
+        const k = r > 0.94 ? 0.94 / r : 1
+        nx = u * k - bx * 0.25
+        ny = v * k - by * 0.25
+        nz = Math.sqrt(Math.max(0, 1 - (u * k) ** 2 - (v * k) ** 2))
+      } else {
+        nx = -(at(ht, x + 1, y, i) - at(ht, x - 1, y, i)) / 2 - bx * 0.35
+        ny = -(at(ht, x, y + 1, i) - at(ht, x, y - 1, i)) / 2 - by * 0.35
+        nz = 1
+      }
+      const n = Math.hypot(nx, ny, nz)
+      nx /= n
+      ny /= n
+      nz /= n
       const diffuse = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2])
-      shade[i] = 0.5 + 0.5 * (diffuse / flat)
-      gloss[i] = Math.max(0, nx * HALF[0] + ny * HALF[1] + nz * HALF[2]) ** 24 * 0.3
+      let s = 0.55 + 0.45 * (diffuse / flat)
+      // 머리 그늘: 목 바로 밑이 가장 어둡고 3칸에 걸쳐 옅어진다.
+      if (y >= NECK && y < NECK + 3 * SCALE) s *= 0.82 + 0.18 * ((y - NECK) / (3 * SCALE))
+      shade[i] = s
+      gloss[i] = Math.max(0, nx * HALF[0] + ny * HALF[1] + nz * HALF[2]) ** 30 * 0.32
     }
   return { shade, gloss }
 }
@@ -394,6 +428,31 @@ function head(p: Paint, b: Body) {
   p.doll.fill(30, 17, 1, 3, b.skin)
 }
 
+/**
+ * 늘린 칸에서 얼굴 아래쪽(볼·턱)을 칸 계단 대신 매끈한 타원으로 다시 깎는다. 위쪽은 머리카락·귀·모자가 덮으니 두고,
+ * 사람이면 귀를 둥글게 다시 붙인다.
+ */
+function roundFace(d: Layer, b: Body) {
+  const k = SCALE
+  const cx = 20 * k
+  const cy = 16.6 * k
+  const rx = 10.3 * k
+  const ry = 9.3 * k
+  const inside = (x: number, y: number) => ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1
+  for (let y = Math.ceil(cy); y < NECK; y++)
+    for (let x = 0; x < d.w; x++) {
+      const c = d.get(x, y)
+      if (c === b.skin && !inside(x, y) && Math.abs(x + 0.5 - cx) > 2 * k) d.px[y * d.w + x] = undefined
+      else if (!c && inside(x, y)) d.dot(x, y, b.skin)
+    }
+  if (b.animal) return
+  for (const ex of [9.5, 30.5]) {
+    const e = new Layer(d.w, d.h)
+    e.ellipse(ex * k, 18.4 * k, 1.1 * k, 1.6 * k, b.skin)
+    for (let i = 0; i < e.px.length; i++) if (e.px[i] && !d.px[i]) d.px[i] = e.px[i]
+  }
+}
+
 /** 눈·볼·입은 늘린 칸(hi)에 매끈하게 그린다. 좌표는 원래 칸 기준. */
 function face(hi: Layer, b: Body) {
   const k = SCALE
@@ -406,8 +465,10 @@ function face(hi: Layer, b: Body) {
       for (let t = -1; t <= 1; t += 0.05) hi.ellipse((cx + t * 1.3) * k, (18.4 - (1 - t * t) * 0.8) * k, 0.32 * k, 0.32 * k, eye)
     } else {
       if (b.animal === 'panda') hi.ellipse(cx * k, 18 * k, 0.95 * k, 1.25 * k, '#ffffff')
-      hi.ellipse(cx * k, 18 * k, 0.62 * k, 0.95 * k, eye)
-      hi.ellipse((cx - 0.2) * k, 17.6 * k, 0.2 * k, 0.2 * k, '#ffffff')
+      hi.ellipse(cx * k, 18 * k, 0.78 * k, 1.12 * k, eye)
+      hi.ellipse(cx * k, 18.45 * k, 0.5 * k, 0.55 * k, '#4a3428')
+      hi.ellipse((cx - 0.25) * k, 17.5 * k, 0.28 * k, 0.28 * k, '#ffffff')
+      hi.ellipse((cx + 0.3) * k, 18.65 * k, 0.12 * k, 0.12 * k, '#ffffff')
       if (b.woman) hi.ellipse((cx + (cx < 20 ? -0.75 : 0.75)) * k, 17.05 * k, 0.32 * k, 0.22 * k, eye)
     }
   }
@@ -1135,15 +1196,16 @@ function bake(l: Look): string | null {
   const hit = baked.get(key)
   if (hit) return hit
   const p = draw(l)
+  const body = BODIES[l.body] ?? BODIES['body.man']
   const doll = smooth(p.doll)
-  // 테두리는 인형 바깥 두 겹에만 두르고 빛을 받지 않는다.
+  roundFace(doll, body)
+  // 테두리는 인형 바깥 한 겹에만 두르고 빛을 받지 않는다.
   const ring = new Layer(doll.w, doll.h)
   ring.px.splice(0, ring.px.length, ...doll.px)
   ring.outline(LINE)
-  ring.outline(LINE)
   for (let i = 0; i < ring.px.length; i++) if (doll.px[i]) ring.px[i] = undefined
   const hi = new Layer(W * SCALE, H * SCALE)
-  face(hi, BODIES[l.body] ?? BODIES['body.man'])
+  face(hi, body)
   const canvas = document.createElement('canvas')
   canvas.width = W * SCALE
   canvas.height = H * SCALE
