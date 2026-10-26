@@ -61,7 +61,7 @@ export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT'
 /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
 /** 캐릭터 차림. 모두 상점 상품 id이고 background는 배경 패다. */
 export interface Look {
-  /** 화풍: 인형·애니메이션·민화. */
+  /** 화풍: 인형·애니메이션. */
   style: string
   background: string
   body: string

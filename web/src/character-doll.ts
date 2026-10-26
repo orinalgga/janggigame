@@ -1,9 +1,10 @@
 import type { Look } from './api'
 
 /**
- * 인형 화풍. 큰 머리에 2등신인 작은 인형을 그린다.
+ * 인형 화풍. 큰 머리에 2등신인 작은 인형을 말랑한 비닐 인형처럼 입체감 있게 그린다.
  * 몸(남녀·은발), 머리, 수염, 옷, 모자·소품, 배경을 40×50 칸에 겹쳐 칠한 뒤 4배로 늘리면서
- * 계단진 모서리를 둥글게 다듬고(EPX), 인형 둘레에 얇은 테두리를 두른다. 눈·입·볼은 늘린 뒤에 매끈하게 그린다.
+ * 계단진 모서리를 둥글게 다듬고(EPX), 빛과 반짝임으로 부피를 주고, 인형 둘레에 얇은 테두리를 두른다.
+ * 눈·입·볼은 늘린 뒤에 매끈하게 그린다.
  * 브라우저에서는 PNG 한 장으로 구워 같은 차림이면 다시 쓰고, 캔버스가 없으면 칸 그대로 SVG로 낸다.
  */
 // ---- 픽셀 칸 ----
@@ -139,6 +140,150 @@ function epx(src: Layer): Layer {
 }
 
 const smooth = (l: Layer) => epx(epx(l))
+
+// ---- 입체 명암 ----
+
+/** 칠한 칸마다 가장 가까운 경계(edge가 참인 칸)까지의 거리. 3-4 챔퍼 거리를 3으로 나눈 값이다. */
+function distance(l: Layer, edge: (x: number, y: number) => boolean): Float32Array {
+  const { w, h } = l
+  const d = new Float32Array(w * h)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) d[y * w + x] = !l.get(x, y) ? 0 : edge(x, y) ? 3 : 1e6
+  const at = (x: number, y: number) => (x >= 0 && x < w && y >= 0 && y < h ? d[y * w + x] : 0)
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      if (d[i]) d[i] = Math.min(d[i], at(x - 1, y) + 3, at(x, y - 1) + 3, at(x - 1, y - 1) + 4, at(x + 1, y - 1) + 4)
+    }
+  for (let y = h - 1; y >= 0; y--)
+    for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x
+      if (d[i]) d[i] = Math.min(d[i], at(x + 1, y) + 3, at(x, y + 1) + 3, at(x + 1, y + 1) + 4, at(x - 1, y + 1) + 4)
+    }
+  for (let i = 0; i < d.length; i++) d[i] /= 3
+  return d
+}
+
+/** 가로세로로 r칸씩 평균을 내서 높이의 각진 능선을 누그러뜨린다. */
+function blur(a: Float32Array, w: number, h: number, r: number) {
+  const tmp = new Float32Array(a.length)
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let sum = 0
+      for (let k = -r; k <= r; k++) sum += a[y * w + Math.min(w - 1, Math.max(0, x + k))]
+      tmp[y * w + x] = sum / (2 * r + 1)
+    }
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let sum = 0
+      for (let k = -r; k <= r; k++) sum += tmp[Math.min(h - 1, Math.max(0, y + k)) * w + x]
+      a[y * w + x] = sum / (2 * r + 1)
+    }
+}
+
+/** 가장자리에서 r만큼 들어가면 다 솟는 둥근 단면. */
+const dome = (d: number, r: number) => (d <= 0 ? 0 : r * Math.sqrt(1 - (1 - Math.min(d, r) / r) ** 2))
+
+const LIGHT = (() => {
+  const v = [-0.45, -0.6, 0.66]
+  const n = Math.hypot(...v)
+  return v.map((c) => c / n)
+})()
+const HALF = (() => {
+  const v = [LIGHT[0], LIGHT[1], LIGHT[2] + 1]
+  const n = Math.hypot(...v)
+  return v.map((c) => c / n)
+})()
+
+/**
+ * 인형을 말랑한 비닐 인형처럼 보이게 하는 빛. 인형 전체 윤곽으로 크게 둥글리고, 같은 색 조각마다 작게 한 번 더 부풀린 높이에서
+ * 기울기를 구해 왼쪽 위에서 오는 빛으로 밝기(곱할 값)와 반짝임(더할 흰빛)을 낸다.
+ */
+function lighting(l: Layer): { shade: Float32Array; gloss: Float32Array } {
+  const { w, h } = l
+  const whole = distance(l, (x, y) => !l.get(x - 1, y) || !l.get(x + 1, y) || !l.get(x, y - 1) || !l.get(x, y + 1))
+  const part = distance(l, (x, y) => {
+    const c = l.get(x, y)
+    return l.get(x - 1, y) !== c || l.get(x + 1, y) !== c || l.get(x, y - 1) !== c || l.get(x, y + 1) !== c
+  })
+  const ht = new Float32Array(w * h)
+  // 크게는 가로로만 둥글려(원기둥) 좁은 목에서 위아래로 꺼지지 않게 한다.
+  const across = new Float32Array(w * h)
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; ) {
+      if (!l.get(x, y)) {
+        x++
+        continue
+      }
+      let e = x
+      while (e < w && l.get(e, y)) e++
+      for (let k = x; k < e; k++) across[y * w + k] = Math.min(k - x, e - 1 - k) + 1
+      x = e
+    }
+  for (let i = 0; i < ht.length; i++) ht[i] = 0.5 * dome(across[i], 30) + 0.35 * dome(whole[i], 8) + 0.4 * dome(part[i], 4)
+  blur(ht, w, h, 3)
+  blur(ht, w, h, 3)
+  const shade = new Float32Array(w * h)
+  const gloss = new Float32Array(w * h)
+  const flat = LIGHT[2]
+  const at = (x: number, y: number, i: number) => (l.get(x, y) ? ht[y * w + x] : ht[i])
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      if (!l.get(x, y)) continue
+      const dx = (at(x + 1, y, i) - at(x - 1, y, i)) / 2
+      const dy = (at(x, y + 1, i) - at(x, y - 1, i)) / 2
+      const n = Math.hypot(dx, dy, 1)
+      const nx = -dx / n
+      const ny = -dy / n
+      const nz = 1 / n
+      const diffuse = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2])
+      shade[i] = 0.5 + 0.5 * (diffuse / flat)
+      gloss[i] = Math.max(0, nx * HALF[0] + ny * HALF[1] + nz * HALF[2]) ** 24 * 0.3
+    }
+  return { shade, gloss }
+}
+
+const rgba = new Map<string, number[]>()
+function parse(c: string): number[] {
+  let v = rgba.get(c)
+  if (!v) {
+    const hex = c.slice(1)
+    const full = hex.length <= 4 ? [...hex].map((ch) => ch + ch).join('') : hex
+    v = [0, 2, 4].map((k) => parseInt(full.slice(k, k + 2), 16))
+    v.push(full.length >= 8 ? parseInt(full.slice(6, 8), 16) / 255 : 1)
+    rgba.set(c, v)
+  }
+  return v
+}
+
+/** 인형(doll)과 그 위 무늬(ink)를 빛을 받은 색으로 캔버스에 칠한다. */
+function paintLit(ctx: CanvasRenderingContext2D, doll: Layer, ink: Layer) {
+  const { w, h } = doll
+  const { shade, gloss } = lighting(doll)
+  const img = ctx.getImageData(0, 0, w, h)
+  const data = img.data
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x
+      for (const c of [doll.px[i], ink.px[i]]) {
+        if (!c) continue
+        const [r, g, b, a] = parse(c)
+        const lit = doll.px[i] !== undefined
+        const s = lit ? shade[i] : 1
+        const k = lit ? gloss[i] : 0
+        const o = i * 4
+        const mix = (v: number, j: number) => {
+          const t = Math.min(255, v * s + (255 - v * s) * k)
+          data[o + j] = data[o + j] * (1 - a) + t * a
+        }
+        mix(r, 0)
+        mix(g, 1)
+        mix(b, 2)
+        data[o + 3] = Math.max(data[o + 3], a * 255)
+      }
+    }
+  ctx.putImageData(img, 0, 0)
+}
 
 /** 그림 한 장: 배경(bg), 테두리를 두를 인형(doll), 그 위 잔무늬(ink), 눈·입 위에 얹는 안경(top). */
 interface Paint {
@@ -990,18 +1135,23 @@ function bake(l: Look): string | null {
   const hit = baked.get(key)
   if (hit) return hit
   const p = draw(l)
-  const layers = [smooth(p.bg), smooth(p.doll), smooth(p.ink)]
-  layers[1].outline(LINE)
-  layers[1].outline(LINE)
+  const doll = smooth(p.doll)
+  // 테두리는 인형 바깥 두 겹에만 두르고 빛을 받지 않는다.
+  const ring = new Layer(doll.w, doll.h)
+  ring.px.splice(0, ring.px.length, ...doll.px)
+  ring.outline(LINE)
+  ring.outline(LINE)
+  for (let i = 0; i < ring.px.length; i++) if (doll.px[i]) ring.px[i] = undefined
   const hi = new Layer(W * SCALE, H * SCALE)
   face(hi, BODIES[l.body] ?? BODIES['body.man'])
-  layers.push(hi, smooth(p.top))
   const canvas = document.createElement('canvas')
   canvas.width = W * SCALE
   canvas.height = H * SCALE
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   if (!ctx) return null
-  for (const layer of layers) layer.paint(ctx)
+  smooth(p.bg).paint(ctx)
+  paintLit(ctx, doll, smooth(p.ink))
+  for (const layer of [ring, hi, smooth(p.top)]) layer.paint(ctx)
   const url = canvas.toDataURL('image/png')
   baked.set(key, url)
   return url
