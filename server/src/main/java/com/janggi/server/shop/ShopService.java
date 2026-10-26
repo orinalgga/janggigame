@@ -17,9 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ShopService {
 
-    /** price는 엽전. owned, equipped는 로그인하지 않았으면 무료 상품과 기본 장착 기준이다. */
+    /** price는 엽전. reward면 팔지 않는 대회 보상. owned, equipped는 로그인하지 않았으면 무료 상품과 기본 장착 기준이다. */
     public record ItemDto(String id, ShopItem.Slot slot, String title, String description, int price,
-            boolean owned, boolean equipped) {
+            boolean reward, boolean owned, boolean equipped) {
     }
 
     /** price는 원. */
@@ -59,10 +59,11 @@ public class ShopService {
                 : owned.findByUserId(user.getId()).stream().map(OwnedItem::getItemId).collect(Collectors.toSet());
         String board = user == null ? ShopItem.BOARD_CLASSIC.id() : user.getBoardTheme();
         String pieces = user == null ? ShopItem.PIECES_CLASSIC.id() : user.getPieceTheme();
+        String avatar = user == null ? ShopItem.AVATAR_BASIC.id() : user.getAvatar();
         List<ItemDto> items = Arrays.stream(ShopItem.values())
-                .map(i -> new ItemDto(i.id(), i.slot(), i.title(), i.description(), i.price(),
+                .map(i -> new ItemDto(i.id(), i.slot(), i.title(), i.description(), i.price(), i.reward(),
                         i.free() || mine.contains(i.id()),
-                        i.id().equals(board) || i.id().equals(pieces)))
+                        i.id().equals(board) || i.id().equals(pieces) || i.id().equals(avatar)))
                 .toList();
         CoinService.Wallet wallet = user == null ? null : coins.wallet(user.getId());
         return new ShopDto(wallet == null ? null : wallet.total(), wallet == null ? null : wallet.free(), items, PACKS);
@@ -104,10 +105,13 @@ public class ShopService {
         return shop(userId);
     }
 
-    /** 엽전으로 테마를 산다. 모자라면 ShopException. */
+    /** 엽전으로 테마나 아바타를 산다. 모자라면 ShopException. */
     @Transactional
     public ShopDto buy(long userId, String itemId) {
         ShopItem item = item(itemId);
+        if (item.reward()) {
+            throw new ShopException("대회 우승으로만 얻을 수 있는 상품입니다");
+        }
         if (item.free() || owned.existsByUserIdAndItemId(userId, item.id())) {
             throw new ShopException("이미 가지고 있는 상품입니다");
         }
@@ -127,6 +131,7 @@ public class ShopService {
         switch (item.slot()) {
             case BOARD -> user.equipBoard(item.id());
             case PIECES -> user.equipPieces(item.id());
+            case AVATAR -> user.equipAvatar(item.id());
         }
         return shop(userId);
     }

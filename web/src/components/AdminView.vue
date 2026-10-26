@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem, type TournamentSummary } from '../api'
+import { REWARD_AVATARS, rewardTitle } from '../avatars'
 import { DIVISION, emptyInput, fromLocal as isoFrom, kindLabel, localIn, startLabel, timeControl } from '../tournaments'
 
 const emit = defineEmits<{
@@ -59,7 +60,7 @@ const busy = ref(false)
 
 onMounted(() => {
   void loadStats()
-  void api.shop().then((s) => (catalog.value = s.items.filter((i) => i.price > 0))).catch(() => undefined)
+  void api.shop().then((s) => (catalog.value = s.items.filter((i) => i.price > 0 || i.reward))).catch(() => undefined)
 })
 
 async function run<T>(work: () => Promise<T>): Promise<T | undefined> {
@@ -145,7 +146,7 @@ function noticeState(n: Notice): { label: string; cls: string } {
 
 /** 대회 만들기 칸. league는 누구나·유단자·급·둘 다(유단자와 급 리그를 한 번에). repeat 0이면 특별 대회. */
 const tournaments = ref<TournamentSummary[]>([])
-const tform = ref({ ...emptyInput(), startsAt: localIn(60), league: 'ALL' as 'ALL' | 'DAN' | 'KYU' | 'BOTH', repeat: 0 })
+const tform = ref({ ...emptyInput(), startsAt: localIn(60), league: 'ALL' as 'ALL' | 'DAN' | 'KYU' | 'BOTH', repeat: 0, prizeItem: 'avatar.crown' })
 const confirmCancel = ref<number | null>(null)
 const T_STATUS: Record<TournamentSummary['status'], { label: string; cls: string }> = {
   SCHEDULED: { label: '모집 중', cls: 'pending' },
@@ -174,11 +175,12 @@ async function createTournament() {
     both,
     kind: f.repeat ? ('REGULAR' as const) : ('SPECIAL' as const),
     repeatDays: f.repeat,
+    prizeItem: f.prizeItem || null,
   }
   const made = await run(() => api.admin.createTournament(input))
   if (!made) return
   notice.value = `${made.map((t) => `'${t.title}'`).join(', ')} 대회를 만들었어요.`
-  tform.value = { ...emptyInput(), startsAt: localIn(60), league: 'ALL', repeat: 0 }
+  tform.value = { ...emptyInput(), startsAt: localIn(60), league: 'ALL', repeat: 0, prizeItem: 'avatar.crown' }
   await loadTournaments()
 }
 
@@ -447,9 +449,16 @@ const cards = computed(() => {
             <span>우승 상금(닢)</span>
             <input v-model.number="tform.bonusPrize" type="number" min="0" max="100000" aria-label="우승 상금" />
           </label>
+          <label>
+            <span>우승 아바타</span>
+            <select v-model="tform.prizeItem" aria-label="우승 아바타">
+              <option value="">없음</option>
+              <option v-for="a in REWARD_AVATARS" :key="a.id" :value="a.id">{{ a.title }}</option>
+            </select>
+          </label>
         </div>
         <p class="count">
-          참가비는 참가 비용으로 소모되고, 우승자는 여기 정한 상금만 받아요(운영자 지급 엽전으로). 정기 리그는 시작할 때 다음 회차가 저절로 생겨요.
+          참가비는 참가 비용으로 소모되고, 우승자는 여기 정한 상금(운영자 지급 엽전)과 우승 아바타를 받아요. 우승 아바타는 상점에서 팔지 않아요. 정기 리그는 시작할 때 다음 회차가 저절로 생겨요.
           '둘 다'는 유단자 리그와 급 리그를 따로 만들어요.
         </p>
         <div class="form-actions">
@@ -466,6 +475,7 @@ const cards = computed(() => {
             <small>
               {{ kindLabel(t) }} · {{ DIVISION[t.division] }} · {{ startLabel(t.startsAt) }} · {{ timeControl(t) }} ·
               {{ t.players }}/{{ t.maxPlayers }}명 · 참가비 {{ t.entryFee }}닢 · 상금 {{ t.prizePool }}닢
+              <template v-if="t.prizeItem"> · {{ rewardTitle(t.prizeItem) }}</template>
               <template v-if="t.host"> · 연 사람 {{ t.host.nickname }}</template>
               <template v-if="t.winner"> · 우승 {{ t.winner.nickname }}</template>
             </small>

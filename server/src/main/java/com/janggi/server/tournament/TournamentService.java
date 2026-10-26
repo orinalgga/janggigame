@@ -8,7 +8,10 @@ import com.janggi.server.match.MatchService;
 import com.janggi.server.record.GameRecord;
 import com.janggi.server.record.GameRecordRepository;
 import com.janggi.server.shop.CoinService;
+import com.janggi.server.shop.OwnedItem;
+import com.janggi.server.shop.OwnedItemRepository;
 import com.janggi.server.shop.ShopException;
+import com.janggi.server.shop.ShopItem;
 import com.janggi.server.user.Grade;
 import com.janggi.server.user.User;
 import com.janggi.server.user.UserRepository;
@@ -54,7 +57,7 @@ public class TournamentService {
     private static final List<Tournament.Status> OPEN = List.of(Tournament.Status.SCHEDULED,
             Tournament.Status.RUNNING);
 
-    public record PlayerRef(long id, String nickname, String grade, int rating, Integer seed) {
+    public record PlayerRef(long id, String nickname, String avatar, String grade, int rating, Integer seed) {
     }
 
     /** 대국이 끝났으면 winnerId가 있다. 한쪽이 비면 부전승. */
@@ -69,7 +72,7 @@ public class TournamentService {
     public record SummaryDto(long id, String title, OffsetDateTime startsAt, Tournament.Status status,
             Tournament.Division division, Tournament.Kind kind, int repeatDays, PlayerRef host, int bonusPrize,
             int baseSeconds, int incrementSeconds, int entryFee, int maxPlayers, int players, int prizePool,
-            int currentRound, int totalRounds, PlayerRef winner, boolean joined) {
+            int currentRound, int totalRounds, PlayerRef winner, boolean joined, String prizeItem) {
     }
 
     /** myGameId는 내가 지금 둬야 하는 대회 대국. */
@@ -83,11 +86,12 @@ public class TournamentService {
 
     /**
      * both가 참이면(새로 만들 때) 유단자 리그와 급 리그를 하나씩 만든다. repeatDays는 정기 리그의 반복 간격(1: 매일, 7: 매주).
-     * bonusPrize는 참가비에 얹는 상금. 회원이 여는 개인 대회는 kind, division, repeatDays, both를 쓰지 않는다.
+     * bonusPrize는 우승 상금(엽전). prizeItem은 우승자에게 줄 보상 아바타(ShopItem.reward)로, 비우면 주지 않는다.
+     * 회원이 여는 개인 대회는 kind, division, repeatDays, both, prizeItem을 쓰지 않는다.
      */
     public record TournamentRequest(String title, String description, OffsetDateTime startsAt, Integer baseSeconds,
             Integer incrementSeconds, Integer entryFee, Tournament.Division division, Boolean both,
-            Tournament.Kind kind, Integer repeatDays, Integer bonusPrize, Integer maxPlayers) {
+            Tournament.Kind kind, Integer repeatDays, Integer bonusPrize, Integer maxPlayers, String prizeItem) {
     }
 
     /** 개인 대회 상금과 참가비 상한. */
@@ -103,6 +107,7 @@ public class TournamentService {
     private final GameService games;
     private final MatchService queue;
     private final CoinService coins;
+    private final OwnedItemRepository owned;
     private final SimpMessagingTemplate messaging;
     private final TransactionTemplate tx;
     private final Random random = new Random();
@@ -113,8 +118,8 @@ public class TournamentService {
 
     public TournamentService(TournamentRepository tournaments, TournamentEntryRepository entries,
             TournamentMatchRepository matches, UserRepository users, GameRecordRepository gameRecords,
-            GameService games, MatchService queue, CoinService coins, SimpMessagingTemplate messaging,
-            PlatformTransactionManager transactions) {
+            GameService games, MatchService queue, CoinService coins, OwnedItemRepository owned,
+            SimpMessagingTemplate messaging, PlatformTransactionManager transactions) {
         this.tournaments = tournaments;
         this.entries = entries;
         this.matches = matches;
@@ -123,6 +128,7 @@ public class TournamentService {
         this.games = games;
         this.queue = queue;
         this.coins = coins;
+        this.owned = owned;
         this.messaging = messaging;
         this.tx = new TransactionTemplate(transactions);
     }
@@ -367,7 +373,12 @@ public class TournamentService {
         if (hosted && req.startsAt().isAfter(now.plusDays(7))) {
             throw new TournamentException("개인 대회는 7일 안에 시작해야 해요");
         }
+        String prizeItem = req.prizeItem() == null || req.prizeItem().isBlank() || hosted ? null : req.prizeItem();
+        if (prizeItem != null && ShopItem.byId(prizeItem).filter(ShopItem::reward).isEmpty()) {
+            throw new TournamentException("우승 보상은 대회 보상 아바타 중에서 골라 주세요");
+        }
         t.edit(title, desc, req.startsAt(), base, inc, fee, size, division, kind, repeat, bonus);
+        t.prizeItem(prizeItem);
     }
 
     // ---- 진행 ----
@@ -540,6 +551,11 @@ public class TournamentService {
         if (winnerId != null && prize > 0) {
             coins.change(winnerId, prize, CoinService.Kind.PRIZE, ref(t), t.getTitle() + " 우승 상금");
         }
+        // 보상 아바타는 운영 대회에만 있다. 이미 가지고 있으면 그대로 둔다.
+        String item = t.getPrizeItem();
+        if (winnerId != null && item != null && !owned.existsByUserIdAndItemId(winnerId, item)) {
+            owned.save(new OwnedItem(winnerId, item, now));
+        }
         t.finish(winnerId, winnerId == null ? 0 : prize, now);
     }
 
@@ -584,7 +600,7 @@ public class TournamentService {
     }
 
     private static PlayerRef ref(User u, Integer seed) {
-        return u == null ? null : new PlayerRef(u.getId(), u.getNickname(), Grade.name(u.getRating()), u.getRating(), seed);
+        return u == null ? null : new PlayerRef(u.getId(), u.getNickname(), u.getAvatar(), Grade.name(u.getRating()), u.getRating(), seed);
     }
 
     private static int totalRounds(Tournament t, List<TournamentEntry> list) {
@@ -608,6 +624,6 @@ public class TournamentService {
         return new SummaryDto(t.getId(), t.getTitle(), t.getStartsAt(), t.getStatus(), t.getDivision(), t.getKind(),
                 t.getRepeatDays(), host, t.getBonusPrize(), t.getBaseSeconds(),
                 t.getIncrementSeconds(), t.getEntryFee(), t.getMaxPlayers(), list.size(), pool, t.getCurrentRound(),
-                totalRounds(t, list), winner, joined);
+                totalRounds(t, list), winner, joined, t.getPrizeItem());
     }
 }

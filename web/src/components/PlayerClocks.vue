@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { ClockDto, Player, Side } from '../api'
+import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps<{
   clock: ClockDto
@@ -41,6 +42,7 @@ const rows = computed(() =>
     const ms = left(side)
     return {
       side,
+      player: p,
       name: p ? `${p.nickname} · ${p.grade} (${p.rating})` : '?',
       change: change === null ? '' : change >= 0 ? `+${change}` : `${change}`,
       time: format(ms),
@@ -55,7 +57,9 @@ const rows = computed(() =>
   <div class="clocks">
     <div v-for="r in rows" :key="r.side" class="row" :class="[r.side.toLowerCase(), { running: r.running }]">
       <span class="name">
-        <b>{{ r.side === 'CHO' ? '초' : '한' }}</b> {{ r.name }}
+        <b>{{ r.side === 'CHO' ? '초' : '한' }}</b>
+        <UserAvatar v-if="r.player" :id="r.player.avatar" :name="r.player.nickname" :size="22" />
+        {{ r.name }}
         <span v-if="r.change" class="change">{{ r.change }}</span>
       </span>
       <span class="time" :class="{ low: r.low }">{{ r.time }}</span>
@@ -89,6 +93,10 @@ const rows = computed(() =>
   color: var(--han-color);
 }
 .name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   color: var(--text);
 }
 .change {

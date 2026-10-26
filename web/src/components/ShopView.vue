@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { api, auth, type CoinLedgerRow, type CoinPack, type Me, type ShopItem, type ShopOrder, type ShopSlot, type ShopState } from '../api'
 import { BOARD_THEMES, PIECE_THEMES, equipped, setEquipped, startingPieces, type ThemeChoice } from '../themes'
 import JanggiBoard from './JanggiBoard.vue'
+import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps<{
   me: Me | null
@@ -11,11 +12,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
+  /** 아바타를 바꿔 끼면 머리글에도 바로 보이게 알린다. */
+  (e: 'avatar', id: string): void
 }>()
 
 const SECTIONS: { slot: ShopSlot; title: string }[] = [
   { slot: 'BOARD', title: '장기판' },
   { slot: 'PIECES', title: '장기알' },
+  { slot: 'AVATAR', title: '아바타' },
 ]
 const KIND: Record<CoinLedgerRow['kind'], string> = { CHARGE: '충전', SPEND: '구매', ADMIN: '운영자' }
 
@@ -67,8 +71,12 @@ async function load() {
 }
 
 const bySlot = (slot: ShopSlot) => items.value.filter((i) => i.slot === slot)
-const previewed = (i: ShopItem) => (i.slot === 'BOARD' ? preview.value.board : preview.value.pieces) === i.id
-const isEquipped = (i: ShopItem) => (i.slot === 'BOARD' ? equipped.board : equipped.pieces) === i.id
+const previewed = (i: ShopItem) =>
+  i.slot === 'AVATAR' ? previewAvatar.value === i.id : (i.slot === 'BOARD' ? preview.value.board : preview.value.pieces) === i.id
+const isEquipped = (i: ShopItem) =>
+  i.slot === 'AVATAR' ? i.equipped : (i.slot === 'BOARD' ? equipped.board : equipped.pieces) === i.id
+/** 눌러 본 아바타. 판 미리보기와 따로 논다. */
+const previewAvatar = ref<string | null>(null)
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const nyang = (n: number) => `${n.toLocaleString('ko-KR')}닢`
 
@@ -78,6 +86,10 @@ const short = computed(() => (buying.value && coins.value !== null ? Math.max(0,
 
 function pick(i: ShopItem) {
   notice.value = ''
+  if (i.slot === 'AVATAR') {
+    previewAvatar.value = i.id
+    return
+  }
   preview.value = i.slot === 'BOARD' ? { ...preview.value, board: i.id } : { ...preview.value, pieces: i.id }
 }
 
@@ -90,6 +102,17 @@ function swatch(i: ShopItem) {
 
 async function equip(i: ShopItem) {
   error.value = ''
+  if (i.slot === 'AVATAR') {
+    if (!props.me) return
+    try {
+      apply(await api.equip(i.id))
+      emit('avatar', i.id)
+      notice.value = `${i.title}을(를) 장착했어요.`
+    } catch (e) {
+      error.value = (e as Error).message
+    }
+    return
+  }
   if (!props.me) {
     // 로그인하지 않았으면 무료 상품만 이번 방문 동안 바꿔 낀다.
     setEquipped(i.slot === 'BOARD' ? i.id : equipped.board, i.slot === 'PIECES' ? i.id : equipped.pieces)
@@ -192,7 +215,7 @@ const date = (s: string) =>
       <button type="button" class="back" @click="emit('close')">‹ 로비</button>
       <div>
         <h1>상점</h1>
-        <p>장기판과 장기알을 골라 나만의 판을 꾸며 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
+        <p>장기판·장기알·아바타를 골라 나만의 판을 꾸며 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
       </div>
     </div>
 
@@ -259,7 +282,8 @@ const date = (s: string) =>
               @click="pick(i)"
               @keydown.enter="pick(i)"
             >
-              <span class="swatch" :style="swatch(i)" aria-hidden="true">
+              <UserAvatar v-if="s.slot === 'AVATAR'" :id="i.id" :name="me?.nickname ?? '장'" :size="52" />
+              <span v-else class="swatch" :style="swatch(i)" aria-hidden="true">
                 <span class="mini-piece">{{ s.slot === 'BOARD' ? '車' : '漢' }}</span>
               </span>
               <span class="item-text">
@@ -268,7 +292,8 @@ const date = (s: string) =>
               </span>
               <span class="item-action" @click.stop>
                 <span v-if="isEquipped(i)" class="tag">장착 중</span>
-                <button v-else-if="i.owned" type="button" class="ghost" @click="equip(i)">장착</button>
+                <button v-else-if="i.owned && (me || s.slot !== 'AVATAR')" type="button" class="ghost" @click="equip(i)">장착</button>
+                <span v-else-if="i.reward" class="tag reward">대회 우승 보상</span>
                 <button v-else-if="me" type="button" class="buy" @click="askBuy(i)">
                   <span class="coin small" aria-hidden="true">錢</span>{{ nyang(i.price) }}
                 </button>
@@ -614,6 +639,11 @@ h3 {
   border-radius: 999px;
   color: var(--accent);
   background: var(--accent-bg);
+}
+.tag.reward {
+  color: #7a4a00;
+  background: #fbe8b0;
+  white-space: nowrap;
 }
 .price {
   font-weight: 700;

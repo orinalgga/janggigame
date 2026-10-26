@@ -195,7 +195,7 @@ public class GameService {
     private GameDto.PlayerDto player(long userId, int ratingChange) {
         return users.find(userId)
                 .map(u -> new GameDto.PlayerDto(u.getId(), u.getNickname(), u.getRating() - ratingChange,
-                        Grade.name(u.getRating() - ratingChange)))
+                        Grade.name(u.getRating() - ratingChange), u.getAvatar()))
                 .orElse(null);
     }
 
