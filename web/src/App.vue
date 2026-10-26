@@ -654,6 +654,10 @@ main.wide {
   font-weight: 600;
   line-height: 1.5;
 }
+/* 상점·확성기·관리자는 한데 모아 오른쪽 내 정보(또는 로그인) 앞에 둔다. */
+.shop-link + .shop-link {
+  margin-left: -6px;
+}
 .icon-link {
   padding-left: 10px;
   padding-right: 10px;
