@@ -12,7 +12,7 @@
 2. Image: **Canonical Ubuntu 22.04** (또는 24.04)
 3. Shape: **Ampere VM.Standard.A1.Flex** (Always Free, 2 OCPU / 12GB 정도면 충분)
    - "Out of capacity"가 나오면 OCPU를 1로 줄이거나 다른 시간에 다시 시도한다.
-   - A1이 끝내 안 되면 VM.Standard.E2.1.Micro(1GB)도 되지만 빌드가 느리다.
+   - A1이 끝내 안 되면 VM.Standard.E2.1.Micro(1GB, AMD)도 된다. 이때는 `.env`에 `JAVA_TOOL_OPTIONS=-Xmx384m`을 넣는다.
 4. SSH 키: "Generate a key pair"로 개인 키를 내려받아 둔다.
 5. 만든 뒤 **Public IP address**를 적어 둔다.
 
@@ -66,10 +66,11 @@ nano .env
 | `JANGGI_ADMIN_EMAILS` | 관리자 구글 메일 |
 | `ANTHROPIC_API_KEY` | (선택) AI 채팅용 |
 
-띄운다(처음엔 빌드 때문에 몇 분 걸린다).
+띄운다. 서버 이미지는 GitHub Actions(`Server image`)가 main마다 만들어 `ghcr.io/orinalgga/janggigame-server`에 올려 두므로 VM에서 빌드하지 않는다.
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d --no-build
 docker compose logs -f server   # Started ... 이 보이면 Ctrl+C
 ```
 
@@ -107,6 +108,8 @@ bash deploy/update.sh
 ```
 
 ## 알아 둘 것
+
+- 서버 이미지(ghcr.io 패키지)는 공개(Public)여야 VM이 로그인 없이 받는다. GitHub → 프로필 → Packages → janggigame-server → Package settings → Change visibility.
 
 - 결제는 아직 테스트 결제사(`JANGGI_PAYMENTS_PROVIDER=test`)라서 엽전 충전에 돈이 들지 않는다. 정식 출시 전에 실제 결제사를 붙이고, 그동안 쌓인 엽전은 정리한다.
 - DB는 도커 볼륨(`pgdata`)에 있다. 백업: `docker compose exec postgres pg_dump -U janggi janggi > backup.sql`

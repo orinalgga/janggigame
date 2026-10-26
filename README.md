@@ -170,7 +170,7 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 
 단계별 안내는 [docs/deploy.md](docs/deploy.md)에 있습니다.
 
-- 서버: Oracle Cloud Always Free VM에서 `docker compose up -d --build`. `.env`에 `COMPOSE_PROFILES=prod`를 넣으면 caddy가 앞에서 HTTPS 인증서를 자동으로 받습니다(`deploy/Caddyfile`).
+- 서버: Oracle Cloud Always Free VM에서 `docker compose pull && docker compose up -d --no-build` (서버 이미지는 GitHub Actions가 만들어 ghcr.io에 올림). `.env`에 `COMPOSE_PROFILES=prod`를 넣으면 caddy가 앞에서 HTTPS 인증서를 자동으로 받습니다(`deploy/Caddyfile`).
 - 웹: Cloudflare Pages에 `web` 폴더를 연결, 빌드 명령 `npm run build`, 출력 폴더 `dist`, 환경변수 `VITE_API_BASE`
 - 웹과 서버의 주소가 다르므로 서버에 `JANGGI_CORS_ALLOWED_ORIGINS`, `JANGGI_WEB_BASE_URL`을 설정합니다.
 - 업데이트: VM에서 `bash deploy/update.sh`

@@ -1,5 +1,6 @@
 # 저장소 루트를 빌드 컨텍스트로 쓴다: docker build -f server/Dockerfile .
-FROM eclipse-temurin:21-jdk AS build
+# jar는 CPU 종류와 무관하므로 빌드는 빌드하는 컴퓨터의 플랫폼에서 한 번만 한다.
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS build
 WORKDIR /src
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle gradle
