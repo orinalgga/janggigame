@@ -46,9 +46,22 @@ public class User {
     @Column(name = "piece_theme", nullable = false)
     private String pieceTheme = "pieces.classic";
 
-    /** 장착한 아바타(상점 상품 id). */
+    /** 장착한 배경 패(상점 상품 id). 캐릭터 뒤에 깔린다. */
     @Column(nullable = false)
     private String avatar = "avatar.basic";
+
+    /** 캐릭터의 몸, 머리 모양, 옷, 모자(상점 상품 id). */
+    @Column(nullable = false)
+    private String body = "body.human";
+
+    @Column(nullable = false)
+    private String hair = "hair.bob";
+
+    @Column(nullable = false)
+    private String outfit = "outfit.white";
+
+    @Column(nullable = false)
+    private String hat = "hat.none";
 
     protected User() {
     }
@@ -124,6 +137,38 @@ public class User {
 
     public void equipAvatar(String itemId) {
         this.avatar = itemId;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public String getHair() {
+        return hair;
+    }
+
+    public String getOutfit() {
+        return outfit;
+    }
+
+    public String getHat() {
+        return hat;
+    }
+
+    public void equipBody(String itemId) {
+        this.body = itemId;
+    }
+
+    public void equipHair(String itemId) {
+        this.hair = itemId;
+    }
+
+    public void equipOutfit(String itemId) {
+        this.outfit = itemId;
+    }
+
+    public void equipHat(String itemId) {
+        this.hat = itemId;
     }
 
     public void changeRating(int delta) {

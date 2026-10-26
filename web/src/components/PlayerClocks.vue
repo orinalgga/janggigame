@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { ClockDto, Player, Side } from '../api'
-import UserAvatar from './UserAvatar.vue'
+import CharacterAvatar from './CharacterAvatar.vue'
 
 const props = defineProps<{
   clock: ClockDto
@@ -43,7 +43,8 @@ const rows = computed(() =>
     return {
       side,
       player: p,
-      name: p ? `${p.nickname} · ${p.grade} (${p.rating})` : '?',
+      nickname: p?.nickname ?? '?',
+      detail: p ? `${p.grade} · ${p.rating}` : '',
       change: change === null ? '' : change >= 0 ? `+${change}` : `${change}`,
       time: format(ms),
       running: props.clock.running === side,
@@ -56,11 +57,16 @@ const rows = computed(() =>
 <template>
   <div class="clocks">
     <div v-for="r in rows" :key="r.side" class="row" :class="[r.side.toLowerCase(), { running: r.running }]">
+      <CharacterAvatar :look="r.player?.look" class="figure" />
       <span class="name">
-        <b>{{ r.side === 'CHO' ? '초' : '한' }}</b>
-        <UserAvatar v-if="r.player" :id="r.player.avatar" :name="r.player.nickname" :size="22" />
-        {{ r.name }}
-        <span v-if="r.change" class="change">{{ r.change }}</span>
+        <span class="who">
+          <b class="side-mark">{{ r.side === 'CHO' ? '초' : '한' }}</b>
+          <b class="nick">{{ r.nickname }}</b>
+        </span>
+        <small>
+          {{ r.detail }}
+          <span v-if="r.change" class="change">{{ r.change }}</span>
+        </small>
       </span>
       <span class="time" :class="{ low: r.low }">{{ r.time }}</span>
     </div>
@@ -76,11 +82,48 @@ const rows = computed(() =>
 }
 .row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 4px 10px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--surface, rgba(255, 255, 255, 0.5));
+}
+.figure {
+  width: 46px;
+  border-radius: 9px;
+  overflow: hidden;
+}
+.who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.side-mark {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  color: #fff;
+}
+.cho .side-mark {
+  background: var(--cho-color);
+}
+.han .side-mark {
+  background: var(--han-color);
+}
+.nick {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+small {
+  color: var(--muted);
+  font-weight: 400;
 }
 .row.running {
   border-color: currentColor;
@@ -93,9 +136,10 @@ const rows = computed(() =>
   color: var(--han-color);
 }
 .name {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   min-width: 0;
   color: var(--text);
 }

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, auth, type CoinLedgerRow, type CoinPack, type Me, type ShopItem, type ShopOrder, type ShopSlot, type ShopState } from '../api'
+import { api, auth, type CoinLedgerRow, type CoinPack, type Look, type Me, type ShopItem, type ShopOrder, type ShopSlot, type ShopState } from '../api'
+import { DEFAULT_LOOK, LOOK_KEY, showsHair, withPart, type LookSlot } from '../character'
 import { BOARD_THEMES, PIECE_THEMES, equipped, setEquipped, startingPieces, type ThemeChoice } from '../themes'
 import JanggiBoard from './JanggiBoard.vue'
-import UserAvatar from './UserAvatar.vue'
+import CharacterAvatar from './CharacterAvatar.vue'
 
 const props = defineProps<{
   me: Me | null
@@ -12,15 +13,25 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  /** 아바타를 바꿔 끼면 머리글에도 바로 보이게 알린다. */
-  (e: 'avatar', id: string): void
+  /** 캐릭터 차림을 바꾸면 머리글에도 바로 보이게 알린다. */
+  (e: 'look', look: Look): void
 }>()
 
 const SECTIONS: { slot: ShopSlot; title: string }[] = [
   { slot: 'BOARD', title: '장기판' },
   { slot: 'PIECES', title: '장기알' },
-  { slot: 'AVATAR', title: '아바타' },
 ]
+const CHAR_SECTIONS: { slot: LookSlot; title: string }[] = [
+  { slot: 'BODY', title: '몸' },
+  { slot: 'OUTFIT', title: '옷' },
+  { slot: 'HAIR', title: '머리' },
+  { slot: 'HAT', title: '모자·장식' },
+  { slot: 'AVATAR', title: '배경' },
+]
+const isChar = (slot: ShopSlot): slot is LookSlot => slot in LOOK_KEY
+
+/** 상점은 장기판·알과 캐릭터 꾸미기 두 칸으로 나뉜다. */
+const tab = ref<'theme' | 'character'>('character')
 const KIND: Record<CoinLedgerRow['kind'], string> = { CHARGE: '충전', SPEND: '구매', ADMIN: '운영자' }
 
 const items = ref<ShopItem[]>([])
@@ -51,7 +62,10 @@ const historyOpen = ref(false)
 onMounted(load)
 
 function apply(state: ShopState) {
+  const first = !items.value.length
   items.value = state.items
+  // 처음 열 때는 입어 보는 차림을 지금 차림으로 맞춘다.
+  if (first) tryLook.value = { ...myLook.value }
   packs.value = state.packs
   coins.value = state.coins
   freeCoins.value = state.freeCoins ?? 0
@@ -72,11 +86,25 @@ async function load() {
 
 const bySlot = (slot: ShopSlot) => items.value.filter((i) => i.slot === slot)
 const previewed = (i: ShopItem) =>
-  i.slot === 'AVATAR' ? previewAvatar.value === i.id : (i.slot === 'BOARD' ? preview.value.board : preview.value.pieces) === i.id
+  isChar(i.slot) ? tryLook.value[LOOK_KEY[i.slot]] === i.id : (i.slot === 'BOARD' ? preview.value.board : preview.value.pieces) === i.id
 const isEquipped = (i: ShopItem) =>
-  i.slot === 'AVATAR' ? i.equipped : (i.slot === 'BOARD' ? equipped.board : equipped.pieces) === i.id
-/** 눌러 본 아바타. 판 미리보기와 따로 논다. */
-const previewAvatar = ref<string | null>(null)
+  isChar(i.slot) ? i.equipped : (i.slot === 'BOARD' ? equipped.board : equipped.pieces) === i.id
+
+/** 지금 입고 있는 차림. 칸마다 장착한 상품에서 읽는다. */
+const myLook = computed<Look>(() => {
+  const look = { ...DEFAULT_LOOK }
+  for (const i of items.value) if (isChar(i.slot) && i.equipped) look[LOOK_KEY[i.slot]] = i.id
+  return look
+})
+/** 눌러서 입어 보는 차림. 사지 않아도 바꿔 볼 수 있다. */
+const tryLook = ref<Look>({ ...DEFAULT_LOOK })
+const trying = computed(() => (Object.keys(tryLook.value) as (keyof Look)[]).some((k) => tryLook.value[k] !== myLook.value[k]))
+/** 칸 그림: 지금 입어 보는 차림에 그 부품만 바꿔 끼운다. 동물 몸이면 머리 모양이 안 보이니 사람으로 보여 준다. */
+function thumb(i: ShopItem): Look {
+  const slot = i.slot as LookSlot
+  const base = slot === 'HAIR' && !showsHair(tryLook.value.body) ? withPart(tryLook.value, 'BODY', DEFAULT_LOOK.body) : tryLook.value
+  return withPart(base, slot, i.id)
+}
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const nyang = (n: number) => `${n.toLocaleString('ko-KR')}닢`
 
@@ -86,8 +114,8 @@ const short = computed(() => (buying.value && coins.value !== null ? Math.max(0,
 
 function pick(i: ShopItem) {
   notice.value = ''
-  if (i.slot === 'AVATAR') {
-    previewAvatar.value = i.id
+  if (isChar(i.slot)) {
+    tryLook.value = withPart(tryLook.value, i.slot, i.id)
     return
   }
   preview.value = i.slot === 'BOARD' ? { ...preview.value, board: i.id } : { ...preview.value, pieces: i.id }
@@ -102,11 +130,11 @@ function swatch(i: ShopItem) {
 
 async function equip(i: ShopItem) {
   error.value = ''
-  if (i.slot === 'AVATAR') {
+  if (isChar(i.slot)) {
     if (!props.me) return
     try {
       apply(await api.equip(i.id))
-      emit('avatar', i.id)
+      emit('look', myLook.value)
       notice.value = `${i.title}을(를) 장착했어요.`
     } catch (e) {
       error.value = (e as Error).message
@@ -215,7 +243,7 @@ const date = (s: string) =>
       <button type="button" class="back" @click="emit('close')">‹ 로비</button>
       <div>
         <h1>상점</h1>
-        <p>장기판·장기알·아바타를 골라 나만의 판을 꾸며 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
+        <p>한복 입은 캐릭터를 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
       </div>
     </div>
 
@@ -247,7 +275,67 @@ const date = (s: string) =>
       </ul>
     </div>
 
-    <div class="layout">
+    <div class="shop-tabs" role="tablist">
+      <button type="button" role="tab" :aria-selected="tab === 'character'" :class="{ active: tab === 'character' }" @click="tab = 'character'">캐릭터 꾸미기</button>
+      <button type="button" role="tab" :aria-selected="tab === 'theme'" :class="{ active: tab === 'theme' }" @click="tab = 'theme'">장기판·장기알</button>
+    </div>
+
+    <div v-if="tab === 'character'" class="layout dress">
+      <div class="preview dress-preview">
+        <CharacterAvatar :look="tryLook" class="big-figure" />
+        <div class="dress-side">
+          <p class="preview-note">
+            <template v-if="trying">입어 보는 중이에요. 사서 장착하면 대국 화면에 이 모습으로 나와요.</template>
+            <template v-else>지금 내 모습이에요. 대국 화면에 이렇게 나와요.</template>
+          </p>
+          <button v-if="trying" type="button" class="ghost" @click="tryLook = { ...myLook }">원래대로</button>
+        </div>
+      </div>
+
+      <div class="catalog">
+        <p v-if="loading" class="muted">불러오는 중…</p>
+        <p v-if="error" class="error" role="alert">{{ error }}</p>
+        <p v-if="notice" class="notice" role="status">{{ notice }}</p>
+
+        <template v-for="s in CHAR_SECTIONS" :key="s.slot">
+          <h3>{{ s.title }}</h3>
+          <p v-if="s.slot === 'HAIR' && !showsHair(tryLook.body)" class="muted small">동물 몸에는 머리 모양이 보이지 않아요. 사람 몸으로 바꾸면 보여요.</p>
+          <div class="tiles">
+            <div
+              v-for="i in bySlot(s.slot)"
+              :key="i.id"
+              class="tile"
+              :class="{ active: previewed(i), reward: i.reward }"
+              role="button"
+              tabindex="0"
+              :aria-pressed="previewed(i)"
+              :title="i.description"
+              @click="pick(i)"
+              @keydown.enter="pick(i)"
+            >
+              <CharacterAvatar :look="thumb(i)" class="tile-figure" />
+              <b class="tile-title">{{ i.title }}</b>
+              <span class="tile-action" @click.stop>
+                <span v-if="isEquipped(i)" class="tag">장착 중</span>
+                <button v-else-if="i.owned && me" type="button" class="ghost small-btn" @click="equip(i)">장착</button>
+                <span v-else-if="i.reward" class="tag reward">대회 우승</span>
+                <button v-else-if="me && !i.owned" type="button" class="buy small-btn" @click="askBuy(i)">
+                  <span class="coin small" aria-hidden="true">錢</span>{{ nyang(i.price) }}
+                </button>
+                <span v-else class="price">{{ i.price ? nyang(i.price) : '무료' }}</span>
+              </span>
+            </div>
+          </div>
+        </template>
+
+        <p v-if="!me && !loading" class="login-hint">
+          캐릭터 꾸미기는 로그인한 뒤 엽전(1닢 = 100원)으로 할 수 있어요. 지금은 눌러서 입어 보기만 돼요.
+          <a v-if="providers.includes('google')" :href="auth.loginUrl('google')" @click="auth.openLogin($event, 'google')">구글로 로그인</a>
+        </p>
+      </div>
+    </div>
+
+    <div v-else class="layout">
       <div class="preview">
         <JanggiBoard
           :pieces="pieces"
@@ -282,8 +370,7 @@ const date = (s: string) =>
               @click="pick(i)"
               @keydown.enter="pick(i)"
             >
-              <UserAvatar v-if="s.slot === 'AVATAR'" :id="i.id" :name="me?.nickname ?? '장'" :size="52" />
-              <span v-else class="swatch" :style="swatch(i)" aria-hidden="true">
+              <span class="swatch" :style="swatch(i)" aria-hidden="true">
                 <span class="mini-piece">{{ s.slot === 'BOARD' ? '車' : '漢' }}</span>
               </span>
               <span class="item-text">
@@ -292,8 +379,7 @@ const date = (s: string) =>
               </span>
               <span class="item-action" @click.stop>
                 <span v-if="isEquipped(i)" class="tag">장착 중</span>
-                <button v-else-if="i.owned && (me || s.slot !== 'AVATAR')" type="button" class="ghost" @click="equip(i)">장착</button>
-                <span v-else-if="i.reward" class="tag reward">대회 우승 보상</span>
+                <button v-else-if="i.owned" type="button" class="ghost" @click="equip(i)">장착</button>
                 <button v-else-if="me" type="button" class="buy" @click="askBuy(i)">
                   <span class="coin small" aria-hidden="true">錢</span>{{ nyang(i.price) }}
                 </button>
@@ -752,12 +838,120 @@ button:disabled {
   gap: 8px;
   margin-top: 14px;
 }
+.shop-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+}
+.shop-tabs button {
+  flex: 1;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+.shop-tabs button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.dress-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.big-figure {
+  width: min(260px, 70%);
+  filter: drop-shadow(0 6px 14px rgba(60, 30, 10, 0.18));
+}
+.dress-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 6px 8px;
+  border-radius: 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.tile.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.tile-figure {
+  width: 100%;
+  max-width: 84px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.tile-title {
+  font-size: 0.82rem;
+  text-align: center;
+  line-height: 1.25;
+}
+.tile-action {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+.small-btn {
+  padding: 4px 9px;
+  font-size: 0.8rem;
+}
+.muted.small {
+  margin: -4px 0 8px;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 720px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
   }
   .preview {
     position: static;
+  }
+  /* 휴대폰에서는 입어 보는 모습이 늘 보이도록 위에 붙여 둔다. */
+  .dress-preview {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex-direction: row;
+    padding: 8px 4px;
+    background: var(--page-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .big-figure {
+    width: 104px;
+  }
+  .dress-side {
+    flex: 1;
+    align-items: flex-start;
+  }
+  .dress-side .preview-note {
+    text-align: left;
   }
 }
 </style>

@@ -59,12 +59,21 @@ export interface ChatMessage {
 export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT'
 
 /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
+/** 캐릭터 차림. 모두 상점 상품 id이고 background는 배경 패다. */
+export interface Look {
+  background: string
+  body: string
+  hair: string
+  outfit: string
+  hat: string
+}
+
 export interface Player {
   id: number
   nickname: string
   rating: number
   grade: string
-  avatar: string
+  look: Look
 }
 
 /** 서버가 보낸 시점의 남은 시간. running 쪽은 받은 뒤로도 계속 줄어든다. */
@@ -114,8 +123,8 @@ export interface Me {
   /** 장착한 테마의 상점 상품 id. */
   boardTheme: string
   pieceTheme: string
-  /** 장착한 아바타의 상점 상품 id. */
-  avatar: string
+  /** 캐릭터 차림. */
+  look: Look
   /** 관리자 페이지를 쓸 수 있는 회원. */
   admin: boolean
   /** 정지된 회원은 자기 정보 말고는 아무것도 할 수 없다. */
@@ -222,7 +231,7 @@ export interface RankingRow {
   rank: number | null
   userId: number
   nickname: string
-  avatar: string
+  look: Look
   grade: string
   rating: number
   /** 기간 동안 오르내린 레이팅의 합. */
@@ -254,7 +263,7 @@ export type TournamentKind = 'REGULAR' | 'SPECIAL'
 export interface TournamentPlayer {
   id: number
   nickname: string
-  avatar: string
+  look: Look
   grade: string
   rating: number
   seed: number | null
@@ -339,7 +348,7 @@ export interface TournamentPaired {
   gameId: string
 }
 
-export type ShopSlot = 'BOARD' | 'PIECES' | 'AVATAR'
+export type ShopSlot = 'BOARD' | 'PIECES' | 'AVATAR' | 'BODY' | 'HAIR' | 'OUTFIT' | 'HAT'
 
 /** 상점 상품. 로그인하지 않았으면 owned, equipped는 무료 상품과 기본 장착 기준이다. */
 export interface ShopItem {

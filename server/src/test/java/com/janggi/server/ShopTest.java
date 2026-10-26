@@ -131,7 +131,7 @@ class ShopTest {
                 .andExpect(jsonPath("$.items[?(@.id=='avatar.tiger')].equipped").value(true))
                 .andExpect(jsonPath("$.items[?(@.id=='avatar.basic')].equipped").value(false))
                 .andExpect(jsonPath("$.items[?(@.id=='board.classic')].equipped").value(true));
-        mvc.perform(get("/api/me").header("Authorization", token)).andExpect(jsonPath("$.avatar").value("avatar.tiger"));
+        mvc.perform(get("/api/me").header("Authorization", token)).andExpect(jsonPath("$.look.background").value("avatar.tiger"));
         // 대회 보상은 엽전으로 살 수 없고, 얻기 전에는 장착할 수도 없다.
         send(token, "POST", "/api/shop/items/avatar.crown/buy", "")
                 .andExpect(status().isBadRequest())
@@ -141,6 +141,36 @@ class ShopTest {
                 .andExpect(jsonPath("$.coins").value(11))
                 .andExpect(jsonPath("$.items[?(@.id=='avatar.crown')].reward").value(true))
                 .andExpect(jsonPath("$.items[?(@.id=='avatar.crown')].owned").value(false));
+    }
+
+    @Test
+    void characterPartsAreWornTogether() throws Exception {
+        String token = login("shop-character");
+        mvc.perform(get("/api/me").header("Authorization", token))
+                .andExpect(jsonPath("$.look.body").value("body.human"))
+                .andExpect(jsonPath("$.look.hair").value("hair.bob"))
+                .andExpect(jsonPath("$.look.outfit").value("outfit.white"))
+                .andExpect(jsonPath("$.look.hat").value("hat.none"));
+        // 무료 부품은 사지 않고 바로 입는다. 유료 부품은 사야 한다.
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"hair.sangtu\"}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[?(@.id=='hair.sangtu')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='hair.bob')].equipped").value(false));
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"body.rabbit\"}").andExpect(status().isBadRequest());
+        charge(token, "coins.100", 10000);
+        send(token, "POST", "/api/shop/items/body.rabbit/buy", "").andExpect(status().isOk());
+        send(token, "POST", "/api/shop/items/outfit.hwarot/buy", "")
+                .andExpect(jsonPath("$.coins").value(100 - 29 - 49));
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"body.rabbit\"}").andExpect(status().isOk());
+        send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"outfit.hwarot\"}")
+                .andExpect(jsonPath("$.items[?(@.id=='outfit.hwarot')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='body.rabbit')].equipped").value(true))
+                .andExpect(jsonPath("$.items[?(@.id=='hair.sangtu')].equipped").value(true));
+        mvc.perform(get("/api/me").header("Authorization", token))
+                .andExpect(jsonPath("$.look.body").value("body.rabbit"))
+                .andExpect(jsonPath("$.look.hair").value("hair.sangtu"))
+                .andExpect(jsonPath("$.look.outfit").value("outfit.hwarot"))
+                .andExpect(jsonPath("$.look.background").value("avatar.basic"));
     }
 
     @Test

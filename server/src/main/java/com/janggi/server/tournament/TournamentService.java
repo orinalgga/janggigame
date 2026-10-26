@@ -13,6 +13,7 @@ import com.janggi.server.shop.OwnedItemRepository;
 import com.janggi.server.shop.ShopException;
 import com.janggi.server.shop.ShopItem;
 import com.janggi.server.user.Grade;
+import com.janggi.server.user.Look;
 import com.janggi.server.user.User;
 import com.janggi.server.user.UserRepository;
 import java.time.Duration;
@@ -57,7 +58,7 @@ public class TournamentService {
     private static final List<Tournament.Status> OPEN = List.of(Tournament.Status.SCHEDULED,
             Tournament.Status.RUNNING);
 
-    public record PlayerRef(long id, String nickname, String avatar, String grade, int rating, Integer seed) {
+    public record PlayerRef(long id, String nickname, Look look, String grade, int rating, Integer seed) {
     }
 
     /** 대국이 끝났으면 winnerId가 있다. 한쪽이 비면 부전승. */
@@ -600,7 +601,7 @@ public class TournamentService {
     }
 
     private static PlayerRef ref(User u, Integer seed) {
-        return u == null ? null : new PlayerRef(u.getId(), u.getNickname(), u.getAvatar(), Grade.name(u.getRating()), u.getRating(), seed);
+        return u == null ? null : new PlayerRef(u.getId(), u.getNickname(), Look.of(u), Grade.name(u.getRating()), u.getRating(), seed);
     }
 
     private static int totalRounds(Tournament t, List<TournamentEntry> list) {

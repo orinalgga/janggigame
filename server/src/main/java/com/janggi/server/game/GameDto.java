@@ -7,6 +7,7 @@ import com.janggi.core.Move;
 import com.janggi.core.Side;
 import com.janggi.core.Square;
 import com.janggi.server.chat.ChatMessage;
+import com.janggi.server.user.Look;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,7 +34,7 @@ public record GameDto(
         ChatMessage aiComment) {
 
     /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
-    public record PlayerDto(long id, String nickname, int rating, String grade, String avatar) {
+    public record PlayerDto(long id, String nickname, int rating, String grade, Look look) {
     }
 
     /** 남은 시간(밀리초)과 지금 시계가 가는 쪽. 웹은 받은 뒤부터 running 쪽을 직접 줄여 보여 준다. */
