@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import type { Formation, Level, Me, Side } from '../api'
-import { auth } from '../api'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import type { Formation, Invite, Level, Me, Side } from '../api'
+import { auth, inviteUrl } from '../api'
 import { FORMATIONS, LEVELS, PERSONAS, type Mode, type StartOptions } from '../options'
 
 const props = defineProps<{
@@ -9,10 +9,15 @@ const props = defineProps<{
   providers: string[]
   searching: boolean
   error: string
+  /** 내가 보내고 답을 기다리는 초대. */
+  inviting: Invite | null
 }>()
 const emit = defineEmits<{
   (e: 'start', options: StartOptions): void
   (e: 'cancel'): void
+  /** nickname이 null이면 링크 초대. */
+  (e: 'invite', nickname: string | null, formation: Formation): void
+  (e: 'cancel-invite'): void
 }>()
 
 const MODES: { value: Mode; title: string; desc: string; badge: string; tone: string }[] = [
@@ -70,8 +75,46 @@ const startLabel = computed(() =>
   mode.value === 'ONLINE' ? '상대 찾기' : mode.value === 'AI' ? `${PERSONAS[level.value].name}와 대국 시작` : '대국 시작',
 )
 
+// 특정 상대 초대
+const friend = ref('')
+const copied = ref(false)
+const busy = computed(() => props.searching || props.inviting !== null)
+const link = computed(() => (props.inviting && props.inviting.toId === null ? inviteUrl(props.inviting.id) : ''))
+const now = ref(Date.now())
+const timer = setInterval(() => (now.value = Date.now()), 1000)
+onBeforeUnmount(() => clearInterval(timer))
+const inviteLeft = computed(() =>
+  props.inviting ? Math.max(0, Math.ceil((props.inviting.expiresAt - now.value) / 1000)) : 0,
+)
+watch(link, () => (copied.value = false))
+
+function invite() {
+  const name = friend.value.trim()
+  if (!name || busy.value) return
+  emit('invite', name, choFormation.value)
+}
+
+/** 휴대폰이면 공유 창(카카오톡 등)을 열고, 아니면 클립보드에 복사한다. */
+async function shareLink() {
+  if (!link.value) return
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: '장기 한 판 두실래요?', url: link.value })
+      return
+    } catch {
+      // 공유 창을 닫았으면 복사로 넘어간다.
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(link.value)
+    copied.value = true
+  } catch {
+    copied.value = false
+  }
+}
+
 function start() {
-  if (blocked.value || props.searching) return
+  if (blocked.value || busy.value) return
   // 온라인 대전은 '내 상차림' 하나만 쓴다. 진영은 서버가 정한다.
   emit('start', mode.value === 'ONLINE' ? { ...options.value, hanFormation: choFormation.value } : options.value)
 }
@@ -96,7 +139,7 @@ function start() {
         class="mode"
         :class="{ active: mode === m.value }"
         :aria-checked="mode === m.value"
-        :disabled="searching"
+        :disabled="busy"
         @click="mode = m.value"
       >
         <span class="badge" :class="m.tone">{{ m.badge }}</span>
@@ -198,12 +241,26 @@ function start() {
               class="chip"
               :class="{ active: choFormation === f.value }"
               :aria-pressed="choFormation === f.value"
-              :disabled="searching"
+              :disabled="busy"
               @click="choFormation = f.value"
             >
               {{ f.label }}<small>{{ f.hanja }}</small>
             </button>
           </div>
+          <h3>특정 상대 초대</h3>
+          <form class="invite-row" @submit.prevent="invite">
+            <input
+              v-model="friend"
+              maxlength="16"
+              placeholder="상대 닉네임"
+              aria-label="초대할 상대 닉네임"
+              autocomplete="off"
+              :disabled="busy"
+            />
+            <button type="submit" class="secondary" :disabled="busy || !friend.trim()">초대</button>
+            <button type="button" class="secondary" :disabled="busy" @click="emit('invite', null, choFormation)">링크로 초대</button>
+          </form>
+          <p class="muted rule">닉네임으로 부르면 지금 접속해 있는 상대에게 바로 알림이 가요. 링크는 카톡 등으로 보내 30분 안에 열면 돼요.</p>
         </template>
       </template>
 
@@ -242,7 +299,21 @@ function start() {
         </div>
       </template>
 
-      <div v-if="searching" class="searching" role="status">
+      <div v-if="inviting" class="searching inviting" role="status">
+        <span class="spinner" aria-hidden="true" />
+        <span v-if="inviting.toId !== null">
+          <b>{{ inviting.toNickname }}</b> 님의 답을 기다리는 중… <small class="muted">{{ inviteLeft }}초</small>
+        </span>
+        <span v-else class="link-wait">
+          링크를 연 상대가 수락하면 바로 시작해요.
+          <span class="link-box">
+            <input :value="link" readonly aria-label="초대 링크" @focus="($event.target as HTMLInputElement).select()" />
+            <button type="button" class="secondary" @click="shareLink">{{ copied ? '복사됨' : '공유' }}</button>
+          </span>
+        </span>
+        <button type="button" class="ghost" @click="emit('cancel-invite')">취소</button>
+      </div>
+      <div v-else-if="searching" class="searching" role="status">
         <span class="spinner" aria-hidden="true" />
         <span>상대를 찾는 중…</span>
         <button type="button" class="ghost" @click="emit('cancel')">취소</button>
@@ -550,6 +621,60 @@ h3 {
 }
 .searching .ghost {
   margin-left: auto;
+}
+.inviting {
+  align-items: flex-start;
+}
+.link-wait {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.link-box {
+  display: flex;
+  gap: 6px;
+}
+.invite-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.invite-row input,
+.link-box input {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 8px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: inherit;
+}
+.invite-row input {
+  min-width: 140px;
+}
+.link-box input {
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+.secondary {
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--accent-deep);
+  background: var(--accent-bg);
+  border: 1.5px solid var(--accent-soft);
+}
+.secondary:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 .spinner {
   width: 18px;

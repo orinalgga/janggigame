@@ -91,6 +91,24 @@ export interface MatchStatus {
   gameId: string | null
 }
 
+/** 특정 상대 초대. toId가 없으면 링크 초대다. expiresAt은 epoch 밀리초. */
+export interface Invite {
+  id: string
+  fromId: number
+  fromNickname: string
+  fromGrade: string
+  toId: number | null
+  toNickname: string | null
+  expiresAt: number
+}
+
+/** /user/queue/invite로 오는 알림. ACCEPTED면 gameId가 있다. */
+export interface InviteEvent {
+  type: 'INVITED' | 'ACCEPTED' | 'DECLINED' | 'CANCELLED'
+  invite: Invite
+  gameId: string | null
+}
+
 export type Result = 'ONGOING' | 'CHO_WIN' | 'HAN_WIN' | 'DRAW'
 
 export interface GameSummary {
@@ -529,6 +547,14 @@ export const api = {
   resign: (id: string) => request<GameDto>(`/api/games/${id}/resign`, {}),
   match: (formation: Formation) => request<MatchStatus>('/api/match', { formation }),
   cancelMatch: () => request<MatchStatus>('/api/match', undefined, 'DELETE'),
+  /** nickname이 null이면 누구나 받을 수 있는 링크 초대를 만든다. */
+  invite: (nickname: string | null, formation: Formation) => request<Invite>('/api/invites', { nickname, formation }),
+  getInvite: (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}`),
+  acceptInvite: (id: string, formation: Formation) =>
+    request<{ gameId: string }>(`/api/invites/${encodeURIComponent(id)}/accept`, { formation }),
+  declineInvite: (id: string) => request<{ declined: boolean }>(`/api/invites/${encodeURIComponent(id)}/decline`, {}),
+  cancelInvite: (id: string) =>
+    request<{ cancelled: boolean }>(`/api/invites/${encodeURIComponent(id)}`, undefined, 'DELETE'),
   chat: (id: string) => request<ChatMessage[]>(`/api/games/${id}/chat`),
   /** 새로 생긴 말을 돌려준다. AI 대국이면 내 말과 AI의 답이다. */
   say: (id: string, text: string) => request<ChatMessage[]>(`/api/games/${id}/chat`, { text }),
@@ -573,6 +599,12 @@ export const api = {
     hideMegaphone: (id: number) => request<{ hidden: boolean }>(`/api/admin/megaphone/${id}`, undefined, 'DELETE'),
     deleteNotice: (id: number) => request<{ deleted: boolean }>(`/api/admin/notices/${id}`, undefined, 'DELETE'),
   },
+}
+
+/** 초대 링크. 앱 안에서는 주소가 앱 것이라 VITE_WEB_BASE(웹 사이트 주소)를 쓴다. */
+export function inviteUrl(id: string): string {
+  const base = import.meta.env.VITE_WEB_BASE || location.origin + location.pathname
+  return `${base.replace(/\/$/, '')}/?invite=${encodeURIComponent(id)}`
 }
 
 /** 실시간 알림(STOMP) 주소. API와 같은 서버의 /ws. */
