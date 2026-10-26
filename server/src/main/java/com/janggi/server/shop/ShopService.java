@@ -70,7 +70,7 @@ public class ShopService {
         String pieces = user == null ? ShopItem.PIECES_CLASSIC.id() : user.getPieceTheme();
         Set<String> worn = user == null
                 ? Arrays.stream(ShopItem.values()).filter(ShopItem::starter).map(ShopItem::id).collect(Collectors.toSet())
-                : Set.of(user.getAvatar(), user.getBody(), user.getHair(), user.getBeard(), user.getOutfit(), user.getHat());
+                : Set.of(user.getStyle(), user.getAvatar(), user.getBody(), user.getHair(), user.getBeard(), user.getOutfit(), user.getHat());
         List<ItemDto> items = Arrays.stream(ShopItem.values())
                 .map(i -> new ItemDto(i.id(), i.slot(), i.title(), i.description(), i.price(), i.reward(),
                         i.free() || mine.contains(i.id()),
@@ -176,6 +176,7 @@ public class ShopService {
             case BODY -> user.equipBody(item.id());
             case HAIR -> user.equipHair(item.id());
             case BEARD -> user.equipBeard(item.id());
+            case STYLE -> user.equipStyle(item.id());
             case OUTFIT -> user.equipOutfit(item.id());
             case HAT -> user.equipHat(item.id());
         }

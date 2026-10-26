@@ -22,6 +22,7 @@ const SECTIONS: { slot: ShopSlot; title: string }[] = [
   { slot: 'PIECES', title: '장기알' },
 ]
 const CHAR_SECTIONS: { slot: LookSlot; title: string }[] = [
+  { slot: 'STYLE', title: '화풍' },
   { slot: 'OUTFIT', title: '의복' },
   { slot: 'HAT', title: '모자·소품' },
   { slot: 'AVATAR', title: '배경' },
@@ -33,8 +34,8 @@ const CHAR_SECTIONS: { slot: LookSlot; title: string }[] = [
 /** 값으로 매기는 등급. 상점에서 눈에 띄게 붙인다. */
 function tier(i: ShopItem): { label: string; cls: string } | null {
   if (i.reward) return { label: '한정', cls: 'limited' }
-  if (i.price >= 79) return { label: '진귀', cls: 'rare' }
-  if (i.price >= 49) return { label: '명품', cls: 'luxury' }
+  if (i.price >= 40) return { label: '진귀', cls: 'rare' }
+  if (i.price >= 25) return { label: '명품', cls: 'luxury' }
   if (i.price > 0) return { label: '고급', cls: 'fine' }
   return null
 }
@@ -326,7 +327,7 @@ const date = (s: string) =>
       <button type="button" class="back" @click="emit('close')">‹ 로비</button>
       <div>
         <h1>상점</h1>
-        <p>미니미를 요즘 옷이나 한복으로 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
+        <p>인형·애니메이션·민화 화풍으로 내 캐릭터를 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
       </div>
     </div>
 
