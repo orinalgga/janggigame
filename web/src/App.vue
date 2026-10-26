@@ -16,6 +16,7 @@ import MegaphoneBar from './components/MegaphoneBar.vue'
 import MyCharacterCard from './components/MyCharacterCard.vue'
 import MegaphoneDialog from './components/MegaphoneDialog.vue'
 import HostTournamentDialog from './components/HostTournamentDialog.vue'
+import InviteDialog from './components/InviteDialog.vue'
 import TournamentList from './components/TournamentList.vue'
 import TournamentView from './components/TournamentView.vue'
 import {
@@ -24,6 +25,8 @@ import {
   type EndReason,
   type Formation,
   type GameDto,
+  type Invite,
+  type InviteEvent,
   type MatchStatus,
   type Me,
   type Side,
@@ -64,6 +67,7 @@ onMounted(async () => {
   void onLoginReturn((url) => auth.takeToken(url) && void loadMe())
   providers.value = (await api.providers().catch(() => ({ providers: [] }))).providers
   await loadMe()
+  void openInviteLink()
 })
 
 async function loadMe() {
@@ -75,7 +79,148 @@ async function loadMe() {
   setEquipped(me.value?.boardTheme, me.value?.pieceTheme)
   nicknameOpen.value = me.value?.nicknameChosen === false
   recent.value?.refresh()
-  if (me.value) watchTournaments()
+  if (me.value) {
+    watchTournaments()
+    watchInvites()
+  }
+}
+
+// 특정 상대 초대: 내가 보내고 기다리는 초대, 내게 온 초대
+const inviting = ref<Invite | null>(null)
+const incoming = ref<Invite | null>(null)
+const inviteBusy = ref(false)
+const inviteError = ref('')
+let stopInviteSub: (() => void) | null = null
+let invitingTimer: ReturnType<typeof setTimeout> | undefined
+const INVITE_KEY = 'janggi.invite'
+
+/** 초대 알림은 어느 화면에 있든 받는다. 내가 두는 온라인 대국 중이면 저절로 거절한다. */
+function watchInvites() {
+  if (stopInviteSub) return
+  live ??= new Live()
+  stopInviteSub = live.subscribe<InviteEvent>('/user/queue/invite', (e) => {
+    if (e.type === 'INVITED') {
+      if (playingOnline.value || incoming.value) {
+        void api.declineInvite(e.invite.id).catch(() => undefined)
+        return
+      }
+      inviteError.value = ''
+      incoming.value = e.invite
+    } else if (e.type === 'CANCELLED') {
+      if (incoming.value?.id === e.invite.id) incoming.value = null
+    } else if (inviting.value?.id === e.invite.id) {
+      stopInviting()
+      if (e.type === 'ACCEPTED' && e.gameId) {
+        enterInvitedGame(e.gameId)
+      } else {
+        error.value = `${e.invite.toNickname ?? '상대'} 님이 초대를 거절했어요.`
+      }
+    }
+  })
+}
+
+/** 주소의 ?invite=를 열거나, 로그인하러 다녀오기 전에 열어 둔 초대를 다시 띄운다. */
+async function openInviteLink() {
+  const params = new URLSearchParams(location.search)
+  let id = params.get('invite')
+  if (id) {
+    params.delete('invite')
+    const rest = params.toString()
+    history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : '') + location.hash)
+  } else {
+    try {
+      id = sessionStorage.getItem(INVITE_KEY)
+    } catch {
+      id = null
+    }
+  }
+  try {
+    sessionStorage.removeItem(INVITE_KEY)
+  } catch {
+    // 저장소를 못 쓰면 로그인 뒤 링크를 다시 열면 된다.
+  }
+  if (!id) return
+  try {
+    const invite = await api.getInvite(id)
+    inviteError.value = ''
+    incoming.value = invite
+    // 로그인하러 나갔다 와도 이 초대로 돌아오게 둔다.
+    if (!me.value) sessionStorage.setItem(INVITE_KEY, id)
+  } catch (e) {
+    error.value = (e as Error).message
+  }
+}
+
+async function sendInvite(nickname: string | null, formation: Formation) {
+  leaveOnline()
+  error.value = ''
+  live ??= new Live()
+  try {
+    const invite = await api.invite(nickname, formation)
+    inviting.value = invite
+    clearTimeout(invitingTimer)
+    // 닉네임 초대는 시간이 지나면 저절로 거둔다. 링크 초대는 취소할 때까지 둔다.
+    if (invite.toId !== null) {
+      invitingTimer = setTimeout(() => {
+        if (inviting.value?.id !== invite.id) return
+        void cancelInvite()
+        error.value = `${invite.toNickname} 님이 답하지 않았어요.`
+      }, invite.expiresAt - Date.now())
+    }
+  } catch (e) {
+    error.value = (e as Error).message
+  }
+}
+
+function stopInviting() {
+  inviting.value = null
+  clearTimeout(invitingTimer)
+}
+
+async function cancelInvite() {
+  const invite = inviting.value
+  stopInviting()
+  if (invite) await api.cancelInvite(invite.id).catch(() => undefined)
+}
+
+async function acceptInvite(formation: Formation) {
+  const invite = incoming.value
+  if (!invite) return
+  inviteBusy.value = true
+  inviteError.value = ''
+  try {
+    const { gameId } = await api.acceptInvite(invite.id, formation)
+    incoming.value = null
+    enterInvitedGame(gameId)
+  } catch (e) {
+    inviteError.value = (e as Error).message
+  } finally {
+    inviteBusy.value = false
+  }
+}
+
+function declineInvite() {
+  const invite = incoming.value
+  incoming.value = null
+  try {
+    sessionStorage.removeItem(INVITE_KEY)
+  } catch {
+    // 무시
+  }
+  if (invite && me.value && invite.toId === me.value.id) void api.declineInvite(invite.id).catch(() => undefined)
+}
+
+/** 초대로 잡힌 대국으로 간다. 다른 화면에 있었어도 대국 화면으로 바꾼다. */
+function enterInvitedGame(gameId: string) {
+  leaveOnline()
+  error.value = ''
+  selected.value = null
+  replayId.value = null
+  shopOpen.value = false
+  adminOpen.value = false
+  tournamentId.value = null
+  live ??= new Live()
+  void openOnline(gameId)
 }
 
 // 대회 상태: 보고 있는 대회, 개인전 만들기 창, 대회 목록
@@ -113,7 +258,10 @@ function tournamentGame(id: string) {
 
 function logout() {
   leaveOnline()
+  void cancelInvite()
+  incoming.value = null
   stopTournamentSub = null
+  stopInviteSub = null
   live?.close()
   live = null
   auth.clear()
@@ -421,6 +569,17 @@ async function gameEnded() {
     <MegaphoneBar @open="megaphoneOpen = true" />
     <MegaphoneDialog v-if="megaphoneOpen" :me="me" @close="megaphoneOpen = false" />
 
+    <InviteDialog
+      v-if="incoming"
+      :invite="incoming"
+      :me="me"
+      :providers="providers"
+      :busy="inviteBusy"
+      :error="inviteError"
+      @accept="acceptInvite"
+      @decline="declineInvite"
+    />
+
     <HostTournamentDialog v-if="me && hostOpen" :me="me" @created="openTournament" @close="hostOpen = false" />
 
     <NicknameDialog
@@ -532,7 +691,17 @@ async function gameEnded() {
 
     <template v-else>
       <MyCharacterCard :me="me" @dress="shopOpen = true" @megaphone="megaphoneOpen = true" />
-      <LobbyView :me="me" :providers="providers" :searching="searching" :error="error" @start="start" @cancel="cancelMatch" />
+      <LobbyView
+        :me="me"
+        :providers="providers"
+        :searching="searching"
+        :error="error"
+        :inviting="inviting"
+        @start="start"
+        @cancel="cancelMatch"
+        @invite="sendInvite"
+        @cancel-invite="cancelInvite"
+      />
       <TournamentList ref="tournaments" :me="me" @open="openTournament" @host="hostOpen = true" />
       <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" @resume="resume" />
       <RankingBoard :key="me?.id ?? 0" :my-id="me?.id ?? null" />
