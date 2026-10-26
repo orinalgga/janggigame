@@ -147,7 +147,7 @@ class ShopTest {
     void characterPartsAreWornTogether() throws Exception {
         String token = login("shop-character");
         mvc.perform(get("/api/me").header("Authorization", token))
-                .andExpect(jsonPath("$.look.style").value("style.doll"))
+                .andExpect(jsonPath("$.look.style").value("style.chibi"))
                 .andExpect(jsonPath("$.look.body").value("body.man"))
                 .andExpect(jsonPath("$.look.hair").value("hair.short"))
                 .andExpect(jsonPath("$.look.beard").value("beard.none"))
@@ -175,7 +175,7 @@ class ShopTest {
         send(token, "POST", "/api/shop/items/style.anime/buy", "").andExpect(jsonPath("$.coins").value(100 - 30 - 25));
         send(token, "PUT", "/api/shop/equipped", "{\"itemId\":\"style.anime\"}")
                 .andExpect(jsonPath("$.items[?(@.id=='style.anime')].equipped").value(true))
-                .andExpect(jsonPath("$.items[?(@.id=='style.doll')].equipped").value(false));
+                .andExpect(jsonPath("$.items[?(@.id=='style.chibi')].equipped").value(false));
         mvc.perform(get("/api/me").header("Authorization", token)).andExpect(jsonPath("$.look.style").value("style.anime"));
     }
 

@@ -1,13 +1,14 @@
 import type { Look } from './api'
 import { dollSvg } from './character-doll'
 import { paintSvg } from './character-paint'
+import { spriteSvg } from './avatar/sprite'
 
 /**
- * 캐릭터 아바타. 화풍(style)에 따라 입체감 있는 인형(기본) 또는 애니메이션풍으로 그린다.
+ * 캐릭터 아바타. 화풍(style)에 따라 부품 그림을 겹친 2D 캐릭터(기본, avatar/sprite.ts), 입체 인형, 애니메이션풍으로 그린다.
  * 부품 id는 서버 shop/ShopItem과 같고, 차림(Look)은 api.ts에 있다. 모르는 id는 기본 부품으로 그린다.
  */
 export const DEFAULT_LOOK: Look = {
-  style: 'style.doll',
+  style: 'style.chibi',
   background: 'avatar.basic',
   body: 'body.man',
   hair: 'hair.short',
@@ -20,7 +21,8 @@ export const DEFAULT_LOOK: Look = {
 export function characterSvg(look: Partial<Look> | null | undefined, opts: { head?: boolean } = {}): string {
   const l = { ...DEFAULT_LOOK, ...(look ?? {}) }
   if (l.style === 'style.anime') return paintSvg(l, opts)
-  return dollSvg(l, opts)
+  if (l.style === 'style.doll') return dollSvg(l, opts)
+  return spriteSvg(l, opts)
 }
 
 export const LOOK_KEY = {

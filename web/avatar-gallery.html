@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>아바타 그림 확인</title>
+    <style>
+      body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: #f3ece0; color: #2a2118; }
+      h2 { margin: 24px 0 8px; font-size: 1.1rem; }
+      .grid { display: flex; flex-wrap: wrap; gap: 10px; }
+      figure { margin: 0; width: 120px; text-align: center; font-size: 0.75rem; }
+      figure svg { width: 120px; height: auto; display: block; }
+      .heads figure, .heads figure svg { width: 64px; }
+    </style>
+  </head>
+  <body>
+    <h1>아바타 그림 확인</h1>
+    <p>개발 서버(npm run dev)에서 /avatar-gallery.html 로 연다. ?only=hair 처럼 칸 하나만 볼 수 있다. 그림 파일을 바꾸면 바로 다시 그려진다.</p>
+    <div id="out"></div>
+    <script type="module" src="/src/avatar/gallery.ts"></script>
+  </body>
+</html>
