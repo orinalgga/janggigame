@@ -13,6 +13,7 @@ import ReplayView from './components/ReplayView.vue'
 import ShopView from './components/ShopView.vue'
 import CharacterAvatar from './components/CharacterAvatar.vue'
 import MegaphoneBar from './components/MegaphoneBar.vue'
+import MyCharacterCard from './components/MyCharacterCard.vue'
 import MegaphoneDialog from './components/MegaphoneDialog.vue'
 import HostTournamentDialog from './components/HostTournamentDialog.vue'
 import TournamentList from './components/TournamentList.vue'
@@ -224,6 +225,12 @@ function goHome() {
   tournamentId.value = null
 }
 
+/** 머리글의 내 얼굴을 누르면 어느 화면에서든(대국 중 빼고) 꾸미기로 간다. */
+function openDress() {
+  goHome()
+  shopOpen.value = true
+}
+
 /** 대국을 접고 로비로 돌아간다. 대회 대국이었으면 대회 화면으로 돌아간다. 진행 중인 온라인 대국에서는 쓰지 않는다. */
 function toLobby() {
   leaveOnline()
@@ -395,11 +402,13 @@ async function gameEnded() {
       <span v-else class="brand">장기</span>
       <template v-if="!game && !replayId && !shopOpen && !adminOpen && !tournamentId">
         <button type="button" class="shop-link" @click="shopOpen = true">상점</button>
-        <button type="button" class="shop-link" @click="megaphoneOpen = true">확성기</button>
+        <button type="button" class="shop-link icon-link" aria-label="확성기" title="확성기" @click="megaphoneOpen = true">📢</button>
         <button v-if="me?.admin" type="button" class="shop-link admin-link" @click="adminOpen = true">관리자</button>
       </template>
       <div v-if="me" class="me">
-        <CharacterAvatar :look="me.look" head class="me-face" />
+        <button type="button" class="face-button" title="캐릭터 꾸미기" :disabled="!!game" @click="openDress">
+          <CharacterAvatar :look="me.look" head class="me-face" />
+        </button>
         <button type="button" class="nickname" title="닉네임 바꾸기" @click="nicknameOpen = true">{{ me.nickname }}</button>
         <span class="rating" :title="`레이팅 ${me.rating}`">{{ me.grade }} <small>{{ me.rating }}</small></span>
         <button type="button" class="text-button" @click="logout">로그아웃</button>
@@ -522,6 +531,7 @@ async function gameEnded() {
     <ShopView v-else-if="shopOpen" :me="me" :providers="providers" @close="shopOpen = false" @look="(look) => me && (me = { ...me, look })" />
 
     <template v-else>
+      <MyCharacterCard :me="me" @dress="shopOpen = true" @megaphone="megaphoneOpen = true" />
       <LobbyView :me="me" :providers="providers" :searching="searching" :error="error" @start="start" @cancel="cancelMatch" />
       <TournamentList ref="tournaments" :me="me" @open="openTournament" @host="hostOpen = true" />
       <RecentGames ref="recent" :mine="me !== null" @replay="(id) => (replayId = id)" @resume="resume" />
@@ -643,6 +653,20 @@ main.wide {
   background: var(--han-color);
   font-weight: 600;
   line-height: 1.5;
+}
+.icon-link {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.face-button {
+  padding: 0;
+  border: none;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+}
+.face-button:disabled {
+  cursor: default;
 }
 .me-face {
   width: 30px;
