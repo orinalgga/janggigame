@@ -36,8 +36,8 @@ public class MegaphoneService {
     private static final Duration KEEP = Duration.ofHours(24);
 
     public enum Pack {
-        ONE("megaphone.1", "확성기 1개", 1, 5),
-        TEN("megaphone.10", "확성기 10개", 10, 45);
+        ONE("megaphone.1", "확성기 1개", 1, 1),
+        TEN("megaphone.10", "확성기 10개", 10, 10);
 
         private final String id;
         private final String title;

@@ -67,7 +67,7 @@ class MegaphoneTest {
         give(u, 50);
         send(token, "/api/megaphone/buy", "{\"packId\":\"megaphone.10\"}").andExpect(status().isOk())
                 .andExpect(jsonPath("$.count").value(10));
-        mvc.perform(get("/api/shop").header("Authorization", token)).andExpect(jsonPath("$.coins").value(5));
+        mvc.perform(get("/api/shop").header("Authorization", token)).andExpect(jsonPath("$.coins").value(40));
 
         send(token, "/api/megaphone", "{\"text\":\"  오늘   한 판 두실 분!  \"}").andExpect(status().isCreated())
                 .andExpect(jsonPath("$.text").value("오늘 한 판 두실 분!"))
@@ -89,7 +89,7 @@ class MegaphoneTest {
     void rudeWordsLinksAndLongTextAreRejectedWithoutSpending() throws Exception {
         User u = users.loginWith("google", "mega-2", null);
         String token = bearer(u);
-        give(u, 5);
+        give(u, 1);
         send(token, "/api/megaphone/buy", "{\"packId\":\"megaphone.1\"}").andExpect(jsonPath("$.count").value(1));
         send(token, "/api/megaphone", "{\"text\":\"이 시 발 놈아\"}").andExpect(status().isBadRequest());
         send(token, "/api/megaphone", "{\"text\":\"싸게 팝니다 www.example.com\"}").andExpect(status().isBadRequest());
@@ -103,7 +103,7 @@ class MegaphoneTest {
         User u = users.loginWith("google", "mega-3", null);
         String token = bearer(u);
         String boss = bearer(users.loginWith("google", "mega-4", "mega-boss@example.com"));
-        give(u, 5);
+        give(u, 1);
         send(token, "/api/megaphone/buy", "{\"packId\":\"megaphone.1\"}").andExpect(status().isOk());
         String body = send(token, "/api/megaphone", "{\"text\":\"내릴 말\"}").andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
