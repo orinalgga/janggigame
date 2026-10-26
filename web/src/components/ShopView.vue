@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { api, auth, type CoinLedgerRow, type CoinPack, type Look, type Me, type ShopItem, type ShopOrder, type ShopSlot, type ShopState } from '../api'
-import { DEFAULT_LOOK, LOOK_KEY, showsHair, withPart, type LookSlot } from '../character'
+import { api, auth, type CoinLedgerRow, type CoinPack, type Look, type Me, type ShopBundle, type ShopItem, type ShopOrder, type ShopSlot, type ShopState } from '../api'
+import { DEFAULT_LOOK, LOOK_KEY, showsBeard, withPart, type LookSlot } from '../character'
 import { BOARD_THEMES, PIECE_THEMES, equipped, setEquipped, startingPieces, type ThemeChoice } from '../themes'
 import JanggiBoard from './JanggiBoard.vue'
 import CharacterAvatar from './CharacterAvatar.vue'
@@ -22,12 +22,22 @@ const SECTIONS: { slot: ShopSlot; title: string }[] = [
   { slot: 'PIECES', title: '장기알' },
 ]
 const CHAR_SECTIONS: { slot: LookSlot; title: string }[] = [
-  { slot: 'BODY', title: '몸' },
-  { slot: 'OUTFIT', title: '옷' },
+  { slot: 'OUTFIT', title: '의복' },
+  { slot: 'HAT', title: '관모·장신구' },
+  { slot: 'AVATAR', title: '배경 그림' },
+  { slot: 'BEARD', title: '수염' },
   { slot: 'HAIR', title: '머리' },
-  { slot: 'HAT', title: '모자·장식' },
-  { slot: 'AVATAR', title: '배경' },
+  { slot: 'BODY', title: '인물' },
 ]
+
+/** 값으로 매기는 등급. 상점에서 눈에 띄게 붙인다. */
+function tier(i: ShopItem): { label: string; cls: string } | null {
+  if (i.reward) return { label: '한정', cls: 'limited' }
+  if (i.price >= 79) return { label: '진귀', cls: 'rare' }
+  if (i.price >= 49) return { label: '명품', cls: 'luxury' }
+  if (i.price > 0) return { label: '고급', cls: 'fine' }
+  return null
+}
 const isChar = (slot: ShopSlot): slot is LookSlot => slot in LOOK_KEY
 
 /** 상점은 장기판·알과 캐릭터 꾸미기 두 칸으로 나뉜다. */
@@ -35,6 +45,7 @@ const tab = ref<'theme' | 'character'>('character')
 const KIND: Record<CoinLedgerRow['kind'], string> = { CHARGE: '충전', SPEND: '구매', ADMIN: '운영자' }
 
 const items = ref<ShopItem[]>([])
+const bundles = ref<ShopBundle[]>([])
 const packs = ref<CoinPack[]>([])
 /** 엽전 잔액. 로그인하지 않았으면 null. */
 const coins = ref<number | null>(null)
@@ -47,14 +58,14 @@ const preview = ref<ThemeChoice>({ board: equipped.board, pieces: equipped.piece
 const pieces = startingPieces()
 
 /** 엽전으로 살지 묻는 상품. */
-const buying = ref<ShopItem | null>(null)
+const buying = ref<Purchase | null>(null)
 /** 충전 창: 고른 묶음과 결제 대기 중인 주문. */
 const charging = ref(false)
 const pack = ref<string>('')
 const order = ref<ShopOrder | null>(null)
 const paying = ref(false)
 /** 충전이 끝나면 이어서 살 상품. */
-const after = ref<ShopItem | null>(null)
+const after = ref<Purchase | null>(null)
 
 const history = ref<CoinLedgerRow[] | null>(null)
 const historyOpen = ref(false)
@@ -64,6 +75,7 @@ onMounted(load)
 function apply(state: ShopState) {
   const first = !items.value.length
   items.value = state.items
+  bundles.value = state.bundles
   // 처음 열 때는 입어 보는 차림을 지금 차림으로 맞춘다.
   if (first) tryLook.value = { ...myLook.value }
   packs.value = state.packs
@@ -102,8 +114,42 @@ const trying = computed(() => (Object.keys(tryLook.value) as (keyof Look)[]).som
 /** 칸 그림: 지금 입어 보는 차림에 그 부품만 바꿔 끼운다. 동물 몸이면 머리 모양이 안 보이니 사람으로 보여 준다. */
 function thumb(i: ShopItem): Look {
   const slot = i.slot as LookSlot
-  const base = slot === 'HAIR' && !showsHair(tryLook.value.body) ? withPart(tryLook.value, 'BODY', DEFAULT_LOOK.body) : tryLook.value
+  const base = slot === 'BEARD' && !showsBeard(tryLook.value.body) ? withPart(tryLook.value, 'BODY', DEFAULT_LOOK.body) : tryLook.value
   return withPart(base, slot, i.id)
+}
+
+/** 세트를 입힌 모습. 인물(몸)은 지금 입어 보는 그대로 둔다. */
+/** 여인 세트는 여인으로, 그 밖의 세트는 사내로 입혀 보인다. 나이는 지금 고른 대로 둔다. */
+const WOMEN_SETS = new Set(['set.lady', 'set.queen'])
+
+function setFigure(b: ShopBundle, look: Look): Look {
+  const woman = WOMEN_SETS.has(b.id)
+  const elder = look.body.startsWith('body.elder')
+  const body = woman ? (elder ? 'body.elder.woman' : 'body.woman') : elder ? 'body.elder' : 'body.man'
+  if (body === look.body) return look
+  return { ...look, body, hair: woman ? 'hair.jjok' : 'hair.sangtu' }
+}
+
+function setLook(b: ShopBundle): Look {
+  let look = setFigure(b, tryLook.value)
+  for (const id of b.items) {
+    const item = items.value.find((i) => i.id === id)
+    if (item && isChar(item.slot)) look = withPart(look, item.slot, id)
+  }
+  return look
+}
+
+function trySet(b: ShopBundle) {
+  notice.value = ''
+  tryLook.value = setLook(b)
+}
+
+/** 사려는 것: 부품 하나 또는 세트. */
+interface Purchase {
+  id: string
+  title: string
+  price: number
+  set: boolean
 }
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
 const nyang = (n: number) => `${n.toLocaleString('ko-KR')}닢`
@@ -163,7 +209,14 @@ function askBuy(i: ShopItem) {
   error.value = ''
   notice.value = ''
   pick(i)
-  buying.value = i
+  buying.value = { id: i.id, title: i.title, price: i.price, set: false }
+}
+
+function askBuySet(b: ShopBundle) {
+  error.value = ''
+  notice.value = ''
+  trySet(b)
+  buying.value = { id: b.id, title: b.title, price: b.price, set: true }
 }
 
 async function buy() {
@@ -172,6 +225,21 @@ async function buy() {
   paying.value = true
   error.value = ''
   try {
+    if (i.set) {
+      const bundle = bundles.value.find((b) => b.id === i.id)
+      const figure = bundle ? setFigure(bundle, myLook.value) : null
+      apply(await api.buyBundle(i.id))
+      // 세트에 맞는 인물·머리(무료)도 함께 갖춘다
+      if (figure && figure.body !== myLook.value.body) {
+        apply(await api.equip(figure.body))
+        if (!bundle!.items.some((id) => id.startsWith('hair.'))) apply(await api.equip(figure.hair))
+      }
+      buying.value = null
+      tryLook.value = { ...myLook.value }
+      emit('look', myLook.value)
+      notice.value = `${i.title}를 샀어요. 바로 갖춰 입었어요.`
+      return
+    }
     apply(await api.buy(i.id))
     buying.value = null
     const bought = items.value.find((x) => x.id === i.id)
@@ -215,7 +283,12 @@ async function pay() {
     charging.value = false
     notice.value = `${o.title}을(를) 충전했어요.`
     // 사려다 모자라서 충전했으면 그 상품을 다시 묻는다.
-    if (after.value) buying.value = items.value.find((x) => x.id === after.value!.id) ?? null
+    const again = after.value
+    if (again) {
+      // 세트 값은 가진 부품에 따라 바뀌니 새로 받은 값으로 다시 묻는다.
+      const fresh = again.set ? bundles.value.find((b) => b.id === again.id)?.price : items.value.find((x) => x.id === again.id)?.price
+      buying.value = fresh === undefined ? null : { ...again, price: fresh }
+    }
     after.value = null
   } catch (e) {
     error.value = (e as Error).message
@@ -243,7 +316,7 @@ const date = (s: string) =>
       <button type="button" class="back" @click="emit('close')">‹ 로비</button>
       <div>
         <h1>상점</h1>
-        <p>한복 입은 캐릭터를 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
+        <p>조선의 선비·장군·임금으로 나를 꾸미고, 장기판과 장기알을 골라 보세요. 눌러 보면 바로 미리 볼 수 있어요.</p>
       </div>
     </div>
 
@@ -297,9 +370,37 @@ const date = (s: string) =>
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <p v-if="notice" class="notice" role="status">{{ notice }}</p>
 
+        <h3>세트 <span class="sale">{{ bundles.length ? '20% 할인' : '' }}</span></h3>
+        <div class="sets">
+          <div
+            v-for="b in bundles"
+            :key="b.id"
+            class="set"
+            role="button"
+            tabindex="0"
+            :title="b.description"
+            @click="trySet(b)"
+            @keydown.enter="trySet(b)"
+          >
+            <CharacterAvatar :look="setLook(b)" class="set-figure" />
+            <span class="set-text">
+              <b>{{ b.title }}</b>
+              <small>{{ b.description }}</small>
+              <span class="set-price">
+                <s v-if="!b.owned && b.fullPrice">{{ nyang(b.fullPrice) }}</s>
+                <b v-if="!b.owned">{{ nyang(b.price) }}</b>
+              </span>
+            </span>
+            <span class="set-action" @click.stop>
+              <span v-if="b.owned" class="tag">모두 가짐</span>
+              <button v-else-if="me" type="button" class="buy small-btn" @click="askBuySet(b)">세트로 사기</button>
+            </span>
+          </div>
+        </div>
+
         <template v-for="s in CHAR_SECTIONS" :key="s.slot">
           <h3>{{ s.title }}</h3>
-          <p v-if="s.slot === 'HAIR' && !showsHair(tryLook.body)" class="muted small">동물 몸에는 머리 모양이 보이지 않아요. 사람 몸으로 바꾸면 보여요.</p>
+          <p v-if="s.slot === 'BEARD' && !showsBeard(tryLook.body)" class="muted small">여성 인물에는 수염이 보이지 않아요.</p>
           <div class="tiles">
             <div
               v-for="i in bySlot(s.slot)"
@@ -313,7 +414,10 @@ const date = (s: string) =>
               @click="pick(i)"
               @keydown.enter="pick(i)"
             >
-              <CharacterAvatar :look="thumb(i)" class="tile-figure" />
+              <span class="tile-art">
+                <CharacterAvatar :look="thumb(i)" class="tile-figure" />
+                <span v-if="tier(i)" class="tier" :class="tier(i)!.cls">{{ tier(i)!.label }}</span>
+              </span>
               <b class="tile-title">{{ i.title }}</b>
               <span class="tile-action" @click.stop>
                 <span v-if="isEquipped(i)" class="tag">장착 중</span>
@@ -901,11 +1005,93 @@ button:disabled {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
+.tile-art {
+  position: relative;
+  width: 100%;
+  max-width: 88px;
+}
 .tile-figure {
   width: 100%;
-  max-width: 84px;
-  border-radius: 10px;
-  overflow: hidden;
+}
+.tier {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.tier.fine {
+  background: #4f7a63;
+}
+.tier.luxury {
+  background: #8a2a2a;
+}
+.tier.rare {
+  background: linear-gradient(135deg, #b8862b, #f0d27a 50%, #a5741d);
+  color: #3a2508;
+}
+.tier.limited {
+  background: #2a2340;
+  color: #f0d27a;
+}
+.sale {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  color: #fff;
+  background: #b8231f;
+  vertical-align: 2px;
+}
+.sets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.set {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--surface-strong), #f6ead2);
+  border: 1px solid #d9bf8a;
+  cursor: pointer;
+}
+.set-figure {
+  width: 64px;
+}
+.set-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.set-text small {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.set-price {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.set-price s {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.set-price b {
+  color: #8a2a2a;
+}
+.set-action {
+  flex: none;
 }
 .tile-title {
   font-size: 0.82rem;

@@ -48,6 +48,12 @@ public class ShopController {
         return shop.buy(CurrentUser.id(), itemId);
     }
 
+    /** 엽전으로 캐릭터 세트 사기. 산 세트는 바로 입는다. */
+    @PostMapping("/bundles/{bundleId}/buy")
+    public ShopService.ShopDto buyBundle(@PathVariable String bundleId) {
+        return shop.buyBundle(CurrentUser.id(), bundleId);
+    }
+
     @PutMapping("/equipped")
     public ShopService.ShopDto equip(@RequestBody ItemRequest request) {
         return shop.equip(CurrentUser.id(), request.itemId());

@@ -50,15 +50,18 @@ public class User {
     @Column(nullable = false)
     private String avatar = "avatar.basic";
 
-    /** 캐릭터의 몸, 머리 모양, 옷, 모자(상점 상품 id). */
+    /** 캐릭터의 몸, 머리, 수염, 옷, 관모(상점 상품 id). */
     @Column(nullable = false)
-    private String body = "body.human";
+    private String body = "body.man";
 
     @Column(nullable = false)
-    private String hair = "hair.bob";
+    private String hair = "hair.sangtu";
 
     @Column(nullable = false)
-    private String outfit = "outfit.white";
+    private String beard = "beard.none";
+
+    @Column(nullable = false)
+    private String outfit = "outfit.plain";
 
     @Column(nullable = false)
     private String hat = "hat.none";
@@ -147,6 +150,10 @@ public class User {
         return hair;
     }
 
+    public String getBeard() {
+        return beard;
+    }
+
     public String getOutfit() {
         return outfit;
     }
@@ -161,6 +168,10 @@ public class User {
 
     public void equipHair(String itemId) {
         this.hair = itemId;
+    }
+
+    public void equipBeard(String itemId) {
+        this.beard = itemId;
     }
 
     public void equipOutfit(String itemId) {
