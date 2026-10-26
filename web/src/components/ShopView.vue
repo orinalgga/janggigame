@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { api, auth, type CoinLedgerRow, type CoinPack, type Look, type Me, type ShopBundle, type ShopItem, type ShopOrder, type ShopSlot, type ShopState } from '../api'
-import { DEFAULT_LOOK, LOOK_KEY, showsBeard, withPart, type LookSlot } from '../character'
+import { DEFAULT_LOOK, LOOK_KEY, isAnimal, showsBeard, withPart, type LookSlot } from '../character'
 import { BOARD_THEMES, PIECE_THEMES, equipped, setEquipped, startingPieces, type ThemeChoice } from '../themes'
 import JanggiBoard from './JanggiBoard.vue'
 import CharacterAvatar from './CharacterAvatar.vue'
@@ -112,10 +112,12 @@ const myLook = computed<Look>(() => {
 /** 눌러서 입어 보는 차림. 사지 않아도 바꿔 볼 수 있다. */
 const tryLook = ref<Look>({ ...DEFAULT_LOOK })
 const trying = computed(() => (Object.keys(tryLook.value) as (keyof Look)[]).some((k) => tryLook.value[k] !== myLook.value[k]))
-/** 칸 그림: 지금 입어 보는 차림에 그 부품만 바꿔 끼운다. 수염은 여자에게 안 보이니 남자로 보여 준다. */
+/** 칸 그림: 지금 입어 보는 차림에 그 부품만 바꿔 끼운다. 동물에는 머리카락이, 여자·동물에는 수염이 안 보이니 사람으로 보여 준다. */
 function thumb(i: ShopItem): Look {
   const slot = i.slot as LookSlot
-  const base = slot === 'BEARD' && !showsBeard(tryLook.value.body) ? withPart(tryLook.value, 'BODY', DEFAULT_LOOK.body) : tryLook.value
+  const body = tryLook.value.body
+  const hidden = (slot === 'BEARD' && !showsBeard(body)) || (slot === 'HAIR' && isAnimal(body))
+  const base = hidden ? withPart(tryLook.value, 'BODY', DEFAULT_LOOK.body) : tryLook.value
   return withPart(base, slot, i.id)
 }
 
