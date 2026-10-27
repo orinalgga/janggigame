@@ -1,0 +1,152 @@
+name: Oracle A1 VM
+
+# 오사카 A1(Always Free)은 자리가 자주 없어서, 생길 때까지 5분마다 만들기를 시도한다.
+# 만들어지면 VCN 보안 목록에 80·443을 열고, 이 워크플로를 스스로 끈다.
+# 필요한 저장소 Secret(값은 채팅이나 저장소에 올리지 않는다):
+#   OCI_USER_OCID, OCI_TENANCY_OCID, OCI_FINGERPRINT, OCI_PRIVATE_KEY(API 키 .pem 내용), OCI_SSH_PUBLIC_KEY
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: oracle-a1
+  cancel-in-progress: false
+
+env:
+  OCI_CLI_REGION: ap-osaka-1
+  VM_NAME: janggi-server
+  SUBNET_NAME: subnet-20261026-1759
+
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 비밀값 확인
+        id: check
+        env:
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+        run: |
+          if [ -z "$OCI_USER_OCID" ]; then
+            echo "Oracle API 키 Secret이 아직 없어서 건너뛴다."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: OCI CLI 설치·설정
+        if: steps.check.outputs.ready == 'true'
+        env:
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
+        run: |
+          pipx install oci-cli >/dev/null
+          mkdir -p ~/.oci
+          printf '%s\n' "$OCI_PRIVATE_KEY" > ~/.oci/key.pem
+          printf '%s\n' "$OCI_SSH_PUBLIC_KEY" > ~/.oci/ssh.pub
+          chmod 600 ~/.oci/key.pem
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=$OCI_USER_OCID
+          fingerprint=$OCI_FINGERPRINT
+          tenancy=$OCI_TENANCY_OCID
+          region=$OCI_CLI_REGION
+          key_file=$HOME/.oci/key.pem
+          EOF
+          chmod 600 ~/.oci/config
+          oci setup repair-file-permissions --file ~/.oci/config >/dev/null 2>&1 || true
+
+      - name: A1 VM 만들기 시도
+        id: launch
+        if: steps.check.outputs.ready == 'true'
+        env:
+          COMPARTMENT: ${{ secrets.OCI_TENANCY_OCID }}
+        run: |
+          set -euo pipefail
+
+          existing=$(oci compute instance list -c "$COMPARTMENT" --display-name "$VM_NAME" --all \
+            --query "data[?\"lifecycle-state\"!='TERMINATED' && \"lifecycle-state\"!='TERMINATING'].id | [0]" --raw-output)
+          if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+            echo "이미 있다: $existing"
+            echo "id=$existing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ad=$(oci iam availability-domain list -c "$COMPARTMENT" --query 'data[0].name' --raw-output)
+          subnet=$(oci network subnet list -c "$COMPARTMENT" --display-name "$SUBNET_NAME" --query 'data[0].id' --raw-output)
+          image=$(oci compute image list -c "$COMPARTMENT" --operating-system "Canonical Ubuntu" \
+            --operating-system-version "22.04" --shape VM.Standard.A1.Flex \
+            --sort-by TIMECREATED --sort-order DESC --query 'data[0].id' --raw-output)
+          echo "AD=$ad"
+          echo "subnet=$subnet"
+          echo "image=$image"
+
+          set +e
+          out=$(oci compute instance launch -c "$COMPARTMENT" --availability-domain "$ad" \
+            --display-name "$VM_NAME" --shape VM.Standard.A1.Flex \
+            --shape-config '{"ocpus":1,"memoryInGBs":6}' \
+            --image-id "$image" --subnet-id "$subnet" --assign-public-ip true \
+            --ssh-authorized-keys-file ~/.oci/ssh.pub \
+            --user-data-file deploy/cloud-init.sh \
+            --query 'data.id' --raw-output 2>&1)
+          code=$?
+          set -e
+          if [ $code -ne 0 ]; then
+            if echo "$out" | grep -qiE 'out of (host )?capacity|TooManyRequests|LimitExceeded'; then
+              echo "아직 자리가 없다. 다음에 다시 시도한다."
+              echo "$out" | grep -iE 'message|code' | head -3
+              exit 0
+            fi
+            echo "$out"
+            exit 1
+          fi
+          echo "만들었다: $out"
+          echo "id=$out" >> "$GITHUB_OUTPUT"
+
+      - name: 80·443 열기, 공인 IP 알리기, 워크플로 끄기
+        if: steps.launch.outputs.id != ''
+        env:
+          COMPARTMENT: ${{ secrets.OCI_TENANCY_OCID }}
+          INSTANCE: ${{ steps.launch.outputs.id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          oci compute instance get --instance-id "$INSTANCE" --wait-for-state RUNNING \
+            --max-wait-seconds 600 >/dev/null
+
+          sl=$(oci network subnet list -c "$COMPARTMENT" --display-name "$SUBNET_NAME" \
+            --query 'data[0]."security-list-ids"[0]' --raw-output)
+          oci network security-list get --security-list-id "$sl" \
+            --query 'data."ingress-security-rules"' > ingress.json
+          # CLI 출력은 kebab-case, update 입력은 camelCase라서 키를 바꾸고 없는 포트만 더한다.
+          jq 'def camel: split("-") | .[0] + ([.[1:][] | (.[:1] | ascii_upcase) + .[1:]] | join(""));
+            walk(if type == "object" then with_entries(.key |= camel) | with_entries(select(.value != null)) else . end)
+            | . as $r
+            | $r + [ 80, 443
+                | select(. as $p | $r | map(.protocol == "6" and .source == "0.0.0.0/0"
+                    and .tcpOptions.destinationPortRange.min == $p) | any | not)
+                | {source: "0.0.0.0/0", protocol: "6", isStateless: false,
+                   tcpOptions: {destinationPortRange: {min: ., max: .}}} ]' ingress.json > ingress-new.json
+          oci network security-list update --security-list-id "$sl" \
+            --ingress-security-rules file://ingress-new.json --force >/dev/null
+          echo "보안 목록에 80·443을 열었다."
+
+          vnic=$(oci compute vnic-attachment list -c "$COMPARTMENT" --instance-id "$INSTANCE" \
+            --query 'data[0]."vnic-id"' --raw-output)
+          ip=$(oci network vnic get --vnic-id "$vnic" --query 'data."public-ip"' --raw-output)
+          echo "### A1 VM 준비됨" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 공인 IP: \`$ip\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 서버 주소: https://$ip.sslip.io (cloud-init이 끝나는 데 10분쯤 걸린다)" >> "$GITHUB_STEP_SUMMARY"
+          echo "공인 IP: $ip"
+
+          gh workflow disable oracle-a1.yml --repo "$GITHUB_REPOSITORY"
