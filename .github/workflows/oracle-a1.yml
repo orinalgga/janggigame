@@ -65,6 +65,27 @@ jobs:
           EOF
           chmod 600 ~/.oci/config
           oci setup repair-file-permissions --file ~/.oci/config >/dev/null 2>&1 || true
+          export SUPPRESS_LABEL_WARNING=True
+          echo "SUPPRESS_LABEL_WARNING=True" >> "$GITHUB_ENV"
+
+      - name: 비밀값 짝 확인 (값은 출력하지 않음)
+        if: steps.check.outputs.ready == 'true'
+        env:
+          OCI_USER_OCID: ${{ secrets.OCI_USER_OCID }}
+          OCI_TENANCY_OCID: ${{ secrets.OCI_TENANCY_OCID }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+        run: |
+          case "$OCI_USER_OCID" in ocid1.user.*) echo "user OCID 형식: 맞음";; *) echo "user OCID 형식: 틀림(ocid1.user.로 시작해야 함)";; esac
+          case "$OCI_TENANCY_OCID" in ocid1.tenancy.*) echo "tenancy OCID 형식: 맞음";; *) echo "tenancy OCID 형식: 틀림(ocid1.tenancy.로 시작해야 함)";; esac
+          if openssl pkey -in ~/.oci/key.pem -noout 2>/dev/null; then
+            echo "개인 키: 읽힘"
+            fp=$(openssl pkey -in ~/.oci/key.pem -pubout -outform DER 2>/dev/null | openssl md5 -c | awk '{print $NF}')
+            echo "개인 키에서 계산한 fingerprint: $fp (공개 값)"
+            want=$(printf '%s' "$OCI_FINGERPRINT" | tr -d '[:space:]')
+            if [ "$fp" = "$want" ]; then echo "OCI_FINGERPRINT와: 일치"; else echo "OCI_FINGERPRINT와: 불일치"; fi
+          else
+            echo "개인 키: 못 읽음(PRIVATE KEY 파일 전체를 넣었는지 확인)"
+          fi
 
       - name: A1 VM 만들기 시도
         id: launch
