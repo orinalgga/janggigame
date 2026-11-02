@@ -3,9 +3,9 @@
 # VM이 처음 켜질 때 도커 설치, 방화벽 열기, 저장소 받기, .env 만들기, 서버 실행까지 한다.
 # 비밀값(JWT, DB 비밀번호)은 VM 안에서 무작위로 만들어 어디에도 보내지 않는다.
 # 구글 로그인 키 등은 나중에 VM의 ~/janggigame/.env에 직접 채운 뒤 docker compose up -d.
-# Pages 주소가 janggi.pages.dev가 아니면 아래 두 줄을 고친다.
+# Pages 주소가 janggigame.pages.dev가 아니면 아래 두 줄을 고친다.
 set -eux
-WEB=https://janggi.pages.dev
+WEB=https://janggigame.pages.dev
 
 # 메모리가 4GB보다 적으면 스왑을 만든다.
 if [ "$(awk '/MemTotal/ {print $2}' /proc/meminfo)" -lt 4000000 ] && [ ! -f /swapfile ]; then
