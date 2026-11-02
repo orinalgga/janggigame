@@ -262,6 +262,34 @@ class OnlineGameTest {
         assertEquals(true, restored.online());
     }
 
+    @Autowired
+    com.janggi.server.game.PresenceWatcher presence;
+
+    @Test
+    void watcherSeesWhoIsOnGameScreenAndOngoingGameCanBeRejoined() throws Exception {
+        Player a = newPlayer();
+        Player b = newPlayer();
+        join(a);
+        String gameId = join(b).get("gameId").asText();
+        subscribe(a, "/topic/games/" + gameId);
+
+        assertTrue(presenceWatching(gameId, a.id()));
+        assertTrue(!presenceWatching(gameId, b.id()), "대국 화면을 열지 않은 회원");
+
+        // 창을 닫았다 다시 연 회원은 두다 만 대국 id를 받는다.
+        assertEquals(gameId, call(get("/api/games/ongoing").header("Authorization", b.bearer()), 200)
+                .get("gameId").asText());
+        assertTrue(call(get("/api/games/ongoing").header("Authorization", newPlayer().bearer()), 200)
+                .get("gameId").isNull());
+        call(post("/api/games/" + gameId + "/resign").header("Authorization", a.bearer()), 200);
+        assertTrue(call(get("/api/games/ongoing").header("Authorization", b.bearer()), 200)
+                .get("gameId").isNull(), "끝난 대국은 이어 두지 않는다");
+    }
+
+    private boolean presenceWatching(String gameId, long userId) {
+        return presence.watching(gameId, userId);
+    }
+
     @Test
     void outsiderCannotResign() throws Exception {
         Player a = newPlayer();

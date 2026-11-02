@@ -15,9 +15,11 @@ import com.janggi.server.user.UserService;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiPredicate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -32,6 +34,11 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class GameService {
+
+    /** 온라인 대국에서 대국 화면이 이만큼 안 보이면 상대에게 '나감'을 알린다. 새로고침 정도는 넘어가게. */
+    static final long DISCONNECT_NOTICE_MS = 5_000;
+    /** 나간 회원이 이 시간 안에 돌아오지 않으면 남은 쪽이 이긴다. */
+    static final long DISCONNECT_GRACE_MS = 60_000;
 
     private final Map<UUID, GameSession> sessions = new ConcurrentHashMap<>();
     private final GameRecorder recorder;
@@ -131,6 +138,38 @@ public class GameService {
                 changed(id.toString(), session);
             }
         });
+    }
+
+    /**
+     * 온라인 대국 두 사람이 대국 화면에 있는지 살펴 '나감'을 알리고, 돌아오지 않으면 남은 쪽 승리로 끝낸다.
+     * watching(대국 id, 회원 id)은 그 회원이 지금 그 대국을 구독하고 있는지 알려 준다.
+     */
+    public void checkPresence(BiPredicate<String, Long> watching) {
+        long now = System.currentTimeMillis();
+        sessions.forEach((uuid, session) -> {
+            if (!session.online() || session.isOver()) {
+                return;
+            }
+            String id = uuid.toString();
+            GameSession.Players p = session.players();
+            boolean choHere = p.cho() == null || watching.test(id, p.cho().id());
+            boolean hanHere = p.han() == null || watching.test(id, p.han().id());
+            if (session.updatePresence(choHere, hanHere, now, DISCONNECT_NOTICE_MS, DISCONNECT_GRACE_MS)) {
+                changed(id, session);
+            }
+        });
+    }
+
+    /** 이 회원이 두고 있는 끝나지 않은 온라인 대국. 창을 닫았다 다시 열었을 때 이어 두게 한다. */
+    public Optional<String> ongoingOnlineOf(long userId) {
+        return sessions.entrySet().stream()
+                .filter(e -> e.getValue().online() && !e.getValue().isOver())
+                .filter(e -> {
+                    GameSession.Players p = e.getValue().players();
+                    return (p.cho() != null && p.cho().id() == userId) || (p.han() != null && p.han().id() == userId);
+                })
+                .map(e -> e.getKey().toString())
+                .findFirst();
     }
 
     /** 서버가 꺼질 때 진행 중이던 온라인 대국을 되살려 시계가 다시 가게 한다. */

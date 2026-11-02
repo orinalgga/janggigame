@@ -16,6 +16,7 @@ const REASON: Record<EndReason, string> = {
   BIKJANG: '빅장 점수 판정',
   RESIGN: '기권',
   TIMEOUT: '시간패',
+  DISCONNECT: '접속 끊김',
 }
 
 const winner = computed<Side | null>(() =>

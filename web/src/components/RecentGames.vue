@@ -17,7 +17,7 @@ const resumable = (g: GameSummary) => g.result === 'ONGOING' && !g.online
 
 function result(g: GameSummary) {
   if (g.result === 'ONGOING') return '진행 중'
-  const how = { CHECKMATE: '외통', BIKJANG: '빅장', RESIGN: '기권', TIMEOUT: '시간패' }[g.endReason ?? 'CHECKMATE']
+  const how = { CHECKMATE: '외통', BIKJANG: '빅장', RESIGN: '기권', TIMEOUT: '시간패', DISCONNECT: '접속 끊김' }[g.endReason ?? 'CHECKMATE']
   if (g.result === 'DRAW') return `${how} 무승부`
   return `${how} ${g.result === 'CHO_WIN' ? '초' : '한'} 승`
 }

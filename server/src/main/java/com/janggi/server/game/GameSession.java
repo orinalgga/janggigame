@@ -45,6 +45,10 @@ final class GameSession {
     private GameResult endResult;
     private String endReason;
     private RatingChange ratingChange;
+    /** 온라인 대국에서 각 진영(초, 한) 회원이 대국 화면에 마지막으로 보인 때. */
+    private final long[] lastSeen = new long[2];
+    /** 각 진영이 지금 '나간 것'으로 보이는지. 바뀔 때만 두 사람에게 알린다. */
+    private final boolean[] away = new boolean[2];
 
     GameSession(GameState state, Side aiSide, Engine.Level aiLevel, Players players, GameClock clock,
             int moveCount, Move lastMove, Listener listener) {
@@ -56,6 +60,10 @@ final class GameSession {
         this.moveCount = moveCount;
         this.lastMove = lastMove;
         this.listener = listener;
+        // 대국을 만들거나 서버가 다시 켜진 직후에는 둘 다 막 들어오는 중이라고 본다.
+        long now = now();
+        lastSeen[0] = now;
+        lastSeen[1] = now;
         if (state.isGameOver()) {
             endResult = state.result();
             endReason = reasonOf(state);
@@ -171,6 +179,46 @@ final class GameSession {
         }
         timeout();
         return true;
+    }
+
+    /**
+     * 각 진영 회원이 대국 화면을 보고 있는지 알려 준다(온라인 대국). noticeMs보다 오래 안 보이면 '나감'으로 표시하고,
+     * graceMs가 지나도록 돌아오지 않으면 남은 쪽의 승리로 끝낸다. 둘 다 나갔으면 끝내지 않고 시계에 맡긴다.
+     * 두 사람에게 알릴 만큼 바뀌었으면 true.
+     */
+    synchronized boolean updatePresence(boolean choHere, boolean hanHere, long now, long noticeMs, long graceMs) {
+        if (!online() || isOver()) {
+            return false;
+        }
+        boolean changed = false;
+        boolean[] here = {choHere, hanHere};
+        for (int i = 0; i < 2; i++) {
+            if (here[i]) {
+                lastSeen[i] = now;
+            }
+            boolean nowAway = now - lastSeen[i] >= noticeMs;
+            if (nowAway != away[i]) {
+                away[i] = nowAway;
+                changed = true;
+            }
+        }
+        for (int i = 0; i < 2; i++) {
+            if (away[i] && !away[1 - i] && now - lastSeen[i] >= graceMs) {
+                clock.stop(now);
+                end(winnerAgainst(i == 0 ? Side.CHO : Side.HAN), "DISCONNECT");
+                return true;
+            }
+        }
+        return changed;
+    }
+
+    /** 이 진영이 나간 것으로 보이면 돌아오기까지 남은 시간(밀리초), 아니면 null. */
+    synchronized Long awayMsLeft(Side side, long graceMs) {
+        int i = side == Side.CHO ? 0 : 1;
+        if (!online() || isOver() || !away[i]) {
+            return null;
+        }
+        return Math.max(0, lastSeen[i] + graceMs - now());
     }
 
     private void timeout() {

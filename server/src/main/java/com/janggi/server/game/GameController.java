@@ -37,6 +37,14 @@ public class GameController {
         return games.recent(CurrentUser.id());
     }
 
+    /** 내가 두고 있는 끝나지 않은 온라인 대국 id. 없으면 gameId가 null. */
+    @GetMapping("/ongoing")
+    public Map<String, String> ongoing() {
+        Long me = CurrentUser.id();
+        String id = me == null ? null : games.ongoingOnlineOf(me).orElse(null);
+        return java.util.Collections.singletonMap("gameId", id);
+    }
+
     @GetMapping("/{id}/replay")
     public ReplayDto replay(@PathVariable String id, @RequestParam(defaultValue = "0") int ply) {
         return games.replay(id, ply);
