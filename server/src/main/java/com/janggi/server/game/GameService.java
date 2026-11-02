@@ -158,7 +158,17 @@ public class GameService {
     /** userId가 있으면 그 회원의 대국, 없으면 전체 최근 대국. */
     public List<GameSummaryDto> recent(Long userId) {
         var records = userId == null ? recorder.recent() : recorder.recentOf(userId);
-        return records.stream().map(GameSummaryDto::from).toList();
+        return records.stream().map(g -> GameSummaryDto.from(g, userId, opponentNickname(g, userId))).toList();
+    }
+
+    /** 온라인 대국에서 userId가 아닌 쪽 회원의 닉네임. */
+    private String opponentNickname(GameRecord g, Long userId) {
+        Side mine = GameSummaryDto.sideOf(g, userId);
+        if (!g.isOnline() || mine == null) {
+            return null;
+        }
+        Long other = mine == Side.CHO ? g.getHanUserId() : g.getChoUserId();
+        return other == null ? null : users.find(other).map(u -> u.getNickname()).orElse(null);
     }
 
     private GameDto changed(String id, GameSession session) {

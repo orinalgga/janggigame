@@ -131,6 +131,10 @@ export interface GameSummary {
   moveCount: number
   startedAt: string
   online: boolean
+  /** 내가 둔 진영. 비회원·같은 화면 2인이면 null. */
+  mySide: Side | null
+  /** 온라인 대국 상대 닉네임. */
+  opponentNickname: string | null
 }
 
 export interface ReplayDto {

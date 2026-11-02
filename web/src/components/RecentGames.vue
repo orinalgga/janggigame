@@ -8,16 +8,28 @@ const emit = defineEmits<{ (e: 'replay', id: string): void; (e: 'resume', id: st
 const games = ref<GameSummary[]>([])
 
 function opponent(g: GameSummary) {
-  if (g.online) return '온라인 대전'
+  if (g.online) return g.opponentNickname ? `${g.opponentNickname} (온라인)` : '온라인 대전'
   return g.aiSide && g.aiLevel ? `${PERSONAS[g.aiLevel].name} (AI ${PERSONAS[g.aiLevel].level})` : '같은 화면 2인'
 }
 
 /** 끝나지 않은 AI·2인 대국은 이어서 둘 수 있다. 온라인 대국은 시계가 가므로 대국 화면에서만 둔다. */
 const resumable = (g: GameSummary) => g.result === 'ONGOING' && !g.online
 
+const HOW: Record<string, string> = { CHECKMATE: '외통', BIKJANG: '빅장', RESIGN: '기권', TIMEOUT: '시간' }
+
+/** 내가 둔 쪽이 있으면 내 기준 승·패·무, 없으면(2인·비회원) null. */
+function outcome(g: GameSummary): 'win' | 'loss' | 'draw' | null {
+  if (!g.mySide || g.result === 'ONGOING') return null
+  if (g.result === 'DRAW') return 'draw'
+  return (g.result === 'CHO_WIN') === (g.mySide === 'CHO') ? 'win' : 'loss'
+}
+const MARK = { win: '승', loss: '패', draw: '무' }
+
 function result(g: GameSummary) {
   if (g.result === 'ONGOING') return '진행 중'
-  const how = { CHECKMATE: '외통', BIKJANG: '빅장', RESIGN: '기권', TIMEOUT: '시간패' }[g.endReason ?? 'CHECKMATE']
+  const how = HOW[g.endReason ?? 'CHECKMATE']
+  const o = outcome(g)
+  if (o) return `${how}${o === 'draw' ? ' 무승부' : o === 'win' ? '승' : '패'}`
   if (g.result === 'DRAW') return `${how} 무승부`
   return `${how} ${g.result === 'CHO_WIN' ? '초' : '한'} 승`
 }
@@ -34,12 +46,13 @@ defineExpose({ refresh })
   <section v-if="games.length" class="recent">
     <h2>{{ mine ? '내 대국' : '최근 대국' }}</h2>
     <ul>
-      <li v-for="g in games" :key="g.id">
+      <li v-for="g in games" :key="g.id" :class="outcome(g)">
+        <span v-if="outcome(g)" class="mark" :aria-label="`내 ${MARK[outcome(g)!]}`">{{ MARK[outcome(g)!] }}</span>
         <span class="info">
           <b>{{ opponent(g) }}</b>
           <span class="meta">
             {{ new Date(g.startedAt).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }) }} ·
-            {{ g.moveCount }}수 · <span :class="{ live: g.result === 'ONGOING' }">{{ result(g) }}</span>
+            {{ g.moveCount }}수 · <span :class="['res', { live: g.result === 'ONGOING' }]">{{ result(g) }}</span>
           </span>
         </span>
         <button v-if="resumable(g)" type="button" class="resume" @click="emit('resume', g.id)">이어 두기</button>
@@ -87,6 +100,47 @@ li:first-child {
 .meta {
   font-size: 0.78rem;
   color: var(--muted);
+}
+.mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #fff;
+}
+.win .mark {
+  background: #2f6fd6;
+}
+.loss .mark {
+  background: #d64545;
+}
+.draw .mark {
+  background: #8a8a8a;
+}
+.win {
+  box-shadow: inset 4px 0 0 #2f6fd6;
+}
+.loss {
+  box-shadow: inset 4px 0 0 #d64545;
+}
+.draw {
+  box-shadow: inset 4px 0 0 #8a8a8a;
+}
+.win .res {
+  color: #2f6fd6;
+  font-weight: 700;
+}
+.loss .res {
+  color: #d64545;
+  font-weight: 700;
+}
+.draw .res {
+  font-weight: 700;
 }
 .live {
   color: var(--cho-color);
