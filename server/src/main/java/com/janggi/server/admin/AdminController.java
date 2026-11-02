@@ -7,9 +7,11 @@ import com.janggi.server.shop.ShopException;
 import com.janggi.server.tournament.TournamentException;
 import com.janggi.server.tournament.TournamentService;
 import com.janggi.server.user.NicknameException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -81,6 +83,16 @@ public class AdminController {
     }
 
     public record CoinsRequest(Integer amount, String memo) {
+    }
+
+    /** 모든 회원의 기보. q는 닉네임·메일·회원 번호, 날짜는 yyyy-MM-dd(한국 시간, 끝 날짜 포함). */
+    @GetMapping("/games")
+    public AdminService.GamePage games(@RequestParam(defaultValue = "") String q,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "0") int page) {
+        admin.requireAdmin(CurrentUser.id());
+        return admin.games(q, from, to, page);
     }
 
     @GetMapping("/orders")

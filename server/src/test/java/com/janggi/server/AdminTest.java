@@ -107,6 +107,39 @@ class AdminTest {
     }
 
     @Test
+    void allGamesListAndSearch() throws Exception {
+        String boss = bearer(users.loginWith("google", "admin-10", "boss@example.com"));
+        User player = users.loginWith("google", "admin-11", null);
+        mvc.perform(put("/api/me/nickname").header("Authorization", bearer(player))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nickname\":\"기보주인\"}"))
+                .andExpect(status().isOk());
+        String created = mvc.perform(post("/api/games").header("Authorization", bearer(player))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"aiSide\":\"HAN\",\"aiLevel\":\"BEGINNER\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        String gameId = json.readTree(created).get("id").asText();
+
+        // 남의 기보도 닉네임으로 찾을 수 있다.
+        mvc.perform(get("/api/admin/games").param("q", "기보주").header("Authorization", boss))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.games[0].id").value(gameId))
+                .andExpect(jsonPath("$.games[0].cho.nickname").value("기보주인"))
+                .andExpect(jsonPath("$.games[0].aiLevel").value("BEGINNER"));
+        mvc.perform(get("/api/admin/games").param("q", "#" + player.getId()).header("Authorization", boss))
+                .andExpect(jsonPath("$.games[0].id").value(gameId));
+        // 날짜 밖이거나 없는 회원이면 안 나온다.
+        mvc.perform(get("/api/admin/games").param("q", "기보주인").param("to", "2001-01-01")
+                        .header("Authorization", boss))
+                .andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/admin/games").param("q", "아무도없는이름").header("Authorization", boss))
+                .andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/admin/games").param("from", "2001-01-01").header("Authorization", boss))
+                .andExpect(jsonPath("$.total").isNumber());
+        mvc.perform(get("/api/admin/games").header("Authorization", bearer(player))).andExpect(status().isForbidden());
+    }
+
+    @Test
     void adminsCannotBeBanned() throws Exception {
         User boss = users.loginWith("google", "admin-5", "boss@example.com");
         mvc.perform(post("/api/admin/users/" + boss.getId() + "/ban").header("Authorization", bearer(boss))

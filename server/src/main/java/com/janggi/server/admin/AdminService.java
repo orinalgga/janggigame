@@ -1,10 +1,13 @@
 package com.janggi.server.admin;
 
+import com.janggi.core.Engine;
 import com.janggi.core.GameResult;
+import com.janggi.core.Side;
 import com.janggi.server.match.MatchService;
 import com.janggi.server.megaphone.MegaphoneService;
 import com.janggi.server.notice.NoticeService;
 import com.janggi.server.tournament.TournamentService;
+import com.janggi.server.record.GameRecord;
 import com.janggi.server.record.GameRecordRepository;
 import com.janggi.server.shop.CoinPack;
 import com.janggi.server.shop.CoinService;
@@ -20,6 +23,7 @@ import com.janggi.server.user.Grade;
 import com.janggi.server.user.User;
 import com.janggi.server.user.UserRepository;
 import com.janggi.server.user.UserService;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
@@ -56,6 +60,18 @@ public class AdminService {
             OffsetDateTime createdAt,
             List<String> emails, boolean banned, String banReason, List<String> items, boolean admin, int coins,
             int freeCoins) {
+    }
+
+    /** 기보 목록 한 줄. 두는 사람이 AI·비회원이면 그쪽 player는 null. */
+    public record GameRow(String id, OffsetDateTime startedAt, OffsetDateTime endedAt, boolean online,
+            Side aiSide, Engine.Level aiLevel, Player cho, Player han, GameResult result, String endReason,
+            int moveCount, Integer baseSeconds, Integer incrementSeconds) {
+    }
+
+    public record Player(long id, String nickname) {
+    }
+
+    public record GamePage(List<GameRow> games, int page, int totalPages, long total) {
     }
 
     public record UserPage(List<UserRow> users, int page, int totalPages, long total) {
@@ -266,6 +282,39 @@ public class AdminService {
 
     private void log(long adminId, AdminLog.Action action, Long targetUserId, String detail) {
         logs.save(new AdminLog(adminId, action, targetUserId, detail, OffsetDateTime.now()));
+    }
+
+    @Transactional(readOnly = true)
+    public GamePage games(String query, LocalDate from, LocalDate to, int page) {
+        String q = query == null ? "" : query.strip().replaceFirst("^#", "");
+        List<Long> ids = List.of(-1L);
+        if (!q.isEmpty()) {
+            long id = q.matches("\\d{1,18}") ? Long.parseLong(q) : -1;
+            ids = users.search(q, id, PageRequest.of(0, 500)).map(User::getId).toList();
+            if (ids.isEmpty()) {
+                return new GamePage(List.of(), 0, 0, 0);
+            }
+        }
+        // 날짜는 한국 시간 기준 하루 단위, 끝 날짜도 포함한다.
+        OffsetDateTime start = from == null ? OffsetDateTime.parse("2000-01-01T00:00:00Z")
+                : from.atStartOfDay(KST).toOffsetDateTime();
+        OffsetDateTime end = to == null ? OffsetDateTime.parse("3000-01-01T00:00:00Z")
+                : to.plusDays(1).atStartOfDay(KST).toOffsetDateTime();
+        Page<GameRecord> result = games.adminSearch(q.isEmpty(), ids, start, end,
+                PageRequest.of(Math.max(page, 0), PAGE_SIZE, Sort.by(Sort.Direction.DESC, "startedAt")));
+        Map<Long, String> names = users.findAllById(result.stream()
+                        .flatMap(g -> Stream.of(g.getChoUserId(), g.getHanUserId()))
+                        .filter(Objects::nonNull).distinct().toList())
+                .stream().collect(Collectors.toMap(User::getId, User::getNickname, (a, b) -> a));
+        return new GamePage(result.map(g -> new GameRow(g.getId().toString(), g.getStartedAt(), g.getEndedAt(),
+                        g.isOnline(), g.getAiSide(), g.getAiLevel(), player(g.getChoUserId(), names),
+                        player(g.getHanUserId(), names), g.getResult(), g.getEndReason(), g.getMoveCount(),
+                        g.getBaseSeconds(), g.getIncrementSeconds())).toList(),
+                result.getNumber(), result.getTotalPages(), result.getTotalElements());
+    }
+
+    private static Player player(Long id, Map<Long, String> names) {
+        return id == null ? null : new Player(id, names.getOrDefault(id, "(탈퇴)"));
     }
 
     @Transactional(readOnly = true)
