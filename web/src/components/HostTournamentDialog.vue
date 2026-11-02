@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { api, type Me } from '../api'
+import DateTimeField from './DateTimeField.vue'
 import { BYOYOMI_LABEL, TIME_CHOICES, emptyInput, fromLocal, localIn } from '../tournaments'
 
 defineProps<{ me: Me }>()
@@ -48,7 +49,7 @@ async function save() {
       <div class="row">
         <label>
           <span>시작</span>
-          <input v-model="form.startsAt" type="datetime-local" required />
+          <DateTimeField v-model="form.startsAt" label="시작" required />
         </label>
         <label>
           <span>시간</span>

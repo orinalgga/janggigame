@@ -4,6 +4,7 @@ import { api, type AdminGame, type AdminGamePage, type AdminLog, type AdminOrder
 import { REWARD_AVATARS, rewardTitle } from '../avatars'
 import { PERSONAS } from '../options'
 import ReplayView from './ReplayView.vue'
+import DateTimeField from './DateTimeField.vue'
 import { BYOYOMI_LABEL, DIVISION, TIME_CHOICES, emptyInput, fromLocal as isoFrom, kindLabel, localIn, startLabel, timeControl } from '../tournaments'
 
 const emit = defineEmits<{
@@ -442,11 +443,11 @@ const cards = computed(() => {
         <div class="when-fields">
           <label>
             <span>보이기 시작</span>
-            <input v-model="form.startsAt" type="datetime-local" aria-label="보이기 시작" />
+            <DateTimeField v-model="form.startsAt" label="보이기 시작" />
           </label>
           <label>
             <span>끝</span>
-            <input v-model="form.endsAt" type="datetime-local" aria-label="끝" />
+            <DateTimeField v-model="form.endsAt" label="끝" />
           </label>
         </div>
         <p class="count">시작을 비우면 지금부터, 끝을 비우면 끌 때까지 보여요. 사용자가 로비에 들어올 때 팝업으로 떠요.</p>
@@ -487,7 +488,7 @@ const cards = computed(() => {
         <div class="when-fields">
           <label>
             <span>시작</span>
-            <input v-model="tform.startsAt" type="datetime-local" aria-label="시작" required />
+            <DateTimeField v-model="tform.startsAt" label="시작" required />
           </label>
           <label>
             <span>종류</span>
