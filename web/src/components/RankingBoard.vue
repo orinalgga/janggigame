@@ -107,7 +107,7 @@ const record = (r: { wins: number; draws: number; losses: number }) =>
           <span class="rank" :class="`r${r.rank}`">{{ r.rank }}</span>
           <CharacterAvatar :look="r.look" head class="face" />
           <span class="who">
-            <b>{{ r.nickname }}</b>
+            <b>{{ r.nickname }}<em v-if="r.userId === props.myId" class="me-tag">나</em></b>
             <small>{{ r.grade }} · {{ record(r) }}</small>
           </span>
           <span class="points" :class="{ down: r.points < 0 }">{{ signed(r.points) }}</span>
@@ -231,12 +231,26 @@ li,
 li:first-child {
   border-top: none;
 }
-li.mine {
-  background: var(--accent-bg);
+/* 내 줄. 옅은 갈색만 깔면 바탕 화면과 같은 색이라 빈 줄처럼 보여서,
+   왼쪽에 진한 띠를 두고 카드 색 위에 따뜻한 빛을 얹는다. */
+li.mine,
+.me-row {
+  background: linear-gradient(90deg, rgba(224, 165, 38, 0.22), rgba(224, 165, 38, 0.08)), var(--surface-strong);
+  box-shadow: inset 4px 0 0 var(--accent);
 }
 .me-row {
-  background: var(--accent-bg);
   border-top: 1px dashed var(--border);
+}
+.me-tag {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 700;
+  vertical-align: 2px;
 }
 .rank {
   flex: none;
