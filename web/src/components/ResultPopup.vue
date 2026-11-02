@@ -14,6 +14,7 @@ const emit = defineEmits<{ (e: 'again'): void; (e: 'close'): void }>()
 const REASON: Record<EndReason, string> = {
   CHECKMATE: '외통',
   BIKJANG: '빅장 점수 판정',
+  MATERIAL: '장·사만 남아 점수 판정',
   RESIGN: '기권',
   TIMEOUT: '시간패',
   DISCONNECT: '접속 끊김',
@@ -33,7 +34,7 @@ const outcome = computed(() => {
 const reason = computed(() => {
   const g = props.game
   const how = g.endReason ? REASON[g.endReason] : ''
-  if (g.endReason === 'BIKJANG') return `${how} · 초 ${g.choScore}점 : 한 ${g.hanScore}점`
+  if (g.endReason === 'BIKJANG' || g.endReason === 'MATERIAL') return `${how} · 초 ${g.choScore}점 : 한 ${g.hanScore}점`
   return how
 })
 

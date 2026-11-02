@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import ChatPanel from './components/ChatPanel.vue'
 import JanggiBoard from './components/JanggiBoard.vue'
 import AdminView from './components/AdminView.vue'
@@ -38,10 +38,12 @@ import { Live } from './live'
 import { PERSONAS, type StartOptions } from './options'
 import { onLoginReturn } from './native'
 import { setEquipped } from './themes'
+import { play as playSound, soundOn, toggleSound } from './sounds'
 
 const END_REASON: Record<EndReason, string> = {
   CHECKMATE: '외통',
   BIKJANG: '빅장 점수 판정',
+  MATERIAL: '장·사만 남아 점수 판정',
   RESIGN: '기권',
   TIMEOUT: '시간패',
   DISCONNECT: '접속 끊김',
@@ -339,6 +341,44 @@ const status = computed(() => {
   const whose = me ? (g.sideToMove === me ? '내 차례' : g.online ? '상대 차례' : 'AI 차례') : `${turn} 차례`
   // 장군은 글자 없이 화면 흔들림으로만 알린다. 빅장은 몇 번째인지 보여 준다.
   return g.bikjang ? `빅장 ${g.bikjangCount}/${g.bikjangLimit} · ${whose}` : whose
+})
+
+/** 점수 차 안내. 한의 덤 1.5점이 들어간 점수로 비교한다. */
+const scoreLead = computed(() => {
+  const g = game.value
+  if (!g) return ''
+  const diff = g.choScore - g.hanScore
+  if (diff === 0) return '같음'
+  return `${diff > 0 ? '초' : '한'} ${Math.abs(diff)}점 앞섬`
+})
+
+/**
+ * 판이 바뀔 때마다 효과음을 낸다. 같은 국면을 두 번 받아도(내 응답 + 실시간 알림) 한 번만 울리도록
+ * 마지막 수와 남은 알 수, 결과로 국면을 가린다.
+ */
+let heard: { id: string; key: string; count: number } | null = null
+watch(game, (g) => {
+  if (!g) {
+    heard = null
+    return
+  }
+  const lm = g.lastMove
+  const key = `${lm?.from?.x},${lm?.from?.y}>${lm?.to?.x},${lm?.to?.y}|${g.pieces.length}|${g.check}|${g.result}`
+  const prev = heard
+  heard = { id: g.id, key, count: g.pieces.length }
+  // 대국을 처음 열었을 때는 울리지 않는다.
+  if (!prev || prev.id !== g.id || prev.key === key) return
+  if (g.result !== 'ONGOING') {
+    if (!prev.key.endsWith('|ONGOING')) return
+    const me = playerSide.value
+    if (g.result === 'DRAW') playSound('draw')
+    else if (!me) playSound('win')
+    else playSound((g.result === 'CHO_WIN') === (me === 'CHO') ? 'win' : 'lose')
+    return
+  }
+  if (g.check) playSound('check')
+  else if (g.pieces.length < prev.count) playSound('capture')
+  else if (lm?.from) playSound('move')
 })
 
 /** 채팅 상대. 같은 화면 2인 대국에는 채팅이 없다. */
@@ -753,7 +793,18 @@ async function gameEnded() {
           </template>
           <span v-else class="who"><b>같은 화면 2인</b></span>
         </div>
+        <span class="status-group">
         <span class="pill" :class="{ check: game.check && ongoing, over: !ongoing, thinking }">{{ status }}</span>
+        <button
+          type="button"
+          class="sound-toggle"
+          :aria-pressed="soundOn"
+          :title="soundOn ? '소리 끄기' : '소리 켜기'"
+          @click="toggleSound"
+        >
+          {{ soundOn ? '🔊' : '🔇' }}
+        </button>
+        </span>
       </div>
 
       <div class="layout">
@@ -770,6 +821,15 @@ async function gameEnded() {
             :bottom="mySide ?? 'CHO'"
             :rating-change="game.ratingChange"
           />
+          <div class="scorebar" aria-label="남은 알 점수">
+            <span class="side cho" :class="{ lead: game.choScore > game.hanScore }">
+              <b class="cho-text">초</b> {{ game.choScore }}점
+            </span>
+            <span class="lead-text">{{ scoreLead }}</span>
+            <span class="side han" :class="{ lead: game.hanScore > game.choScore }">
+              <b class="han-text">한</b> {{ game.hanScore }}점 <small>(덤 1.5)</small>
+            </span>
+          </div>
           <JanggiBoard
             :pieces="game.pieces"
             :legal-moves="game.legalMoves"
@@ -781,7 +841,7 @@ async function gameEnded() {
             @select="onSelect"
           />
           <div class="actions">
-            <span class="score"><b class="cho-text">초</b> {{ game.choScore }} · <b class="han-text">한</b> {{ game.hanScore }}</span>
+            <span class="spacer" />
             <button type="button" :disabled="!canPass || !canAct" @click="pass">한수쉼</button>
             <template v-if="canResign">
               <button v-if="!confirmResign" type="button" @click="confirmResign = true">기권</button>
@@ -1173,10 +1233,54 @@ main.wide .layout {
   background: var(--accent);
   border-color: var(--accent);
 }
-.score {
+.spacer {
   margin-right: auto;
-  font-size: 0.9rem;
+}
+.scorebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+.scorebar .side {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.scorebar .side.lead {
+  font-weight: 800;
+}
+.scorebar small {
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--muted);
+}
+.scorebar .lead-text {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.status-group {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-group .pill {
+  margin-left: 0;
+}
+.sound-toggle {
+  padding: 4px 8px;
+  font-size: 1.05rem;
+  line-height: 1;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  border: 1px solid var(--border);
+  cursor: pointer;
 }
 .cho-text {
   color: var(--cho-color);

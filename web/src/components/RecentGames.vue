@@ -15,7 +15,7 @@ function opponent(g: GameSummary) {
 /** 끝나지 않은 AI·2인 대국은 이어서 둘 수 있다. 온라인 대국은 시계가 가므로 대국 화면에서만 둔다. */
 const resumable = (g: GameSummary) => g.result === 'ONGOING' && !g.online
 
-const HOW: Record<string, string> = { CHECKMATE: '외통', BIKJANG: '빅장', RESIGN: '기권', TIMEOUT: '시간', DISCONNECT: '끊김' }
+const HOW: Record<string, string> = { CHECKMATE: '외통', BIKJANG: '빅장', MATERIAL: '점수', RESIGN: '기권', TIMEOUT: '시간', DISCONNECT: '끊김' }
 
 /** 내가 둔 쪽이 있으면 내 기준 승·패·무, 없으면(2인·비회원) null. */
 function outcome(g: GameSummary): 'win' | 'loss' | 'draw' | null {
