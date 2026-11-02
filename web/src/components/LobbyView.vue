@@ -4,6 +4,7 @@ import type { Formation, Invite, Level, Me, Side } from '../api'
 import { auth, inviteUrl } from '../api'
 import { FORMATIONS, LEVELS, PERSONAS, type Mode, type StartOptions } from '../options'
 import { BYOYOMI_LABEL, TIME_CHOICES } from '../tournaments'
+import OnlineUsers from './OnlineUsers.vue'
 
 const props = defineProps<{
   me: Me | null
@@ -270,6 +271,7 @@ function start() {
               {{ f.label }}<small>{{ f.hanja }}</small>
             </button>
           </div>
+          <OnlineUsers :my-id="me.id" :busy="busy" @invite="(name) => emit('invite', name, choFormation)" />
           <h3>특정 상대 초대</h3>
           <form class="invite-row" @submit.prevent="invite">
             <input
