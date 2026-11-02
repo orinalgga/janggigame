@@ -7,7 +7,7 @@ import { BYOYOMI_LABEL, TIME_CHOICES, emptyInput, fromLocal, localIn } from '../
 defineProps<{ me: Me }>()
 const emit = defineEmits<{ (e: 'created', id: number): void; (e: 'close'): void }>()
 
-const form = ref({ ...emptyInput(), maxPlayers: 8, startsAt: localIn(30) })
+const form = ref({ ...emptyInput(), maxPlayers: 8, startsAt: localIn(30), hostJoins: true })
 const saving = ref(false)
 const error = ref('')
 
@@ -62,6 +62,7 @@ async function save() {
         <label>
           <span>정원</span>
           <select v-model.number="form.maxPlayers">
+            <option :value="2">2명</option>
             <option :value="4">4명</option>
             <option :value="8">8명</option>
             <option :value="16">16명</option>
@@ -76,6 +77,10 @@ async function save() {
           <input v-model.number="form.bonusPrize" type="number" min="0" max="1000" />
         </label>
       </div>
+      <label class="check">
+        <input v-model="form.hostJoins" type="checkbox" />
+        <span>나도 참가하기<template v-if="form.entryFee > 0"> (참가비 {{ form.entryFee }}닢)</template></span>
+      </label>
       <p class="help">건 상금은 대회를 열 때 내 엽전에서 빠지고, 대회가 취소되면 돌려받아요. 7일 안에 시작하는 대회만 열 수 있고, 한 번에 하나만 열 수 있어요.</p>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <div class="actions">
@@ -187,5 +192,17 @@ button:disabled {
   .row {
     grid-template-columns: 1fr;
   }
+}
+.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.check input {
+  width: auto;
+  margin: 0;
 }
 </style>

@@ -60,7 +60,7 @@ class TournamentFlowTest {
     private TournamentService.TournamentRequest req(String title, OffsetDateTime at, Integer bonus, Tournament.Kind kind,
             Integer repeat, Tournament.Division division) {
         return new TournamentService.TournamentRequest(title, null, at, 60, 1, division, false, kind, repeat, bonus,
-                16, "avatar.crown");
+                16, "avatar.crown", null);
     }
 
     private void advance(long id, OffsetDateTime at) {
@@ -179,7 +179,7 @@ class TournamentFlowTest {
     void divisionsAndBoth() {
         User admin = member("admin-d", 0);
         var made = tournaments.create(admin.getId(), new TournamentService.TournamentRequest("밤 리그", null,
-                OffsetDateTime.now().plusHours(1), null, null, null, true, null, null, null, null, null));
+                OffsetDateTime.now().plusHours(1), null, null, null, true, null, null, null, null, null, null));
         assertThat(made).extracting(TournamentService.SummaryDto::title)
                 .containsExactly("밤 리그 유단자 리그", "밤 리그 급 리그");
         User kyu = member("kyu", 5);
@@ -193,7 +193,7 @@ class TournamentFlowTest {
         User host = member("host", 10);
         var d = tournaments.host(host.getId(), new TournamentService.TournamentRequest("내 대회", null,
                 OffsetDateTime.now().plusHours(2), 60, 2, Tournament.Division.DAN, true, Tournament.Kind.REGULAR,
-                7, 6, 8, "avatar.crown"));
+                7, 6, 8, "avatar.crown", null));
         // 회원 대회는 리그·반복을 쓰지 않는다.
         assertThat(d.summary().kind()).isEqualTo(Tournament.Kind.SPECIAL);
         assertThat(d.summary().division()).isEqualTo(Tournament.Division.ALL);
@@ -211,5 +211,31 @@ class TournamentFlowTest {
         tournaments.cancelHosted(d.summary().id(), host.getId());
         assertThat(coins.balance(host.getId())).isEqualTo(10);
         assertThat(coins.balance(guest.getId())).isEqualTo(2);
+    }
+
+    @Test
+    void hostJoinsOwnTwoPlayerTournament() {
+        User host = member("host2", 10);
+        var d = tournaments.host(host.getId(), new TournamentService.TournamentRequest("둘이서", null,
+                OffsetDateTime.now().plusHours(2), 60, 2, null, null, null, null, 3, 2, null, true));
+        assertThat(d.summary().maxPlayers()).isEqualTo(2);
+        assertThat(d.summary().players()).isEqualTo(1);
+        // 상금 3 + 참가비 2
+        assertThat(coins.balance(host.getId())).isEqualTo(5);
+        User guest = member("guest2", 2);
+        tournaments.join(d.summary().id(), guest.getId());
+        User late = member("late2", 2);
+        assertThatThrownBy(() -> tournaments.join(d.summary().id(), late.getId())).hasMessageContaining("정원");
+        tournaments.cancelHosted(d.summary().id(), host.getId());
+        assertThat(coins.balance(host.getId())).isEqualTo(10);
+    }
+
+    @Test
+    void hostWithoutFeeForOwnEntryOpensNothing() {
+        User host = member("host3", 3);
+        assertThatThrownBy(() -> tournaments.host(host.getId(), new TournamentService.TournamentRequest("모자람", null,
+                OffsetDateTime.now().plusHours(2), 60, 2, null, null, null, null, 3, 4, null, true)))
+                .hasMessageContaining("참가비");
+        assertThat(coins.balance(host.getId())).isEqualTo(3);
     }
 }

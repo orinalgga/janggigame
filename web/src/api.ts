@@ -400,6 +400,8 @@ export interface TournamentInput {
   kind?: TournamentKind
   repeatDays?: number
   prizeItem?: string | null
+  /** 회원 대회: 연 사람도 참가자로 넣기(참가비는 똑같이 낸다). */
+  hostJoins?: boolean
 }
 
 /** 다음 대회 대국이 짝지어졌다는 알림(/user/queue/tournament). */

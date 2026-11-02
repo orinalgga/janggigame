@@ -510,6 +510,7 @@ const cards = computed(() => {
           <label>
             <span>인원</span>
             <select v-model.number="tform.maxPlayers" aria-label="인원">
+              <option :value="2">2명</option>
               <option :value="4">4명</option>
               <option :value="8">8명</option>
               <option :value="16">16명</option>
