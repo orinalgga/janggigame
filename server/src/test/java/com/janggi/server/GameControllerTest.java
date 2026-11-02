@@ -93,6 +93,21 @@ class GameControllerTest {
                 .andExpect(jsonPath("$.lastMove.from").exists());
     }
 
+    @Test
+    void humanCanResignAgainstAiButNotInTwoPlayerGame() throws Exception {
+        String body = mvc.perform(post("/api/games")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"aiSide\":\"CHO\",\"aiLevel\":\"BEGINNER\"}"))
+                .andReturn().getResponse().getContentAsString();
+        String id = json.readTree(body).get("id").asText();
+        mvc.perform(post("/api/games/" + id + "/resign"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result").value("CHO_WIN"))
+                .andExpect(jsonPath("$.endReason").value("RESIGN"));
+
+        mvc.perform(post("/api/games/" + newGame() + "/resign")).andExpect(status().isForbidden());
+    }
+
     @Autowired
     GameRecorder recorder;
 
