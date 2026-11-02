@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem, type TournamentSummary } from '../api'
 import { REWARD_AVATARS, rewardTitle } from '../avatars'
 import { BYOYOMI_LABEL, DIVISION, TIME_CHOICES, emptyInput, fromLocal as isoFrom, kindLabel, localIn, startLabel, timeControl } from '../tournaments'
@@ -14,7 +14,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'users', label: '회원' },
   { value: 'notices', label: '공지' },
   { value: 'tournaments', label: '대회' },
-  { value: 'orders', label: '주문' },
+  { value: 'orders', label: '충전 내역' },
   { value: 'logs', label: '기록' },
 ]
 const ACTION: Record<AdminLog['action'], string> = {
@@ -56,6 +56,8 @@ const reason = ref('')
 const grantItem = ref('')
 const coinAmount = ref<number | null>(null)
 const coinMemo = ref('')
+/** 엽전 넣기·빼기를 누르면 바로 보내지 않고 이 값을 채워 확인 상자를 띄운다. */
+const coinConfirm = ref<{ userId: number; amount: number } | null>(null)
 const busy = ref(false)
 
 onMounted(() => {
@@ -213,6 +215,7 @@ function toggle(u: AdminUser) {
   grantItem.value = ''
   coinAmount.value = null
   coinMemo.value = ''
+  coinConfirm.value = null
   notice.value = ''
 }
 
@@ -232,8 +235,23 @@ const unban = (u: AdminUser) =>
 const grant = (u: AdminUser) =>
   run(() => api.admin.grant(u.id, grantItem.value)).then((r) => replace(r, `${title(grantItem.value)}을(를) 넣어 줬어요.`))
 
-const giveCoins = (u: AdminUser) => {
+/** 확인 상자를 띄운다. 숫자를 바꾸면 상자는 닫힌다(아래 watch). */
+function askCoins(u: AdminUser) {
   const n = coinAmount.value ?? 0
+  if (!Number.isInteger(n) || n === 0) return
+  coinConfirm.value = { userId: u.id, amount: n }
+}
+
+// 확인 상자가 뜬 뒤 숫자나 사유를 바꾸면 다시 눌러 확인하게 한다.
+watch([coinAmount, coinMemo], () => {
+  coinConfirm.value = null
+})
+
+const giveCoins = (u: AdminUser) => {
+  const c = coinConfirm.value
+  if (!c || c.userId !== u.id) return
+  coinConfirm.value = null
+  const n = c.amount
   return run(() => api.admin.coins(u.id, n, coinMemo.value.trim())).then((r) => {
     replace(r, `엽전 ${Math.abs(n)}닢을 ${n > 0 ? '넣었' : '뺐'}어요. 잔액 ${r?.coins}닢(운영자 지급 ${r?.freeCoins}닢).`)
     if (r) coinAmount.value = null
@@ -242,6 +260,18 @@ const giveCoins = (u: AdminUser) => {
 
 const title = (id: string) => catalog.value.find((i) => i.id === id)?.title ?? id
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`
+/** 충전 내역용: 연도부터 초까지 다 보여 준다. 예) 2026. 11. 2. 오후 9:21:05 */
+const fullDate = (s: string | null) =>
+  s
+    ? new Date(s).toLocaleString('ko-KR', {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    : '-'
 const date = (s: string) =>
   new Date(s).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
@@ -330,7 +360,19 @@ const cards = computed(() => {
             <div class="field">
               <input v-model.number="coinAmount" type="number" step="1" placeholder="엽전(빼려면 -)" aria-label="넣거나 뺄 엽전" :title="`운영자가 준 엽전만 뺄 수 있어요. 지금 ${u.freeCoins}닢`" />
               <input v-model="coinMemo" maxlength="200" placeholder="사유(회원 내역에 보여요)" aria-label="엽전 사유" />
-              <button type="button" class="ghost" :disabled="busy || !coinAmount" @click="giveCoins(u)">엽전 넣기·빼기</button>
+              <button type="button" class="ghost" :disabled="busy || !coinAmount" @click="askCoins(u)">엽전 넣기·빼기</button>
+            </div>
+            <div v-if="coinConfirm && coinConfirm.userId === u.id" class="coin-confirm" role="alertdialog" aria-label="엽전 확인">
+              <p>
+                <b>{{ u.nickname }}</b>님에게 엽전 <b>{{ Math.abs(coinConfirm.amount).toLocaleString('ko-KR') }}닢</b>을
+                {{ coinConfirm.amount > 0 ? '지급할까요?' : '회수할까요?' }}
+                <br />
+                <small>사유: {{ coinMemo.trim() || '(없음)' }}</small>
+              </p>
+              <div class="coin-confirm-buttons">
+                <button type="button" :class="coinConfirm.amount > 0 ? 'primary' : 'danger'" :disabled="busy" @click="giveCoins(u)">확인</button>
+                <button type="button" class="ghost" :disabled="busy" @click="coinConfirm = null">취소</button>
+              </div>
             </div>
             <p class="hint">넣은 엽전은 운영자 지급분이 되고, 빼기는 운영자 지급분({{ u.freeCoins }}닢)에서만 돼요. 회원이 충전한 엽전은 뺄 수 없어요.</p>
             <div class="field">
@@ -511,11 +553,12 @@ const cards = computed(() => {
     </div>
 
     <div v-else class="orders">
-      <p v-if="!orders.length && !busy" class="count">주문이 아직 없어요.</p>
+      <p v-if="!orders.length && !busy" class="count">충전 내역이 아직 없어요.</p>
       <table v-else>
         <thead>
           <tr>
-            <th>때</th>
+            <th>주문 일시</th>
+            <th>충전 완료 일시</th>
             <th>회원</th>
             <th>상품</th>
             <th class="num">금액</th>
@@ -524,7 +567,8 @@ const cards = computed(() => {
         </thead>
         <tbody>
           <tr v-for="o in orders" :key="o.orderId">
-            <td>{{ date(o.createdAt) }}</td>
+            <td class="when">{{ fullDate(o.createdAt) }}</td>
+            <td class="when">{{ fullDate(o.paidAt) }}</td>
             <td>{{ o.nickname }} <small>#{{ o.userId }}</small></td>
             <td>{{ o.itemTitle }}</td>
             <td class="num">{{ won(o.amount) }}</td>
@@ -627,6 +671,25 @@ small {
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+.coin-confirm {
+  margin: 4px 0 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--surface-strong);
+}
+.coin-confirm p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.coin-confirm-buttons {
+  display: flex;
+  gap: 8px;
+}
+.when {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .hint {
   margin: -2px 0 0;
