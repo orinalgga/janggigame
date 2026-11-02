@@ -86,6 +86,74 @@ function tone(c: AudioContext, at: number, freq: number, dur: number, gain: numb
   osc.stop(at + dur + 0.02)
 }
 
+/** 장군 소리는 크게 내되 찢어지지 않도록 압축기를 거친다. */
+let punch: DynamicsCompressorNode | null = null
+function loud(c: AudioContext): AudioNode {
+  if (!punch) {
+    punch = c.createDynamicsCompressor()
+    punch.threshold.value = -18
+    punch.knee.value = 6
+    punch.ratio.value = 8
+    punch.attack.value = 0.002
+    punch.release.value = 0.25
+    const out = c.createGain()
+    out.gain.value = 1.6
+    punch.connect(out).connect(c.destination)
+  }
+  return punch
+}
+
+/** 큰북 한 번: 낮게 떨어지는 울림 + 가죽을 때리는 잡음. */
+function drum(c: AudioContext, at: number, gain: number) {
+  const out = loud(c)
+  const osc = c.createOscillator()
+  osc.type = 'sine'
+  osc.frequency.setValueAtTime(120, at)
+  osc.frequency.exponentialRampToValueAtTime(42, at + 0.35)
+  const og = c.createGain()
+  og.gain.setValueAtTime(0.0001, at)
+  og.gain.exponentialRampToValueAtTime(gain, at + 0.006)
+  og.gain.exponentialRampToValueAtTime(0.0001, at + 0.6)
+  osc.connect(og).connect(out)
+  osc.start(at)
+  osc.stop(at + 0.62)
+
+  const len = Math.floor(c.sampleRate * 0.12)
+  const buf = c.createBuffer(1, len, c.sampleRate)
+  const data = buf.getChannelData(0)
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3)
+  const noise = c.createBufferSource()
+  noise.buffer = buf
+  const low = c.createBiquadFilter()
+  low.type = 'lowpass'
+  low.frequency.value = 900
+  const ng = c.createGain()
+  ng.gain.value = gain * 0.7
+  noise.connect(low).connect(ng).connect(out)
+  noise.start(at)
+}
+
+/** 징: 서로 어긋난 배음 몇 개를 길게 울려 금속 떨림을 낸다. */
+function gong(c: AudioContext, at: number) {
+  const out = loud(c)
+  const base = 98
+  ;[1, 1.48, 2.02, 2.74, 3.76].forEach((ratio, i) => {
+    const osc = c.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(base * ratio * 1.02, at)
+    osc.frequency.exponentialRampToValueAtTime(base * ratio, at + 0.4)
+    const g = c.createGain()
+    const peak = 0.32 / (i + 1)
+    const dur = 1.6 - i * 0.2
+    g.gain.setValueAtTime(0.0001, at)
+    g.gain.exponentialRampToValueAtTime(peak, at + 0.02)
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur)
+    osc.connect(g).connect(out)
+    osc.start(at)
+    osc.stop(at + dur + 0.05)
+  })
+}
+
 export type SoundName = 'move' | 'capture' | 'check' | 'win' | 'lose' | 'draw'
 
 export function play(name: SoundName) {
@@ -102,11 +170,10 @@ export function play(name: SoundName) {
       knock(c, t + 0.07, 0.5, 230)
       break
     case 'check':
-      // 북을 두 번 치고 높은 음을 얹는다.
-      knock(c, t, 0.8, 110)
-      knock(c, t + 0.12, 0.8, 110)
-      tone(c, t + 0.02, 660, 0.35, 0.18, 'square')
-      tone(c, t + 0.14, 880, 0.4, 0.16, 'square')
+      // 큰북을 '둥-둥' 두 번 세게 치고 징을 길게 울린다.
+      drum(c, t, 1)
+      drum(c, t + 0.16, 1.15)
+      gong(c, t + 0.16)
       break
     case 'win':
       ;[523, 659, 784, 1047].forEach((f, i) => tone(c, t + i * 0.12, f, 0.45, 0.22))
