@@ -2,6 +2,7 @@ package com.janggi.server.match;
 
 import com.janggi.core.Formation;
 import com.janggi.server.auth.CurrentUser;
+import com.janggi.server.game.TimeControl;
 import org.springframework.context.event.EventListener;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,8 +16,8 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 @RequestMapping("/api/match")
 public class MatchController {
 
-    /** formation은 내가 쓸 상차림. 초가 되든 한이 되든 그대로 쓴다. */
-    public record MatchRequest(Formation formation) {
+    /** formation은 내가 쓸 상차림. 초가 되든 한이 되든 그대로 쓴다. baseSeconds는 기본 시간(60·300·600초, 없으면 600). */
+    public record MatchRequest(Formation formation, Integer baseSeconds) {
     }
 
     private final MatchService matches;
@@ -27,7 +28,8 @@ public class MatchController {
 
     @PostMapping
     public MatchService.MatchStatus join(@RequestBody(required = false) MatchRequest request) {
-        return matches.join(CurrentUser.id(), request == null ? null : request.formation());
+        return matches.join(CurrentUser.id(), request == null ? null : request.formation(),
+                TimeControl.baseOrDefault(request == null ? null : request.baseSeconds()));
     }
 
     @DeleteMapping

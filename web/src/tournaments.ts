@@ -8,10 +8,19 @@ export function kindLabel(t: TournamentSummary): string {
   return t.kind === 'REGULAR' ? (t.repeatDays === 1 ? '매일 정기' : '매주 정기') : '특별'
 }
 
-/** 1분+10초 같은 시간 규칙. */
-export function timeControl(t: { baseSeconds: number; incrementSeconds: number }): string {
-  const base = t.baseSeconds % 60 === 0 ? `${t.baseSeconds / 60}분` : `${t.baseSeconds}초`
-  return t.incrementSeconds ? `${base}+${t.incrementSeconds}초` : base
+/** 고를 수 있는 대국 기본 시간. 서버 game/TimeControl과 맞춘다. 초읽기 30초 3회는 모두 같다. */
+export const TIME_CHOICES: { seconds: number; label: string }[] = [
+  { seconds: 600, label: '10분' },
+  { seconds: 300, label: '5분' },
+  { seconds: 60, label: '1분' },
+]
+
+/** 초읽기 규칙 안내. */
+export const BYOYOMI_LABEL = '초읽기 30초 3회'
+
+/** 10분 같은 기본 시간. */
+export function timeControl(t: { baseSeconds: number }): string {
+  return t.baseSeconds % 60 === 0 ? `${t.baseSeconds / 60}분` : `${t.baseSeconds}초`
 }
 
 /** 16강, 8강, 4강, 결승. */
@@ -48,5 +57,5 @@ export function localIn(minutes: number): string {
 }
 
 export function emptyInput(): TournamentInput {
-  return { title: '', description: null, startsAt: '', baseSeconds: 60, incrementSeconds: 10, entryFee: 1, maxPlayers: 16, bonusPrize: 10 }
+  return { title: '', description: null, startsAt: '', baseSeconds: 600, entryFee: 1, maxPlayers: 16, bonusPrize: 10 }
 }

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem, type TournamentSummary } from '../api'
 import { REWARD_AVATARS, rewardTitle } from '../avatars'
-import { DIVISION, emptyInput, fromLocal as isoFrom, kindLabel, localIn, startLabel, timeControl } from '../tournaments'
+import { BYOYOMI_LABEL, DIVISION, TIME_CHOICES, emptyInput, fromLocal as isoFrom, kindLabel, localIn, startLabel, timeControl } from '../tournaments'
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -167,7 +167,6 @@ async function createTournament() {
     description: f.description?.trim() || null,
     startsAt: isoFrom(f.startsAt),
     baseSeconds: f.baseSeconds,
-    incrementSeconds: f.incrementSeconds,
     entryFee: f.entryFee,
     maxPlayers: f.maxPlayers,
     bonusPrize: f.bonusPrize,
@@ -434,12 +433,10 @@ const cards = computed(() => {
             </select>
           </label>
           <label>
-            <span>기본 시간(초)</span>
-            <input v-model.number="tform.baseSeconds" type="number" min="30" max="1800" step="10" aria-label="기본 시간" />
-          </label>
-          <label>
-            <span>한 수마다 더할 초</span>
-            <input v-model.number="tform.incrementSeconds" type="number" min="0" max="60" aria-label="추가 시간" />
+            <span>대국 시간 ({{ BYOYOMI_LABEL }})</span>
+            <select v-model.number="tform.baseSeconds" aria-label="대국 시간">
+              <option v-for="t in TIME_CHOICES" :key="t.seconds" :value="t.seconds">{{ t.label }}</option>
+            </select>
           </label>
           <label>
             <span>참가비(닢)</span>

@@ -13,7 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest(properties = {"janggi.online.base-seconds=1", "janggi.online.increment-seconds=0"})
+@SpringBootTest(properties = {"janggi.online.base-seconds=1", "janggi.online.byoyomi-seconds=1",
+        "janggi.online.byoyomi-periods=1"})
 class OnlineTimeoutTest {
 
     @Autowired
@@ -29,13 +30,15 @@ class OnlineTimeoutTest {
         String id = games.createOnline(cho, Formation.MA_SANG_MA_SANG, han, Formation.MA_SANG_MA_SANG).id();
 
         GameDto game = games.get(id);
-        for (int i = 0; i < 40 && game.result() == GameResult.ONGOING; i++) {
+        // 기본 1초 + 초읽기 1초 1회를 다 쓰면 시간패.
+        for (int i = 0; i < 60 && game.result() == GameResult.ONGOING; i++) {
             Thread.sleep(100);
             game = games.get(id);
         }
         assertEquals(GameResult.HAN_WIN, game.result());
         assertEquals("TIMEOUT", game.endReason());
         assertEquals(0, game.clock().choMs());
+        assertEquals(0, game.clock().choPeriods());
         assertEquals(null, game.clock().running());
         assertEquals(Side.CHO, game.sideToMove());
     }

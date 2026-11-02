@@ -37,17 +37,20 @@ public class GameService {
     private final SimpMessagingTemplate messaging;
     private final ChatService chat;
     private final int baseSeconds;
-    private final int incrementSeconds;
+    private final int byoyomiSeconds;
+    private final int byoyomiPeriods;
 
     public GameService(GameRecorder recorder, UserService users, SimpMessagingTemplate messaging, ChatService chat,
             @Value("${janggi.online.base-seconds}") int baseSeconds,
-            @Value("${janggi.online.increment-seconds}") int incrementSeconds) {
+            @Value("${janggi.online.byoyomi-seconds}") int byoyomiSeconds,
+            @Value("${janggi.online.byoyomi-periods}") int byoyomiPeriods) {
         this.recorder = recorder;
         this.users = users;
         this.messaging = messaging;
         this.chat = chat;
         this.baseSeconds = baseSeconds;
-        this.incrementSeconds = incrementSeconds;
+        this.byoyomiSeconds = byoyomiSeconds;
+        this.byoyomiPeriods = byoyomiPeriods;
     }
 
     /**
@@ -69,17 +72,16 @@ public class GameService {
         return GameDto.from(id.toString(), session);
     }
 
-    /** 매칭된 두 회원의 온라인 대국. 만들자마자 초의 시계가 간다. */
+    /** 기본 시간 설정값으로 만드는 온라인 대국. 만들자마자 초의 시계가 간다. */
     public GameDto createOnline(long choUserId, Formation cho, long hanUserId, Formation han) {
-        return createOnline(choUserId, cho, hanUserId, han, baseSeconds, incrementSeconds);
+        return createOnline(choUserId, cho, hanUserId, han, baseSeconds);
     }
 
-    /** 시간 규칙을 정해 만드는 온라인 대국(대회). */
-    public GameDto createOnline(long choUserId, Formation cho, long hanUserId, Formation han, int baseSeconds,
-            int incrementSeconds) {
+    /** 기본 시간을 정해 만드는 온라인 대국(매칭·대회). 초읽기는 모든 대국에서 같다. */
+    public GameDto createOnline(long choUserId, Formation cho, long hanUserId, Formation han, int baseSeconds) {
         UUID id = UUID.randomUUID();
-        recorder.startOnline(id, cho, han, choUserId, hanUserId, baseSeconds, incrementSeconds);
-        GameClock clock = new GameClock(baseSeconds * 1000L, baseSeconds * 1000L, incrementSeconds * 1000L);
+        recorder.startOnline(id, cho, han, choUserId, hanUserId, baseSeconds, byoyomiSeconds, byoyomiPeriods);
+        GameClock clock = GameClock.fresh(baseSeconds * 1000L, byoyomiPeriods, byoyomiSeconds * 1000L);
         clock.start(Side.CHO, System.currentTimeMillis());
         GameSession session = new GameSession(GameState.initial(cho, han), null, null,
                 players(choUserId, hanUserId, null), clock, 0, null, listener(id));
@@ -173,7 +175,9 @@ public class GameService {
         GameClock clock = null;
         GameSession.Players players = GameSession.Players.NONE;
         if (g.isOnline()) {
-            clock = new GameClock(g.getChoMsLeft(), g.getHanMsLeft(), g.getIncrementSeconds() * 1000L);
+            // 초읽기 전에 만든 옛 대국은 초읽기 없이 남은 시간만으로 이어 간다.
+            clock = new GameClock(g.getChoMsLeft(), g.getHanMsLeft(), orZero(g.getChoPeriodsLeft()),
+                    orZero(g.getHanPeriodsLeft()), orZero(g.getByoyomiSeconds()) * 1000L);
             // 마지막 수 이후로 흐른 시간(서버가 꺼져 있던 시간 포함)도 둘 차례인 쪽이 쓴 것으로 본다.
             clock.start(state.sideToMove(), g.getClockUpdatedAt().toInstant().toEpochMilli());
             players = players(g.getChoUserId(), g.getHanUserId(), change);
@@ -209,7 +213,8 @@ public class GameService {
             @Override
             public void onMove(int seq, Move move, GameState after, GameClock.Snapshot clock) {
                 recorder.recordMove(id, seq, move, clock == null ? null
-                        : new GameRecorder.ClockState(clock.choMs(), clock.hanMs(), clock.at()));
+                        : new GameRecorder.ClockState(clock.choMs(), clock.hanMs(), clock.choPeriods(),
+                                clock.hanPeriods(), clock.at()));
             }
 
             @Override
@@ -217,6 +222,10 @@ public class GameService {
                 return recorder.finish(id, result, reason);
             }
         };
+    }
+
+    private static int orZero(Integer n) {
+        return n == null ? 0 : n;
     }
 
     private static UUID parse(String id) {

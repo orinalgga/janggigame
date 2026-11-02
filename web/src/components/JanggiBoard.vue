@@ -184,35 +184,17 @@ const checkedGeneral = computed(() =>
   props.check ? props.pieces.find((p) => p.type === 'GENERAL' && p.side === props.check) : undefined,
 )
 
-/** 만화의 깜짝 폭발 말풍선. 뾰족한 끝의 길이를 조금씩 달리해 손으로 그린 느낌을 낸다. */
-function burst(spikes: number, outer: number, inner: number) {
-  const pts: string[] = []
-  for (let k = 0; k < spikes * 2; k++) {
-    const jitter = k % 2 === 0 ? [1, 0.86, 0.95, 0.8, 1.04, 0.9][(k / 2) % 6] : 1
-    const r = (k % 2 === 0 ? outer : inner) * jitter
-    const a = (k * Math.PI) / spikes - Math.PI / 2
-    pts.push(`${(r * Math.cos(a)).toFixed(1)},${(r * Math.sin(a)).toFixed(1)}`)
-  }
-  return pts.join(' ')
-}
-const BURST = burst(14, 98, 66)
-const BURST_INNER = burst(14, 82, 56)
-
-/** 장군이 걸리면 알이 도착한 뒤 화면 가운데에 빨간 폭발 말풍선이 터지고 화면이 흔들린다. 외통이면 더 크게. */
+/** 장군이 걸리면 알이 도착한 뒤 화면이 흔들린다(글자는 띄우지 않는다). 외통이면 더 크게. */
 const wrap = ref<HTMLDivElement | null>(null)
-const stamp = ref<{ id: number; mate: boolean } | null>(null)
-let stampId = 0
 
 watch(
   () => props.pieces,
   (_now, before) => {
     if (!before || !props.check) return
     const mate = !!props.mate
-    const id = ++stampId
     setTimeout(() => {
-      stamp.value = { id, mate }
       navigator.vibrate?.(mate ? [80, 60, 220] : 120)
-      // 판만이 아니라 화면 전체(#app)가 흔들린다. 터지는 말풍선은 body에 따로 있어 함께 흔들리지 않는다.
+      // 판만이 아니라 화면 전체(#app)가 흔들린다.
       // 장군은 꼭 알아차려야 하므로 OS의 '애니메이션 줄이기' 설정과 상관없이 흔든다.
       const k = mate ? 1.6 : 1
       ;(document.getElementById('app') ?? wrap.value)?.animate(
@@ -229,7 +211,6 @@ watch(
         { duration: mate ? 750 : 520, delay: 80, easing: 'ease-out' },
       )
     }, MOVE_MS * 0.8)
-    setTimeout(() => stamp.value?.id === id && (stamp.value = null), MOVE_MS * 0.8 + (mate ? 2600 : 1400))
   },
   { flush: 'post' },
 )
@@ -396,26 +377,6 @@ watch(
         <circle v-else :cx="px(t.x)" :cy="py(t.y)" r="9" class="target" @click="clickPoint(t.x, t.y)" />
       </template>
     </svg>
-    <Teleport to="body">
-      <div v-if="stamp" :key="stamp.id" class="shock" :class="{ mate: stamp.mate }" role="status">
-        <div class="speed-lines" aria-hidden="true" />
-        <div class="burst">
-          <svg viewBox="-110 -110 220 220" aria-hidden="true">
-            <defs>
-              <radialGradient :id="defId('burst-fill')" cx="0" cy="0" r="100" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#ff5a3c" />
-                <stop offset="0.6" stop-color="#e3101a" />
-                <stop offset="1" stop-color="#a1000a" />
-              </radialGradient>
-            </defs>
-            <polygon :points="BURST" class="burst-shadow" transform="translate(6 8)" />
-            <polygon :points="BURST" :fill="url('burst-fill')" class="burst-edge" />
-            <polygon :points="BURST_INNER" class="burst-inner" />
-          </svg>
-          <span class="shout">{{ stamp.mate ? '외통!!' : '장군!!' }}</span>
-        </div>
-      </div>
-    </Teleport>
   </div>
 </template>
 
@@ -632,108 +593,6 @@ watch(
   to {
     opacity: 0;
     transform: scale(1.7);
-  }
-}
-.shock {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  animation: shock-out 0.35s ease-in 1.05s forwards;
-}
-.shock.mate {
-  animation-delay: 2.25s;
-}
-.speed-lines {
-  position: absolute;
-  inset: -20%;
-  background: repeating-conic-gradient(from 0deg, rgba(190, 0, 10, 0.55) 0deg 1.6deg, transparent 1.6deg 7deg);
-  -webkit-mask-image: radial-gradient(circle, transparent 18%, #000 60%);
-  mask-image: radial-gradient(circle, transparent 18%, #000 60%);
-  animation: lines-in 0.25s ease-out both;
-}
-.mate .speed-lines {
-  background:
-    radial-gradient(circle, transparent 30%, rgba(40, 0, 0, 0.5) 100%),
-    repeating-conic-gradient(from 0deg, rgba(150, 0, 10, 0.7) 0deg 2deg, transparent 2deg 6deg);
-}
-.burst {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: min(78vw, 420px);
-  aspect-ratio: 1;
-  animation: burst-pop 0.5s cubic-bezier(0.2, 1.8, 0.4, 1) both;
-}
-.mate .burst {
-  width: min(90vw, 520px);
-}
-.burst svg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-.burst-shadow {
-  fill: rgba(40, 0, 0, 0.35);
-}
-.burst-edge {
-  stroke: #3d0004;
-  stroke-width: 6;
-  stroke-linejoin: round;
-}
-.burst-inner {
-  fill: none;
-  stroke: rgba(255, 236, 200, 0.85);
-  stroke-width: 3;
-  stroke-linejoin: round;
-}
-.shout {
-  position: relative;
-  color: #fff;
-  font-weight: 900;
-  font-size: min(15vw, 5.2rem);
-  letter-spacing: -0.04em;
-  transform: rotate(-8deg);
-  -webkit-text-stroke: 3px #3d0004;
-  paint-order: stroke fill;
-  text-shadow: 0 5px 0 #3d0004;
-  animation: shout-shake 0.5s 0.35s ease-in-out 2;
-}
-.mate .shout {
-  font-size: min(18vw, 6.4rem);
-}
-@keyframes burst-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.1) rotate(-30deg);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) rotate(0);
-  }
-}
-@keyframes lines-in {
-  from {
-    opacity: 0;
-    transform: scale(1.4);
-  }
-}
-@keyframes shout-shake {
-  25% {
-    transform: rotate(-11deg) translate(-3px, 1px);
-  }
-  75% {
-    transform: rotate(-5deg) translate(3px, -1px);
-  }
-}
-@keyframes shock-out {
-  to {
-    opacity: 0;
-    transform: scale(1.15);
   }
 }
 @media (prefers-reduced-motion: reduce) {

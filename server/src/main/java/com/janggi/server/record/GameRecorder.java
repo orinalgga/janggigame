@@ -26,7 +26,7 @@ public class GameRecorder {
     }
 
     /** 수를 둔 직후의 남은 시간. at은 그 시각(epoch 밀리초). */
-    public record ClockState(long choMs, long hanMs, long at) {
+    public record ClockState(long choMs, long hanMs, int choPeriods, int hanPeriods, long at) {
     }
 
     private final GameRecordRepository games;
@@ -47,10 +47,10 @@ public class GameRecorder {
 
     @Transactional
     public void startOnline(UUID id, Formation cho, Formation han, long choUserId, long hanUserId,
-            int baseSeconds, int incrementSeconds) {
+            int baseSeconds, int byoyomiSeconds, int byoyomiPeriods) {
         OffsetDateTime now = OffsetDateTime.now();
         GameRecord game = new GameRecord(id, cho, han, null, null, choUserId, hanUserId, now);
-        game.startClock(baseSeconds, incrementSeconds, now);
+        game.startClock(baseSeconds, byoyomiSeconds, byoyomiPeriods, now);
         games.save(game);
     }
 
@@ -61,7 +61,7 @@ public class GameRecorder {
         GameRecord game = games.findById(id).orElseThrow();
         game.moved(seq);
         if (clock != null) {
-            game.clock(clock.choMs(), clock.hanMs(), Instant.ofEpochMilli(clock.at()).atOffset(ZoneOffset.UTC));
+            game.clock(clock.choMs(), clock.hanMs(), clock.choPeriods(), clock.hanPeriods(), Instant.ofEpochMilli(clock.at()).atOffset(ZoneOffset.UTC));
         }
     }
 

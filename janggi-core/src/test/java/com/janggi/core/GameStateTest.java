@@ -103,18 +103,45 @@ class GameStateTest {
     }
 
     @Test
-    void bikjangIsDecidedByScore() {
-        // 초는 장 + 차(13), 한은 장 + 덤(1.5) → 초가 이긴다.
+    void bikjangIsDecidedByScoreOnlyAfterFiveMovesInARow() {
+        // 초는 장 + 차(13), 한은 장 + 덤(1.5) → 빅장이 5수 이어지면 초가 이긴다.
         GameState s = state(HAN, CHO, GENERAL, 4, 1, HAN, GENERAL, 3, 8, CHO, CHARIOT, 0, 4);
         assertEquals(GameResult.ONGOING, s.result());
 
         GameState next = s.apply(Move.of(3, 8, 4, 8));
         assertTrue(next.isBikjang());
-        assertEquals(GameResult.CHO_WIN, next.result());
-        assertTrue(next.isGameOver());
-        assertTrue(next.legalMoves().isEmpty());
-        assertThrows(IllegalMoveException.class, () -> next.apply(Move.of(0, 4, 0, 5)));
-        assertThrows(IllegalMoveException.class, () -> next.apply(Move.pass()));
+        assertEquals(1, next.bikjangCount());
+        assertEquals(GameResult.ONGOING, next.result());
+
+        // 빅장을 풀지 않고 네 수를 더 두면(쉬거나 같은 줄에서만 움직이면) 다섯 번째에 끝난다.
+        next = next.apply(Move.of(0, 4, 0, 5));
+        next = next.apply(Move.pass());
+        next = next.apply(Move.of(0, 5, 0, 4));
+        assertEquals(4, next.bikjangCount());
+        assertEquals(GameResult.ONGOING, next.result());
+        GameState last = next.apply(Move.pass());
+        assertEquals(5, last.bikjangCount());
+        assertEquals(GameResult.CHO_WIN, last.result());
+        assertTrue(last.isGameOver());
+        assertTrue(last.legalMoves().isEmpty());
+        assertThrows(IllegalMoveException.class, () -> last.apply(Move.pass()));
+    }
+
+    @Test
+    void breakingBikjangResetsTheCount() {
+        GameState s = state(HAN, CHO, GENERAL, 4, 1, HAN, GENERAL, 3, 8, CHO, CHARIOT, 0, 4);
+        GameState next = s.apply(Move.of(3, 8, 4, 8)).apply(Move.pass()).apply(Move.pass());
+        assertEquals(3, next.bikjangCount());
+
+        // 차가 두 장 사이에 들어서면 빅장이 풀린다.
+        next = next.apply(Move.of(0, 4, 4, 4));
+        assertFalse(next.isBikjang());
+        assertEquals(0, next.bikjangCount());
+
+        // 장군을 피한 뒤 다시 빅장이 되면 1부터 센다.
+        next = next.apply(Move.of(4, 8, 3, 8)).apply(Move.of(4, 4, 0, 4)).apply(Move.of(3, 8, 4, 8));
+        assertEquals(1, next.bikjangCount());
+        assertEquals(GameResult.ONGOING, next.result());
     }
 
     @Test
@@ -122,6 +149,9 @@ class GameStateTest {
         // 양쪽 모두 장 + 사(3)라 기물 점수가 같고, 덤 1.5점으로 한이 이긴다.
         GameState s = state(CHO, CHO, GENERAL, 3, 1, CHO, GUARD, 5, 0, HAN, GENERAL, 4, 8, HAN, GUARD, 5, 9);
         GameState next = s.apply(Move.of(3, 1, 4, 1));
+        for (int i = 1; i < GameState.BIKJANG_LIMIT; i++) {
+            next = next.apply(Move.pass());
+        }
         assertEquals(GameResult.HAN_WIN, next.result());
     }
 
