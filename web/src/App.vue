@@ -323,20 +323,56 @@ async function resign() {
   }
 }
 
+/** 둘 수 없는 곳을 누르면 판 위에 잠깐 띄우는 안내. */
+const hint = ref<{ id: number; text: string } | null>(null)
+let hintId = 0
+function showHint(text: string) {
+  const id = ++hintId
+  hint.value = { id, text }
+  setTimeout(() => hint.value?.id === id && (hint.value = null), 1800)
+}
+
+/** 지금 판을 눌러도 둘 수 없는 이유. 둘 수 있으면 null. */
+function whyCannotAct(g: GameDto): string | null {
+  if (g.result !== 'ONGOING') return '대국이 끝났어요.'
+  if (thinking.value) return 'AI가 생각하는 중이에요.'
+  if (busy.value) return null
+  if (g.online && !mySide.value) return '구경 중에는 둘 수 없어요.'
+  if (g.online ? g.sideToMove !== mySide.value : g.sideToMove === g.aiSide) return '상대 차례예요. 기다려 주세요.'
+  return null
+}
+
 async function onSelect(sq: SquareDto) {
   const g = game.value
-  if (!g || !canAct.value) return
+  if (!g) return
+  if (!canAct.value) {
+    const why = whyCannotAct(g)
+    if (why) showHint(why)
+    return
+  }
   const piece = g.pieces.find((p) => p.x === sq.x && p.y === sq.y)
   if (piece && piece.side === g.sideToMove) {
+    const movable = g.legalMoves.some((m) => m.from?.x === sq.x && m.from?.y === sq.y)
+    if (!movable) {
+      selected.value = null
+      showHint(g.check ? '장군이에요! 이 알로는 장군을 막을 수 없어요.' : '이 알은 지금 움직일 수 없어요. 갈 수 있는 자리가 없거나, 움직이면 내 장이 잡혀요.')
+      return
+    }
     selected.value = sq
     return
   }
   const from = selected.value
-  if (!from) return
+  if (!from) {
+    showHint(piece ? '상대 알이에요. 내 알을 먼저 골라 주세요.' : '움직일 내 알을 먼저 골라 주세요.')
+    return
+  }
   const legal = g.legalMoves.some(
     (m) => m.from?.x === from.x && m.from?.y === from.y && m.to?.x === sq.x && m.to?.y === sq.y,
   )
-  if (!legal) return
+  if (!legal) {
+    showHint(g.check ? '장군이에요! 그 자리로 가면 장군을 피할 수 없어요.' : '그 자리로는 갈 수 없어요. 표시된 점으로만 옮길 수 있어요.')
+    return
+  }
   await play({ from, to: sq })
 }
 
@@ -504,6 +540,9 @@ async function gameEnded() {
 
       <div class="layout">
         <div class="board-col">
+          <Transition name="hint">
+            <div v-if="hint" :key="hint.id" class="move-hint" role="alert">{{ hint.text }}</div>
+          </Transition>
           <PlayerClocks
             v-if="game.online && game.clock"
             :clock="game.clock"
@@ -654,6 +693,38 @@ main.wide {
   box-shadow: 0 10px 30px var(--shadow);
   transform: translateX(-50%);
   white-space: nowrap;
+}
+.board-col {
+  position: relative;
+}
+.move-hint {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  z-index: 20;
+  width: max-content;
+  max-width: min(320px, calc(100% - 32px));
+  padding: 12px 18px;
+  border-radius: 14px;
+  color: #fff;
+  background: rgba(30, 20, 10, 0.88);
+  box-shadow: 0 10px 30px var(--shadow);
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.45;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.hint-enter-active,
+.hint-leave-active {
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.hint-enter-from,
+.hint-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -40%);
 }
 .grade-notice.down {
   background: var(--muted);
