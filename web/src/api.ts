@@ -543,6 +543,21 @@ async function request<T>(path: string, body?: unknown, method?: string): Promis
   return res.json()
 }
 
+/** 지금 접속해 있는 회원. playing이면 온라인 대국 중이라 부를 수 없다. */
+export interface OnlineUser {
+  id: number
+  nickname: string
+  rating: number
+  grade: string
+  look: Look
+  playing: boolean
+}
+
+export interface OnlineList {
+  count: number
+  users: OnlineUser[]
+}
+
 export const api = {
   newGame: (choFormation: Formation, hanFormation: Formation, aiSide: Side | null, aiLevel: Level) =>
     request<GameDto>('/api/games', { choFormation, hanFormation, aiSide, aiLevel }),
@@ -556,6 +571,7 @@ export const api = {
   resign: (id: string) => request<GameDto>(`/api/games/${id}/resign`, {}),
   match: (formation: Formation, baseSeconds: number) => request<MatchStatus>('/api/match', { formation, baseSeconds }),
   cancelMatch: () => request<MatchStatus>('/api/match', undefined, 'DELETE'),
+  online: () => request<OnlineList>('/api/online'),
   /** nickname이 null이면 누구나 받을 수 있는 링크 초대를 만든다. */
   invite: (nickname: string | null, formation: Formation) => request<Invite>('/api/invites', { nickname, formation }),
   getInvite: (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}`),

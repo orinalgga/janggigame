@@ -12,8 +12,10 @@ import com.janggi.server.record.GameRecorder;
 import com.janggi.server.user.Grade;
 import com.janggi.server.user.Look;
 import com.janggi.server.user.UserService;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
@@ -106,6 +108,19 @@ public class GameService {
         GameSession session = find(id);
         session.resign(userId);
         return changed(id, session);
+    }
+
+    /** 지금 온라인 대국을 두고 있는 회원 id. */
+    public Set<Long> playingOnline() {
+        Set<Long> ids = new HashSet<>();
+        sessions.values().forEach(session -> {
+            if (session.online() && !session.isOver()) {
+                GameSession.Players p = session.players();
+                if (p.cho() != null) ids.add(p.cho().id());
+                if (p.han() != null) ids.add(p.han().id());
+            }
+        });
+        return ids;
     }
 
     /** 아무도 수를 두지 않아도 시간패가 나도록 진행 중인 온라인 대국 시계를 살핀다. */

@@ -342,6 +342,12 @@ const chatTitle = computed(() => {
   const other = mySide.value === 'CHO' ? g.han : g.cho
   return other?.nickname ?? '상대'
 })
+/** 채팅 말풍선 옆에 보일 온라인 상대의 캐릭터 차림. */
+const chatOpponentLook = computed(() => {
+  const g = game.value
+  if (!g?.online) return null
+  return (mySide.value === 'CHO' ? g.han : g.cho)?.look ?? null
+})
 const ongoing = computed(() => game.value?.result === 'ONGOING')
 
 async function start(options: StartOptions) {
@@ -755,6 +761,8 @@ async function gameEnded() {
           :my-side="playerSide ?? 'CHO'"
           :title="chatTitle"
           :live="live"
+          :opponent-look="chatOpponentLook"
+          :ai-badge="persona?.badge ?? null"
         />
       </div>
     </section>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { api, type ChatMessage, type Side } from '../api'
+import { api, type ChatMessage, type Look, type Side } from '../api'
 import type { Live } from '../live'
+import CharacterAvatar from './CharacterAvatar.vue'
 
 const props = defineProps<{
   gameId: string
@@ -11,6 +12,10 @@ const props = defineProps<{
   /** 머리에 보일 상대 이름. */
   title: string
   live: Live | null
+  /** 온라인 상대의 캐릭터 차림. 말풍선 옆에 얼굴로 보인다. 없으면 기본 얼굴. */
+  opponentLook?: Look | null
+  /** AI 대국이면 AI 캐릭터의 장기알 글자(卒·馬·車). */
+  aiBadge?: string | null
 }>()
 
 const MAX = 200
@@ -96,6 +101,14 @@ async function send(text = draft.value) {
   }
 }
 
+/** 앞 말과 같은 사람이 이어서 한 말이면 얼굴과 이름을 다시 그리지 않는다. */
+function speaker(m: ChatMessage) {
+  return m.ai ? `ai:${m.nickname}` : m.side
+}
+function continued(i: number) {
+  return i > 0 && speaker(messages.value[i - 1]) === speaker(messages.value[i])
+}
+
 function time(at: number) {
   return new Date(at).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
 }
@@ -114,7 +127,9 @@ defineExpose({ push: add })
       @click="toggle"
       @keydown.enter="toggle"
     >
-      <span class="dot" :class="kind" aria-hidden="true" />
+      <span v-if="kind === 'ai' && aiBadge" class="face badge small" aria-hidden="true">{{ aiBadge }}</span>
+      <CharacterAvatar v-else-if="kind === 'online'" :look="opponentLook" head class="face small" />
+      <span v-else class="dot" :class="kind" aria-hidden="true" />
       <b>{{ title }}</b>
       <span v-if="narrow && !open && latest" class="preview">{{ latest.text }}</span>
       <span v-else class="muted">{{ kind === 'ai' ? 'AI와 대화' : '상대와 대화' }}</span>
@@ -127,22 +142,30 @@ defineExpose({ push: add })
         {{ kind === 'ai' ? '먼저 말을 걸어 보세요.' : '상대에게 인사를 건네 보세요.' }}
       </p>
       <div
-        v-for="m in messages"
+        v-for="(m, i) in messages"
         :key="m.id"
         class="msg"
-        :class="[m.side === mySide && !m.ai ? 'mine' : 'theirs', m.side.toLowerCase()]"
+        :class="[m.side === mySide && !m.ai ? 'mine' : 'theirs', m.side.toLowerCase(), { cont: continued(i) }]"
       >
-        <span v-if="m.side !== mySide || m.ai" class="who">
-          {{ m.nickname }}<span v-if="m.ai" class="ai-tag">AI</span>
-        </span>
-        <span class="bubble">{{ m.text }}</span>
-        <span class="at">{{ time(m.at) }}</span>
+        <template v-if="m.side !== mySide || m.ai">
+          <span v-if="continued(i)" class="face gap" aria-hidden="true" />
+          <span v-else-if="m.ai" class="face badge" aria-hidden="true">{{ aiBadge ?? '將' }}</span>
+          <CharacterAvatar v-else :look="opponentLook" head class="face" />
+        </template>
+        <div class="body">
+          <span v-if="(m.side !== mySide || m.ai) && !continued(i)" class="who">
+            {{ m.nickname }}<span v-if="m.ai" class="ai-tag">AI</span>
+          </span>
+          <span class="bubble">{{ m.text }}</span>
+          <span class="at">{{ time(m.at) }}</span>
+        </div>
       </div>
       <div v-if="pending" class="msg mine sending" :class="mySide.toLowerCase()">
         <span class="bubble">{{ pending }}</span>
       </div>
       <div v-if="sending && kind === 'ai'" class="msg theirs typing">
-        <span class="bubble"><i /><i /><i /></span>
+        <span class="face badge" aria-hidden="true">{{ aiBadge ?? '將' }}</span>
+        <div class="body"><span class="bubble"><i /><i /><i /></span></div>
       </div>
     </div>
 
@@ -275,14 +298,58 @@ header .muted {
 }
 .msg {
   display: flex;
-  flex-direction: column;
-  max-width: 82%;
-  gap: 3px;
+  align-items: flex-start;
+  gap: 7px;
+  max-width: 88%;
   animation: rise 0.2s ease-out both;
+}
+.msg.cont {
+  margin-top: -5px;
+}
+.msg .body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
 }
 .msg.mine {
   align-self: flex-end;
+}
+.msg.mine .body {
   align-items: flex-end;
+}
+.face {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  box-shadow: 0 0 0 1px var(--border);
+  overflow: hidden;
+}
+.face.gap {
+  height: 0;
+  box-shadow: none;
+  background: none;
+}
+.face.small {
+  width: 26px;
+  height: 26px;
+}
+.face.badge {
+  display: grid;
+  place-items: center;
+  border-radius: 0;
+  font-family: 'Noto Serif KR', serif;
+  font-weight: 900;
+  font-size: 0.95rem;
+  color: var(--han-color);
+  background: var(--piece-light);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+  box-shadow: inset 0 0 0 2px var(--piece-edge);
+}
+.face.badge.small {
+  font-size: 0.8rem;
 }
 .who {
   font-size: 0.74rem;
