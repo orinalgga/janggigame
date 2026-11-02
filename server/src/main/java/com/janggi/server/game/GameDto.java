@@ -33,7 +33,9 @@ public record GameDto(
         PlayerDto han,
         ClockDto clock,
         RatingChange ratingChange,
-        ChatMessage aiComment) {
+        ChatMessage aiComment,
+        Long choAwayMs,
+        Long hanAwayMs) {
 
     /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
     public record PlayerDto(long id, String nickname, int rating, String grade, Look look) {
@@ -79,6 +81,10 @@ public record GameDto(
         }
     }
 
+    /**
+     * 온라인 대국에서 그 진영 회원이 대국 화면을 떠나 있으면 돌아오기까지 남은 시간(밀리초), 아니면 null.
+     * 이 시간이 지나면 남은 쪽이 이긴다(endReason DISCONNECT).
+     */
     static GameDto from(String id, GameSession session) {
         // 수와 시계, 결과가 한 시점의 것이 되도록 세션을 잡고 만든다.
         synchronized (session) {
@@ -111,14 +117,17 @@ public record GameDto(
                 session.players().han(),
                 ClockDto.from(session.clock()),
                 session.ratingChange(),
-                null);
+                null,
+                session.awayMsLeft(Side.CHO, GameService.DISCONNECT_GRACE_MS),
+                session.awayMsLeft(Side.HAN, GameService.DISCONNECT_GRACE_MS));
     }
 
     /** AI 대국에서 이번 수에 AI가 한 말을 붙인다. */
     GameDto withAiComment(ChatMessage comment) {
         return new GameDto(id, pieces, sideToMove, legalMoves, check, checkmate, bikjang, bikjangCount,
                 bikjangLimit, result, choScore, hanScore,
-                aiSide, aiLevel, lastMove, endReason, online, cho, han, clock, ratingChange, comment);
+                aiSide, aiLevel, lastMove, endReason, online, cho, han, clock, ratingChange, comment,
+                choAwayMs, hanAwayMs);
     }
 
     static List<PieceDto> pieces(GameState state) {

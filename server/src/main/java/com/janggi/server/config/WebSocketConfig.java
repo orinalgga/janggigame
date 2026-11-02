@@ -11,6 +11,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -37,7 +38,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/topic", "/queue");
+        // 하트비트: 휴대폰이 신호 없이 끊겨도(터널·비행기 모드) 서버가 연결이 죽은 걸 알아채게 한다.
+        // 브라우저는 뒤로 간 탭의 타이머를 1분까지 늦추므로, 서버가 기다리는 시간(25초의 3배)을 그보다 길게 둔다.
+        ThreadPoolTaskScheduler heartbeat = new ThreadPoolTaskScheduler();
+        heartbeat.setPoolSize(1);
+        heartbeat.setThreadNamePrefix("ws-heartbeat-");
+        heartbeat.initialize();
+        registry.enableSimpleBroker("/topic", "/queue")
+                .setHeartbeatValue(new long[] {25_000, 25_000})
+                .setTaskScheduler(heartbeat);
         registry.setApplicationDestinationPrefixes("/app");
     }
 

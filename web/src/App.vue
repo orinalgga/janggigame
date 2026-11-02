@@ -44,6 +44,7 @@ const END_REASON: Record<EndReason, string> = {
   BIKJANG: '빅장 점수 판정',
   RESIGN: '기권',
   TIMEOUT: '시간패',
+  DISCONNECT: '접속 끊김',
 }
 
 /** 로비에서 마지막으로 고른 설정. 대국이 끝나면 '한 판 더'에 쓴다. */
@@ -83,7 +84,19 @@ async function loadMe() {
   if (me.value) {
     watchTournaments()
     watchInvites()
+    void rejoinOngoing()
   }
+}
+
+/** 창을 닫았거나 새로 고친 뒤 다시 들어오면, 두다 만 온라인 대국으로 바로 돌아간다. */
+async function rejoinOngoing() {
+  const r = await api.ongoing().catch(() => null)
+  if (!r?.gameId || game.value?.id === r.gameId || playingOnline.value) return
+  live ??= new Live()
+  replayId.value = null
+  shopOpen.value = false
+  adminOpen.value = false
+  await openOnline(r.gameId)
 }
 
 // 특정 상대 초대: 내가 보내고 기다리는 초대, 내게 온 초대
@@ -350,6 +363,27 @@ const chatOpponentLook = computed(() => {
 })
 const ongoing = computed(() => game.value?.result === 'ONGOING')
 
+/** 온라인 대국을 마지막으로 받은 때. 나간 사람의 남은 시간을 여기서부터 줄여 보여 준다. */
+const gameAt = ref(Date.now())
+const nowTick = ref(Date.now())
+setInterval(() => (nowTick.value = Date.now()), 500)
+/** 대국 화면을 떠난 사람 안내. 내가 두는 대국이면 상대만, 구경 중이면 양쪽 다 본다. */
+const awayNotice = computed(() => {
+  const g = game.value
+  if (!g?.online || !ongoing.value) return null
+  const sides: Side[] = mySide.value ? [mySide.value === 'CHO' ? 'HAN' : 'CHO'] : ['CHO', 'HAN']
+  for (const side of sides) {
+    const ms = side === 'CHO' ? g.choAwayMs : g.hanAwayMs
+    if (ms == null) continue
+    const left = Math.max(0, Math.ceil((ms - (nowTick.value - gameAt.value)) / 1000))
+    const who = (side === 'CHO' ? g.cho : g.han)?.nickname ?? (side === 'CHO' ? '초' : '한')
+    return mySide.value
+      ? `${who} 님이 나갔어요. ${left}초 안에 돌아오지 않으면 내가 이겨요.`
+      : `${who} 님이 나갔어요. ${left}초 안에 돌아오지 않으면 상대가 이겨요.`
+  }
+  return null
+})
+
 async function start(options: StartOptions) {
   lastOptions.value = options
   resultOpen.value = false
@@ -445,9 +479,21 @@ async function openOnline(id: string) {
   stopMatchSub = null
   stopGameSub?.()
   stopGameSub = live!.subscribe<GameDto>(`/topic/games/${id}`, (g) => {
+    gameAt.value = Date.now()
     game.value = g
     if (g.result !== 'ONGOING') void gameEnded()
   })
+  // 연결이 끊긴 사이에 상대가 둔 수나 끝난 결과를 놓치지 않게 다시 받아 온다.
+  live!.onReconnect = () => {
+    if (game.value?.id !== id) return
+    void api.game(id).then((g) => {
+      if (game.value?.id !== id) return
+      gameAt.value = Date.now()
+      game.value = g
+      if (g.result !== 'ONGOING') void gameEnded()
+    }).catch(() => undefined)
+  }
+  gameAt.value = Date.now()
   game.value = await api.game(id)
   recent.value?.refresh()
 }
@@ -715,6 +761,7 @@ async function gameEnded() {
           <Transition name="hint">
             <div v-if="hint" :key="hint.id" class="move-hint" role="alert">{{ hint.text }}</div>
           </Transition>
+          <div v-if="awayNotice" class="away-notice" role="status">{{ awayNotice }}</div>
           <PlayerClocks
             v-if="game.online && game.clock"
             :clock="game.clock"
@@ -861,6 +908,23 @@ main.wide {
 .rating small {
   font-weight: 500;
   opacity: 0.75;
+}
+.away-notice {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff4d6;
+  border: 1px solid #e8b94a;
+  color: #6b4a00;
+  font-weight: 600;
+  text-align: center;
+}
+@media (prefers-color-scheme: dark) {
+  .away-notice {
+    background: #3a2e10;
+    border-color: #8a6a1e;
+    color: #ffe2a0;
+  }
 }
 .grade-notice {
   position: fixed;

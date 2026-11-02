@@ -47,6 +47,9 @@ export interface GameDto {
   ratingChange: { cho: number; han: number } | null
   /** AI 대국에서 이번 수에 AI가 한 말. 없으면 null. */
   aiComment: ChatMessage | null
+  /** 온라인 대국에서 그 진영 회원이 대국 화면을 떠나 있으면 돌아오기까지 남은 밀리초. 다 지나면 남은 쪽이 이긴다. */
+  choAwayMs: number | null
+  hanAwayMs: number | null
 }
 
 /** 대국 채팅 한 줄. id는 대국 안에서 늘어나는 번호라 같은 말을 두 번 받으면 걸러 낸다. */
@@ -59,7 +62,7 @@ export interface ChatMessage {
   at: number
 }
 
-export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT'
+export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT' | 'DISCONNECT'
 
 /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
 /** 캐릭터 차림. 모두 상점 상품 id이고 background는 배경 패다. */
@@ -573,6 +576,8 @@ export const api = {
   replay: (id: string, ply: number) => request<ReplayDto>(`/api/games/${id}/replay?ply=${ply}`),
   game: (id: string) => request<GameDto>(`/api/games/${id}`),
   resign: (id: string) => request<GameDto>(`/api/games/${id}/resign`, {}),
+  /** 내가 두다 만 온라인 대국. 창을 닫았다 다시 열면 이어 둔다. */
+  ongoing: () => request<{ gameId: string | null }>('/api/games/ongoing'),
   match: (formation: Formation, baseSeconds: number) => request<MatchStatus>('/api/match', { formation, baseSeconds }),
   cancelMatch: () => request<MatchStatus>('/api/match', undefined, 'DELETE'),
   online: () => request<OnlineList>('/api/online'),
