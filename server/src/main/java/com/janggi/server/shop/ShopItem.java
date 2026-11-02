@@ -19,7 +19,8 @@ public enum ShopItem {
     PIECES_CELADON("pieces.celadon", Slot.PIECES, "청자 알", "비취빛 청자 유약", 39),
     PIECES_INK("pieces.ink", Slot.PIECES, "먹빛 알", "검은 알에 밝게 빛나는 글씨", 39),
     PIECES_GOLD("pieces.gold", Slot.PIECES, "금박 알", "금박을 입힌 화려한 알", 49),
-    STYLE_DOLL("style.doll", Slot.STYLE, "인형", "큰 머리의 말랑한 입체 인형", 0),
+    STYLE_CHIBI("style.chibi", Slot.STYLE, "기본 캐릭터", "또렷한 선의 2D 꼬마 캐릭터", 0),
+    STYLE_DOLL("style.doll", Slot.STYLE, "입체 인형", "큰 머리의 말랑한 입체 인형", 0),
     STYLE_ANIME("style.anime", Slot.STYLE, "애니메이션", "반짝이는 큰 눈의 만화 그림체", 25),
     AVATAR_BASIC("avatar.basic", Slot.AVATAR, "기본 방", "창이 난 아늑한 내 방", 0),
     AVATAR_CAFE("avatar.cafe", Slot.AVATAR, "카페", "벽돌 벽에 조명이 걸린 카페", 15),
@@ -153,7 +154,7 @@ public enum ShopItem {
 
     /** 로그인하지 않은 사람이 기본으로 입고 있는 것. 칸마다 하나. */
     public boolean starter() {
-        return this == BOARD_CLASSIC || this == PIECES_CLASSIC || this == STYLE_DOLL || this == AVATAR_BASIC || this == BODY_MAN
+        return this == BOARD_CLASSIC || this == PIECES_CLASSIC || this == STYLE_CHIBI || this == AVATAR_BASIC || this == BODY_MAN
                 || this == HAIR_SHORT || this == BEARD_NONE || this == OUTFIT_TEE || this == HAT_NONE;
     }
 

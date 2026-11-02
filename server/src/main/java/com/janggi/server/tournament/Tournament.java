@@ -44,6 +44,7 @@ public class Tournament {
     @Column(name = "base_seconds", nullable = false)
     private int baseSeconds;
 
+    /** 증초를 쓰던 때의 칸. 지금은 초읽기를 쓰므로 늘 0이다. */
     @Column(name = "increment_seconds", nullable = false)
     private int incrementSeconds;
 
@@ -114,8 +115,8 @@ public class Tournament {
         this.status = Status.SCHEDULED;
     }
 
-    void edit(String title, String description, OffsetDateTime startsAt, int baseSeconds, int incrementSeconds,
-            int entryFee, int maxPlayers, Division division, Kind kind, int repeatDays, int bonusPrize) {
+    void edit(String title, String description, OffsetDateTime startsAt, int baseSeconds, int entryFee,
+            int maxPlayers, Division division, Kind kind, int repeatDays, int bonusPrize) {
         this.division = division;
         this.kind = kind;
         this.repeatDays = repeatDays;
@@ -124,7 +125,7 @@ public class Tournament {
         this.description = description;
         this.startsAt = startsAt;
         this.baseSeconds = baseSeconds;
-        this.incrementSeconds = incrementSeconds;
+        this.incrementSeconds = 0;
         this.entryFee = entryFee;
         this.maxPlayers = maxPlayers;
     }
@@ -148,7 +149,7 @@ public class Tournament {
     Tournament nextOccurrence(OffsetDateTime now) {
         Tournament t = new Tournament(createdBy == null ? 0 : createdBy, now);
         t.createdBy = createdBy;
-        t.edit(title, description, startsAt.plusDays(repeatDays), baseSeconds, incrementSeconds, entryFee, maxPlayers,
+        t.edit(title, description, startsAt.plusDays(repeatDays), baseSeconds, entryFee, maxPlayers,
                 division, kind, repeatDays, bonusPrize);
         t.prizeItem = prizeItem;
         return t;
@@ -202,9 +203,6 @@ public class Tournament {
         return baseSeconds;
     }
 
-    public int getIncrementSeconds() {
-        return incrementSeconds;
-    }
 
     public int getEntryFee() {
         return entryFee;

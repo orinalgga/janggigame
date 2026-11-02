@@ -19,6 +19,8 @@ public record GameDto(
         boolean check,
         boolean checkmate,
         boolean bikjang,
+        int bikjangCount,
+        int bikjangLimit,
         GameResult result,
         double choScore,
         double hanScore,
@@ -37,11 +39,17 @@ public record GameDto(
     public record PlayerDto(long id, String nickname, int rating, String grade, Look look) {
     }
 
-    /** 남은 시간(밀리초)과 지금 시계가 가는 쪽. 웹은 받은 뒤부터 running 쪽을 직접 줄여 보여 준다. */
-    public record ClockDto(long choMs, long hanMs, Side running) {
+    /**
+     * 남은 기본 시간(밀리초), 남은 초읽기 횟수, 초읽기 한 번의 길이, 가는 쪽이 초읽기 중이면 이번 초읽기에서 남은 시간,
+     * 지금 시계가 가는 쪽. 웹은 받은 뒤부터 running 쪽을 직접 줄여 보여 준다.
+     */
+    public record ClockDto(long choMs, long hanMs, int choPeriods, int hanPeriods, long periodMs, long periodLeftMs,
+            Side running) {
 
         static ClockDto from(GameClock.Snapshot s) {
-            return s == null ? null : new ClockDto(s.choMs(), s.hanMs(), s.running());
+            return s == null ? null
+                    : new ClockDto(s.choMs(), s.hanMs(), s.choPeriods(), s.hanPeriods(), s.periodMs(),
+                            s.periodLeftMs(), s.running());
         }
     }
 
@@ -89,6 +97,8 @@ public record GameDto(
                 state.isCheck(),
                 state.isCheckmate(),
                 state.isBikjang(),
+                state.bikjangCount(),
+                GameState.BIKJANG_LIMIT,
                 session.result(),
                 state.score(Side.CHO),
                 state.score(Side.HAN),
@@ -106,7 +116,8 @@ public record GameDto(
 
     /** AI 대국에서 이번 수에 AI가 한 말을 붙인다. */
     GameDto withAiComment(ChatMessage comment) {
-        return new GameDto(id, pieces, sideToMove, legalMoves, check, checkmate, bikjang, result, choScore, hanScore,
+        return new GameDto(id, pieces, sideToMove, legalMoves, check, checkmate, bikjang, bikjangCount,
+                bikjangLimit, result, choScore, hanScore,
                 aiSide, aiLevel, lastMove, endReason, online, cho, han, clock, ratingChange, comment);
     }
 

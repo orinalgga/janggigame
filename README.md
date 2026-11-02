@@ -76,7 +76,8 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 로그인한 회원끼리 둡니다. 상대 찾기를 누르면 먼저 기다리던 회원과 바로 짝지어지고, 진영(초/한)은 무작위입니다.
 
 - 수는 REST(`POST /api/games/{id}/moves`)로 두고, 서버가 바뀐 국면을 STOMP `/topic/games/{id}`로 두 사람에게 보냅니다. 매칭 결과는 `/user/queue/match`로 옵니다. 웹소켓 주소는 `/ws`, 접속할 때 `Authorization: Bearer` 헤더로 회원을 확인합니다.
-- 시간 규칙은 피셔 방식입니다. 기본 10분에 한 수마다 10초가 더해지고(`JANGGI_ONLINE_BASE_SECONDS`, `JANGGI_ONLINE_INCREMENT_SECONDS`), 시간이 다 되면 아무도 두지 않아도 시간패로 끝납니다.
+- 시간 규칙은 기본 시간 + 초읽기입니다. 기본 시간은 회원이 10분·5분·1분 중에 고르고(같은 시간을 고른 사람끼리 짝지음, 안 고르면 `JANGGI_ONLINE_BASE_SECONDS`), 다 쓰면 초읽기 30초 3회(`JANGGI_ONLINE_BYOYOMI_SECONDS`, `JANGGI_ONLINE_BYOYOMI_PERIODS`)가 주어집니다. 초읽기를 다 쓰면 아무도 두지 않아도 시간패로 끝납니다. 대회도 같은 초읽기를 씁니다.
+- 빅장은 바로 끝나지 않습니다. 빅장을 풀지 않고 5수가 이어지면(빅장이 된 수가 1) 점수가 높은 쪽이 이깁니다(한 덤 1.5). 외통이 먼저입니다.
 - 기권(`POST /api/games/{id}/resign`)이 있고, 끝나면 일로 레이팅(K=32)이 바뀝니다. 처음 레이팅은 1200입니다.
 - 서버가 다시 켜지면 진행 중이던 온라인 대국을 기보와 남은 시간으로 되살립니다. 꺼져 있던 시간은 둘 차례였던 쪽이 쓴 것으로 칩니다.
 - 대기열은 서버 메모리에 있습니다. 서버를 여러 대로 늘릴 때 Redis로 옮깁니다.
@@ -97,11 +98,11 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 
 상점은 **캐릭터 꾸미기**와 **장기판·장기알** 두 칸이다. 상품 목록은 `server/.../shop/ShopItem.java`에, 모양은 같은 id로 `web/src/themes.ts`(판·알), `web/src/character.ts`(캐릭터), `web/src/avatars.ts`(배경 문양)에 정의한다. 테마는 장기판의 CSS 변수만 바꾼다.
 
-- 캐릭터는 화풍(STYLE) 칸에서 고른 그림체로 그린다. 인형(기본, 큰 머리 2등신 인형을 40×50 칸에 칠하고 EPX로 4배 다듬은 뒤 높이 지도로 빛과 반짝임을 넣어 입체 인형처럼 PNG로 구움, `character-doll.ts`)과 애니메이션풍(상반신 SVG, `character-paint.ts`)이 있고, 같은 옷·머리를 화풍만 바꿔 입는다. 몸(남자·여자·은발은 무료, 고양이·강아지·토끼·곰·여우·판다·호랑이는 20~30닢이며 동물에는 머리카락·수염을 그리지 않음), 머리(짧은 머리·가르마·올백·스포츠머리·단발·파마·긴 생머리·포니테일·물결 웨이브·똥머리, 상투·쪽진머리·무관 머리·가채), 수염, 옷(티셔츠·후드티·니트·정장·원피스·골프웨어, 저고리·도포·관복·두정갑·원삼·곤룡포 등), 모자·소품(야구 모자·비니·안경·선글라스, 갓·사모·익선관 등), 배경(방·카페·바닷가·골프장·도시 야경과 전통 배경)을 따로 사서 겹쳐 입는다. 칸마다 무료 기본이 있고, 여자에게는 수염을 그리지 않는다.
+- 캐릭터는 화풍(STYLE) 칸에서 고른 그림체로 그린다. 기본은 **부품 그림을 겹친 2D 캐릭터**(`style.chibi`, `web/src/avatar/sprite.ts`)로, 상품마다 `web/src/avatar/parts/<상품 id>/` 폴더의 그림 파일을 정해진 층 순서로 겹친다. 작가 그림은 같은 이름의 png·webp를 넣으면 바로 바뀐다(규격: [docs/avatar-art.md](docs/avatar-art.md)). 지금 그림은 `npm run avatar:parts`(web/scripts/avatar-parts)가 만든 임시 그림이고, `npm run dev` 뒤 `/avatar-gallery.html`에서 모든 부품을 한눈에 볼 수 있다. 그 밖에 입체 인형(무료, `character-doll.ts`)과 애니메이션풍(`character-paint.ts`)이 있다. 몸(남자·여자·은발은 무료, 고양이·강아지·토끼·곰·여우·판다·호랑이는 20~30닢이며 동물에는 머리카락·수염을 그리지 않음), 머리(짧은 머리·가르마·올백·스포츠머리·단발·파마·긴 생머리·포니테일·물결 웨이브·똥머리, 상투·쪽진머리·무관 머리·가채), 수염, 옷(티셔츠·후드티·니트·정장·원피스·골프웨어, 저고리·도포·관복·두정갑·원삼·곤룡포 등), 모자·소품(야구 모자·비니·안경·선글라스, 갓·사모·익선관 등), 배경(방·카페·바닷가·골프장·도시 야경과 전통 배경)을 따로 사서 겹쳐 입는다. 칸마다 무료 기본이 있고, 여자에게는 수염을 그리지 않는다.
 - 캐릭터 부품 값은 10~50닢(1,000~5,000원)이다.
 - 상품에는 값에 따라 고급·명품·진귀, 대회 보상은 한정 표시가 붙는다.
 - 세트(`ShopBundle.java`: 골프·회장님·데이트, 선비·정경부인·당상관·장군·왕비·임금)는 아직 없는 부품 값의 20%를 깎아 팔고, 사면 세트 전체를 바로 입는다. 여자 세트는 여자로, 한복 남자 세트는 남자로 입히고, 한복 세트는 상투·쪽진머리도 함께 입힌다.
-- 차림은 `users.avatar`(배경)·`body`·`hair`·`beard`·`outfit`·`hat`에 저장하고(V14·V15에서 예전 부품과 기본 차림을 옮김, 화풍은 V16 `users.style`), API에는 `look`으로 나간다. 그림은 웹이 부품을 겹친 SVG로 그린다(사용자 글은 들어가지 않음).
+- 차림은 `users.avatar`(배경)·`body`·`hair`·`beard`·`outfit`·`hat`에 저장하고(V14·V15에서 예전 부품과 기본 차림을 옮김, 화풍은 V16 `users.style`, V19에서 기본을 2D 캐릭터로), API에는 `look`으로 나간다. 그림은 웹이 부품을 겹친 SVG로 그린다(사용자 글은 들어가지 않음).
 - 캐릭터는 대국 화면의 시계 줄, 머리글, 순위, 대회 대진표에 보인다. 상점에서는 사지 않고도 눌러서 입어 볼 수 있다.
 
 대회 보상 아바타 3종(`reward`)은 팔지 않는다. 운영 대회 우승이나 관리자 지급으로만 얻는다.
@@ -168,10 +169,12 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 
 ## 배포 (무료 구성)
 
-- 서버: Oracle Cloud Always Free VM에서 `docker compose up -d --build`
-- 웹소켓(`/ws`)도 같은 서버 주소로 붙으므로, 앞단 프록시(Cloudflare 등)에서 웹소켓을 허용해야 합니다.
-- 웹: Cloudflare Pages에 `web` 폴더를 연결, 빌드 명령 `npm run build`, 출력 폴더 `dist`
-- 웹과 서버의 주소가 다르면 서버에 `JANGGI_CORS_ALLOWED_ORIGINS`, 웹에 `VITE_API_BASE`를 설정합니다.
+단계별 안내는 [docs/deploy.md](docs/deploy.md)에 있습니다.
+
+- 서버: Oracle Cloud Always Free VM에서 `docker compose pull && docker compose up -d --no-build` (서버 이미지는 GitHub Actions가 만들어 ghcr.io에 올림). `.env`에 `COMPOSE_PROFILES=prod`를 넣으면 caddy가 앞에서 HTTPS 인증서를 자동으로 받습니다(`deploy/Caddyfile`).
+- 웹: Cloudflare Pages에 `web` 폴더를 연결, 빌드 명령 `npm run build`, 출력 폴더 `dist`, 환경변수 `VITE_API_BASE`
+- 웹과 서버의 주소가 다르므로 서버에 `JANGGI_CORS_ALLOWED_ORIGINS`, `JANGGI_WEB_BASE_URL`을 설정합니다.
+- 업데이트: VM에서 `bash deploy/update.sh`
 
 ## 로드맵
 

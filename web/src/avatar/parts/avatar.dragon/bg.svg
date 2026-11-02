@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" width="240" height="300"><g transform="scale(2)"><defs><linearGradient id="bgbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1f2f4a"/><stop offset="1" stop-color="#2f4d5e"/></linearGradient></defs>
+   <rect width="120" height="150" fill="url(#bgbg)"/>
+      <path d="M4 30 q4 -8 10 -4 q4 -8 10 0 q6 -2 8 4 z" fill="#d8e2e6" opacity="0.65"/><path d="M78 22 q4 -8 10 -4 q4 -8 10 0 q6 -2 8 4 z" fill="#d8e2e6" opacity="0.65"/><path d="M16 110 q4 -8 10 -4 q4 -8 10 0 q6 -2 8 4 z" fill="#d8e2e6" opacity="0.65"/><path d="M86 96 q4 -8 10 -4 q4 -8 10 0 q6 -2 8 4 z" fill="#d8e2e6" opacity="0.65"/><path d="M50 14 q4 -8 10 -4 q4 -8 10 0 q6 -2 8 4 z" fill="#d8e2e6" opacity="0.65"/>
+      <path d="M-4 70 Q20 40 40 60 Q60 80 80 52 Q96 30 124 44" stroke="#3f8f6c" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <path d="M-4 70 Q20 40 40 60 Q60 80 80 52 Q96 30 124 44" stroke="#d4a83a" stroke-width="2" fill="none" stroke-dasharray="2 4"/>
+      <circle cx="100" cy="72" r="5" fill="#f2e2a0"/></g></svg>

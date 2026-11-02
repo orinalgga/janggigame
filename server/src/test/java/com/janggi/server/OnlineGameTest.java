@@ -80,6 +80,11 @@ class OnlineGameTest {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"formation\":\"SANG_MA_SANG_MA\"}"), 200);
     }
 
+    private JsonNode join(Player p, int baseSeconds) throws Exception {
+        return call(post("/api/match").header("Authorization", p.bearer()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"formation\":\"SANG_MA_SANG_MA\",\"baseSeconds\":" + baseSeconds + "}"), 200);
+    }
+
     private JsonNode move(Player p, String gameId, String body, int expected) throws Exception {
         return call(post("/api/games/" + gameId + "/moves").header("Authorization", p.bearer())
                 .contentType(MediaType.APPLICATION_JSON).content(body), expected);
@@ -137,6 +142,24 @@ class OnlineGameTest {
         assertEquals(java.util.Set.of(a.id(), b.id()), java.util.Set.of(cho, han));
         assertEquals("CHO", game.get("clock").get("running").asText());
         assertEquals(600_000, game.get("clock").get("hanMs").asLong());
+        assertEquals(3, game.get("clock").get("hanPeriods").asInt());
+        assertEquals(30_000, game.get("clock").get("periodMs").asLong());
+    }
+
+    @Test
+    void onlyPlayersWhoPickedTheSameTimeAreMatched() throws Exception {
+        Player a = newPlayer();
+        Player b = newPlayer();
+        Player c = newPlayer();
+        assertEquals("WAITING", join(a, 300).get("status").asText());
+        assertEquals("WAITING", join(b, 60).get("status").asText());
+        JsonNode matched = join(c, 60);
+        assertEquals("MATCHED", matched.get("status").asText());
+        JsonNode game = call(get("/api/games/" + matched.get("gameId").asText()), 200);
+        assertEquals(java.util.Set.of(b.id(), c.id()),
+                java.util.Set.of(game.get("cho").get("id").asLong(), game.get("han").get("id").asLong()));
+        assertEquals(60_000, game.get("clock").get("hanMs").asLong());
+        call(delete("/api/match").header("Authorization", a.bearer()), 200);
     }
 
     @Test
@@ -228,11 +251,13 @@ class OnlineGameTest {
         Thread.sleep(300);
 
         // 메모리가 빈 새 서비스 = 서버를 다시 켠 상황. 꺼져 있던 동안도 한의 시간이 흐른 것으로 본다.
-        GameService fresh = new GameService(recorder, users, messaging, chat, 600, 10);
+        GameService fresh = new GameService(recorder, users, messaging, chat, 600, 30, 3);
         GameDto restored = fresh.get(gameId);
         assertEquals(Side.HAN, restored.clock().running());
         assertTrue(restored.clock().hanMs() <= 600_000 - 300, "한 시계: " + restored.clock().hanMs());
-        assertTrue(restored.clock().choMs() > 600_000, "초는 증초를 받았다: " + restored.clock().choMs());
+        assertTrue(restored.clock().choMs() < 600_000, "초는 쓴 시간이 빠졌다: " + restored.clock().choMs());
+        assertEquals(3, restored.clock().choPeriods());
+        assertEquals(3, restored.clock().hanPeriods());
         assertEquals(cho.id(), restored.cho().id());
         assertEquals(true, restored.online());
     }

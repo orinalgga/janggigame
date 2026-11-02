@@ -25,4 +25,6 @@ export interface StartOptions {
   level: Level
   choFormation: Formation
   hanFormation: Formation
+  /** 온라인 대전 기본 시간(초). 60·300·600. */
+  baseSeconds: number
 }

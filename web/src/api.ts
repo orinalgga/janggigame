@@ -30,6 +30,9 @@ export interface GameDto {
   check: boolean
   checkmate: boolean
   bikjang: boolean
+  /** 빅장을 풀지 않고 이어 둔 수. bikjangLimit에 닿으면 점수 판정으로 끝난다. */
+  bikjangCount: number
+  bikjangLimit: number
   result: Result
   choScore: number
   hanScore: number
@@ -80,9 +83,17 @@ export interface Player {
 }
 
 /** 서버가 보낸 시점의 남은 시간. running 쪽은 받은 뒤로도 계속 줄어든다. */
+/** 기본 시간을 다 쓰면 초읽기(periodMs씩, 남은 횟수 choPeriods·hanPeriods)에 들어간다. */
 export interface ClockDto {
+  /** 남은 기본 시간. */
   choMs: number
   hanMs: number
+  choPeriods: number
+  hanPeriods: number
+  /** 초읽기 한 번의 길이. */
+  periodMs: number
+  /** 가는 쪽이 초읽기 중이면 이번 초읽기에서 남은 시간. */
+  periodLeftMs: number
   running: Side | null
 }
 
@@ -303,7 +314,6 @@ export interface TournamentSummary {
   /** 운영자나 연 사람이 미리 건 우승 상금. */
   bonusPrize: number
   baseSeconds: number
-  incrementSeconds: number
   entryFee: number
   maxPlayers: number
   players: number
@@ -351,7 +361,6 @@ export interface TournamentInput {
   description: string | null
   startsAt: string
   baseSeconds: number
-  incrementSeconds: number
   entryFee: number
   maxPlayers: number
   bonusPrize: number
@@ -545,7 +554,7 @@ export const api = {
   replay: (id: string, ply: number) => request<ReplayDto>(`/api/games/${id}/replay?ply=${ply}`),
   game: (id: string) => request<GameDto>(`/api/games/${id}`),
   resign: (id: string) => request<GameDto>(`/api/games/${id}/resign`, {}),
-  match: (formation: Formation) => request<MatchStatus>('/api/match', { formation }),
+  match: (formation: Formation, baseSeconds: number) => request<MatchStatus>('/api/match', { formation, baseSeconds }),
   cancelMatch: () => request<MatchStatus>('/api/match', undefined, 'DELETE'),
   /** nickname이 null이면 누구나 받을 수 있는 링크 초대를 만든다. */
   invite: (nickname: string | null, formation: Formation) => request<Invite>('/api/invites', { nickname, formation }),

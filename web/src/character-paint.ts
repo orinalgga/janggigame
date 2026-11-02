@@ -483,7 +483,7 @@ const CRANE = (x: number, y: number) => `
   <circle cx="${x + 3}" cy="${y - 15}" r="1.2" fill="#c0262d"/>
   <path d="M${x - 2} ${y + 1} l-6 2" stroke="#222" stroke-width="1.6"/>`
 
-const BACKDROPS: Record<string, Backdrop> = {
+export const BACKDROPS: Record<string, Backdrop> = {
   'avatar.cafe': {
     paint: (id) => `${plain('#ead7c0', '#dcc3a6')(id)}
       <defs><pattern id="${id}brick" width="16" height="8" patternUnits="userSpaceOnUse"><path d="M0 7.5 L16 7.5 M8 0 L8 4 M0 4 L16 4 M0 0 L0 4" stroke="#cfb08f" stroke-width="1"/></pattern></defs>

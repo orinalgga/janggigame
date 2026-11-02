@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 300" width="240" height="300"><g transform="scale(2)"><defs><linearGradient id="bgbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9d9f2"/><stop offset="1" stop-color="#e2f3fb"/></linearGradient></defs>
+   <rect width="120" height="150" fill="url(#bgbg)"/>
+      <ellipse cx="6" cy="94" rx="12" ry="9" fill="#3f8a4a"/><ellipse cx="24" cy="94" rx="12" ry="9" fill="#3f8a4a"/><ellipse cx="42" cy="94" rx="12" ry="9" fill="#3f8a4a"/><ellipse cx="60" cy="94" rx="12" ry="9" fill="#3f8a4a"/><ellipse cx="78" cy="94" rx="12" ry="9" fill="#3f8a4a"/><ellipse cx="96" cy="94" rx="12" ry="9" fill="#3f8a4a"/><ellipse cx="114" cy="94" rx="12" ry="9" fill="#3f8a4a"/>
+      <rect x="0" y="96" width="120" height="54" fill="#79b85a"/>
+      <ellipse cx="80" cy="122" rx="40" ry="12" fill="#9bd27a"/>
+      <path d="M98 122 L98 76" stroke="#ffffff" stroke-width="1.6"/><path d="M98 76 L112 81 L98 86 Z" fill="#d9483b"/>
+      <ellipse cx="98" cy="122" rx="3" ry="1.2" fill="#2a3a2a"/>
+      <path d="M14 22 Q20 14 30 18 Q38 12 44 20 Q50 22 44 26 L16 26 Q10 24 14 22 Z" fill="#ffffff"/></g></svg>

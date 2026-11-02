@@ -134,7 +134,7 @@ class GameControllerTest {
         playFirstMove(id);
 
         // 메모리가 빈 새 서비스 = 서버를 다시 켠 상황.
-        GameService fresh = new GameService(recorder, users, messaging, chat, 600, 10);
+        GameService fresh = new GameService(recorder, users, messaging, chat, 600, 30, 3);
         var restored = fresh.get(id);
         assertEquals("HAN", restored.sideToMove().name());
         assertEquals(1, restored.lastMove().to().x());

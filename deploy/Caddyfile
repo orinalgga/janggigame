@@ -1,0 +1,5 @@
+# JANGGI_API_HOST 주소로 Let's Encrypt 인증서를 받아 서버(8080)로 넘긴다. 웹소켓(/ws)도 그대로 넘어간다.
+{$JANGGI_API_HOST} {
+	encode gzip
+	reverse_proxy server:8080
+}
