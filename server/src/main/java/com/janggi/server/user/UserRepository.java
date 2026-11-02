@@ -1,6 +1,7 @@
 package com.janggi.server.user;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByNicknameIgnoreCaseAndIdNot(String nickname, long id);
 
     boolean existsByIdAndBannedAtIsNotNull(long id);
+
+    /** 대국 초대: 닉네임은 대소문자만 다른 것도 같은 닉네임으로 본다. */
+    Optional<User> findByNicknameIgnoreCase(String nickname);
 
     long countByCreatedAtGreaterThanEqual(OffsetDateTime from);
 
