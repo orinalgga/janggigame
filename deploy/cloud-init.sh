@@ -41,3 +41,6 @@ chmod 600 .env
 # 서버 이미지가 아직 공개되지 않았을 수 있으니 받을 때까지 1시간 동안 다시 시도한다.
 for i in $(seq 1 120); do docker compose pull && break; sleep 30; done
 docker compose up -d --no-build
+
+# main에 머지하면 5분 안에 서버도 알아서 새 버전으로 바뀌게 한다.
+sudo -u ubuntu bash deploy/install-auto-update.sh

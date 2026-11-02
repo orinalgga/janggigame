@@ -122,10 +122,16 @@ OAuth 동의 화면이 "테스트" 상태면 테스트 사용자로 등록한 �
 
 ## 업데이트
 
+자동 업데이트를 켜 두면(cloud-init으로 만든 VM은 처음부터 켜져 있다) main에 머지만 하면 된다. VM이 5분마다
+GitHub을 확인해서 새 코드와 새 서버 이미지를 받아 다시 띄운다. 웹은 Pages가 따로 자동 배포한다.
+
 ```bash
-cd janggigame
-bash deploy/update.sh
+cd ~/janggigame
+bash deploy/install-auto-update.sh   # 한 번만. 끄기: crontab -l | grep -v auto-update.sh | crontab -
+tail ~/janggi-auto-update.log        # 언제 무엇이 바뀌었는지
 ```
+
+바로 반영하고 싶을 때는 `bash deploy/update.sh`.
 
 ## 알아 둘 것
 
