@@ -460,9 +460,16 @@ function leaveOnline() {
   confirmResign.value = false
 }
 
+/** 온라인 대국은 두는 회원이, AI 대국은 사람이 기권할 수 있다. 같은 화면 2인 대국에는 기권이 없다. */
+const canResign = computed(() => {
+  const g = game.value
+  if (!g || !ongoing.value) return false
+  return g.online ? !!mySide.value : !!g.aiSide
+})
+
 async function resign() {
   confirmResign.value = false
-  if (!game.value) return
+  if (!game.value || busy.value || thinking.value) return
   try {
     game.value = await api.resign(game.value.id)
     void gameEnded()
@@ -723,7 +730,7 @@ async function gameEnded() {
           <div class="actions">
             <span class="score"><b class="cho-text">초</b> {{ game.choScore }} · <b class="han-text">한</b> {{ game.hanScore }}</span>
             <button type="button" :disabled="!canPass || !canAct" @click="pass">한수쉼</button>
-            <template v-if="game.online && mySide && ongoing">
+            <template v-if="canResign">
               <button v-if="!confirmResign" type="button" @click="confirmResign = true">기권</button>
               <span v-else class="confirm">
                 정말 기권할까요?

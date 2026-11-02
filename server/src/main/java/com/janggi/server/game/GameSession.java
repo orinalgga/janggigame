@@ -140,7 +140,14 @@ final class GameSession {
         playAiIfItsTurn();
     }
 
+    /** 온라인 대국은 두는 회원만, AI 대국은 사람 쪽이 기권한다. 같은 화면 2인 대국에는 기권이 없다. */
     synchronized void resign(Long userId) {
+        if (!online() && aiSide != null) {
+            if (!isOver()) {
+                end(winnerAgainst(aiSide.opponent()), "RESIGN");
+            }
+            return;
+        }
         if (!online() || userId == null) {
             throw new NotYourGameException();
         }
