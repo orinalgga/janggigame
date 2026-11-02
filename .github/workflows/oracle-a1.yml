@@ -19,7 +19,7 @@ concurrency:
 
 env:
   OCI_CLI_REGION: ap-osaka-1
-  VM_NAME: janggi-server
+  VM_NAME: janggi-a1
   SUBNET_NAME: subnet-20261026-1759
 
 jobs:
