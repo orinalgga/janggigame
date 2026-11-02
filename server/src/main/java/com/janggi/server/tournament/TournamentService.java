@@ -93,13 +93,14 @@ public class TournamentService {
      */
     public record TournamentRequest(String title, String description, OffsetDateTime startsAt, Integer baseSeconds,
             Integer entryFee, Tournament.Division division, Boolean both,
-            Tournament.Kind kind, Integer repeatDays, Integer bonusPrize, Integer maxPlayers, String prizeItem) {
+            Tournament.Kind kind, Integer repeatDays, Integer bonusPrize, Integer maxPlayers, String prizeItem,
+            Boolean hostJoins) {
     }
 
     /** 개인 대회 상금과 참가비 상한. */
     static final int HOST_MAX_FEE = 10;
     static final int HOST_MAX_BONUS = 1000;
-    private static final List<Integer> SIZES = List.of(4, 8, 16);
+    private static final List<Integer> SIZES = List.of(2, 4, 8, 16);
 
     private final TournamentRepository tournaments;
     private final TournamentEntryRepository entries;
@@ -288,6 +289,11 @@ public class TournamentService {
             }
         }
         t.hostedBy(userId, bonus - free, free);
+        // 연 사람도 참가자로 넣기를 골랐으면 다른 참가자와 똑같이 참가비를 내고 들어간다.
+        // 참가비가 모자라면 대회 열기 전체가 취소된다(상금도 빠지지 않는다).
+        if (Boolean.TRUE.equals(req.hostJoins())) {
+            return join(t.getId(), userId);
+        }
         return detail(t.getId(), userId);
     }
 
@@ -359,7 +365,7 @@ public class TournamentService {
         }
         int size = req.maxPlayers() == null ? MAX_PLAYERS : req.maxPlayers();
         if (!SIZES.contains(size)) {
-            throw new TournamentException("정원은 4, 8, 16명 중에서 골라 주세요");
+            throw new TournamentException("정원은 2, 4, 8, 16명 중에서 골라 주세요");
         }
         int bonus = req.bonusPrize() == null ? 0 : req.bonusPrize();
         int maxBonus = hosted ? HOST_MAX_BONUS : 100_000;
