@@ -18,6 +18,24 @@
 4. SSH 키: "Generate a key pair"로 개인 키를 내려받아 둔다.
 5. 만든 뒤 **Public IP address**를 적어 둔다.
 
+### A1 자리가 없을 때: GitHub Actions로 자동 재시도
+
+오사카 A1은 "Out of capacity"가 자주 난다. `.github/workflows/oracle-a1.yml`이 5분마다 Oracle API로 만들기를 시도하고, 성공하면 80·443을 열고 스스로 꺼진다. 공인 IP는 Actions 실행 결과의 Summary에 나온다.
+
+1. Oracle 콘솔 → 오른쪽 위 프로필 → **User settings** (또는 My profile) → **API keys** → **Add API key** → Generate API key pair → **Download private key** → Add
+2. 나오는 Configuration file preview에서 `user`, `fingerprint`, `tenancy` 값을 확인한다.
+3. GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret으로 아래를 넣는다.
+
+| 이름 | 값 |
+|---|---|
+| `OCI_USER_OCID` | `user=` 값 (ocid1.user...) |
+| `OCI_TENANCY_OCID` | `tenancy=` 값 (ocid1.tenancy...) |
+| `OCI_FINGERPRINT` | `fingerprint=` 값 |
+| `OCI_PRIVATE_KEY` | 1번에서 받은 API 키 .pem 파일 내용 전체 |
+| `OCI_SSH_PUBLIC_KEY` | VM 접속용 SSH 공개 키 한 줄 (`ssh-keygen -y -f <개인 키 파일>`로 뽑는다) |
+
+Secret이 없으면 워크플로는 아무것도 하지 않고 끝난다. 이 경로로 만들면 아래 보안 목록 작업은 하지 않아도 된다.
+
 ### 80·443 포트 열기 (VCN)
 
 Instance 상세 → Primary VNIC의 Subnet → Security List → Add Ingress Rules:
