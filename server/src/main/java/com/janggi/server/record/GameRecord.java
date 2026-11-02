@@ -67,6 +67,18 @@ public class GameRecord {
     @Column(name = "increment_seconds")
     private Integer incrementSeconds;
 
+    @Column(name = "byoyomi_seconds")
+    private Integer byoyomiSeconds;
+
+    @Column(name = "byoyomi_periods")
+    private Integer byoyomiPeriods;
+
+    @Column(name = "cho_periods_left")
+    private Integer choPeriodsLeft;
+
+    @Column(name = "han_periods_left")
+    private Integer hanPeriodsLeft;
+
     @Column(name = "cho_ms_left")
     private Long choMsLeft;
 
@@ -98,21 +110,25 @@ public class GameRecord {
         this.startedAt = startedAt;
     }
 
-    /** 온라인 대국으로 표시하고 두 시계를 기본 시간으로 맞춘다. */
-    public void startClock(int baseSeconds, int incrementSeconds, OffsetDateTime at) {
+    /** 온라인 대국으로 표시하고 두 시계를 기본 시간과 초읽기 횟수로 맞춘다. */
+    public void startClock(int baseSeconds, int byoyomiSeconds, int byoyomiPeriods, OffsetDateTime at) {
         this.online = true;
         this.baseSeconds = baseSeconds;
-        this.incrementSeconds = incrementSeconds;
-        clock(baseSeconds * 1000L, baseSeconds * 1000L, at);
+        this.incrementSeconds = 0;
+        this.byoyomiSeconds = byoyomiSeconds;
+        this.byoyomiPeriods = byoyomiPeriods;
+        clock(baseSeconds * 1000L, baseSeconds * 1000L, byoyomiPeriods, byoyomiPeriods, at);
     }
 
     public void moved(int moveCount) {
         this.moveCount = moveCount;
     }
 
-    public void clock(long choMsLeft, long hanMsLeft, OffsetDateTime at) {
+    public void clock(long choMsLeft, long hanMsLeft, int choPeriodsLeft, int hanPeriodsLeft, OffsetDateTime at) {
         this.choMsLeft = choMsLeft;
         this.hanMsLeft = hanMsLeft;
+        this.choPeriodsLeft = choPeriodsLeft;
+        this.hanPeriodsLeft = hanPeriodsLeft;
         this.clockUpdatedAt = at;
     }
 
@@ -185,6 +201,23 @@ public class GameRecord {
 
     public Integer getIncrementSeconds() {
         return incrementSeconds;
+    }
+
+    /** 초읽기 한 번의 길이. 초읽기 전에 만든 옛 대국은 null. */
+    public Integer getByoyomiSeconds() {
+        return byoyomiSeconds;
+    }
+
+    public Integer getByoyomiPeriods() {
+        return byoyomiPeriods;
+    }
+
+    public Integer getChoPeriodsLeft() {
+        return choPeriodsLeft;
+    }
+
+    public Integer getHanPeriodsLeft() {
+        return hanPeriodsLeft;
     }
 
     public Long getChoMsLeft() {

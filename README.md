@@ -76,7 +76,8 @@ GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... ./gradlew :server:bootRun
 로그인한 회원끼리 둡니다. 상대 찾기를 누르면 먼저 기다리던 회원과 바로 짝지어지고, 진영(초/한)은 무작위입니다.
 
 - 수는 REST(`POST /api/games/{id}/moves`)로 두고, 서버가 바뀐 국면을 STOMP `/topic/games/{id}`로 두 사람에게 보냅니다. 매칭 결과는 `/user/queue/match`로 옵니다. 웹소켓 주소는 `/ws`, 접속할 때 `Authorization: Bearer` 헤더로 회원을 확인합니다.
-- 시간 규칙은 피셔 방식입니다. 기본 10분에 한 수마다 10초가 더해지고(`JANGGI_ONLINE_BASE_SECONDS`, `JANGGI_ONLINE_INCREMENT_SECONDS`), 시간이 다 되면 아무도 두지 않아도 시간패로 끝납니다.
+- 시간 규칙은 기본 시간 + 초읽기입니다. 기본 시간은 회원이 10분·5분·1분 중에 고르고(같은 시간을 고른 사람끼리 짝지음, 안 고르면 `JANGGI_ONLINE_BASE_SECONDS`), 다 쓰면 초읽기 30초 3회(`JANGGI_ONLINE_BYOYOMI_SECONDS`, `JANGGI_ONLINE_BYOYOMI_PERIODS`)가 주어집니다. 초읽기를 다 쓰면 아무도 두지 않아도 시간패로 끝납니다. 대회도 같은 초읽기를 씁니다.
+- 빅장은 바로 끝나지 않습니다. 빅장을 풀지 않고 5수가 이어지면(빅장이 된 수가 1) 점수가 높은 쪽이 이깁니다(한 덤 1.5). 외통이 먼저입니다.
 - 기권(`POST /api/games/{id}/resign`)이 있고, 끝나면 일로 레이팅(K=32)이 바뀝니다. 처음 레이팅은 1200입니다.
 - 서버가 다시 켜지면 진행 중이던 온라인 대국을 기보와 남은 시간으로 되살립니다. 꺼져 있던 시간은 둘 차례였던 쪽이 쓴 것으로 칩니다.
 - 대기열은 서버 메모리에 있습니다. 서버를 여러 대로 늘릴 때 Redis로 옮깁니다.

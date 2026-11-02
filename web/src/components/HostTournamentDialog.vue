@@ -1,19 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { api, type Me } from '../api'
-import { emptyInput, fromLocal, localIn } from '../tournaments'
+import { BYOYOMI_LABEL, TIME_CHOICES, emptyInput, fromLocal, localIn } from '../tournaments'
 
 defineProps<{ me: Me }>()
 const emit = defineEmits<{ (e: 'created', id: number): void; (e: 'close'): void }>()
 
-const PRESETS = [
-  { label: '1분+10초', base: 60, inc: 10 },
-  { label: '3분+5초', base: 180, inc: 5 },
-  { label: '5분+5초', base: 300, inc: 5 },
-]
-
 const form = ref({ ...emptyInput(), maxPlayers: 8, startsAt: localIn(30) })
-const preset = ref(0)
 const saving = ref(false)
 const error = ref('')
 
@@ -23,15 +16,12 @@ async function save() {
   if (!canSave.value) return
   saving.value = true
   error.value = ''
-  const p = PRESETS[preset.value]
   try {
     const d = await api.hostTournament({
       ...form.value,
       title: form.value.title.trim(),
       description: form.value.description?.trim() || null,
       startsAt: fromLocal(form.value.startsAt),
-      baseSeconds: p.base,
-      incrementSeconds: p.inc,
     })
     emit('created', d.summary.id)
   } catch (e) {
@@ -62,8 +52,8 @@ async function save() {
         </label>
         <label>
           <span>시간</span>
-          <select v-model.number="preset">
-            <option v-for="(p, i) in PRESETS" :key="p.label" :value="i">{{ p.label }}</option>
+          <select v-model.number="form.baseSeconds" :title="BYOYOMI_LABEL">
+            <option v-for="t in TIME_CHOICES" :key="t.seconds" :value="t.seconds">{{ t.label }} + {{ BYOYOMI_LABEL }}</option>
           </select>
         </label>
       </div>

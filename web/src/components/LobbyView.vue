@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { Formation, Level, Me, Side } from '../api'
 import { auth } from '../api'
 import { FORMATIONS, LEVELS, PERSONAS, type Mode, type StartOptions } from '../options'
+import { BYOYOMI_LABEL, TIME_CHOICES } from '../tournaments'
 
 const props = defineProps<{
   me: Me | null
@@ -37,6 +38,9 @@ const mySide = ref<Side>(saved.mySide ?? 'CHO')
 const level = ref<Level>(saved.level ?? 'INTERMEDIATE')
 const choFormation = ref<Formation>(saved.choFormation ?? 'MA_SANG_MA_SANG')
 const hanFormation = ref<Formation>(saved.hanFormation ?? 'MA_SANG_MA_SANG')
+const baseSeconds = ref<number>(
+  TIME_CHOICES.some((t) => t.seconds === saved.baseSeconds) ? saved.baseSeconds! : TIME_CHOICES[0].seconds,
+)
 
 const options = computed<StartOptions>(() => ({
   mode: mode.value,
@@ -44,6 +48,7 @@ const options = computed<StartOptions>(() => ({
   level: level.value,
   choFormation: choFormation.value,
   hanFormation: hanFormation.value,
+  baseSeconds: baseSeconds.value,
 }))
 
 watch(options, (o) => {
@@ -188,7 +193,25 @@ function start() {
               <span class="muted"> · {{ me.grade }} · 레이팅 {{ me.rating }}</span>
             </span>
           </div>
-          <p class="muted rule">기본 10분에 한 수마다 10초가 더해집니다. 진영은 무작위로 정해집니다.</p>
+          <h3>대국 시간</h3>
+          <div class="chips" role="radiogroup" aria-label="대국 시간">
+            <button
+              v-for="t in TIME_CHOICES"
+              :key="t.seconds"
+              type="button"
+              class="chip"
+              role="radio"
+              :class="{ active: baseSeconds === t.seconds }"
+              :aria-checked="baseSeconds === t.seconds"
+              :disabled="searching"
+              @click="baseSeconds = t.seconds"
+            >
+              {{ t.label }}
+            </button>
+          </div>
+          <p class="muted rule">
+            기본 시간을 다 쓰면 {{ BYOYOMI_LABEL }}가 주어집니다. 같은 시간을 고른 상대와 짝지어지고, 진영은 무작위로 정해집니다.
+          </p>
           <h3>내 상차림</h3>
           <div class="chips">
             <button

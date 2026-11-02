@@ -7,6 +7,7 @@ import LobbyView from './components/LobbyView.vue'
 import NicknameDialog from './components/NicknameDialog.vue'
 import NoticePopup from './components/NoticePopup.vue'
 import PlayerClocks from './components/PlayerClocks.vue'
+import ResultPopup from './components/ResultPopup.vue'
 import RankingBoard from './components/RankingBoard.vue'
 import RecentGames from './components/RecentGames.vue'
 import ReplayView from './components/ReplayView.vue'
@@ -37,7 +38,7 @@ import { setEquipped } from './themes'
 
 const END_REASON: Record<EndReason, string> = {
   CHECKMATE: '외통',
-  BIKJANG: '빅장, 점수 판정',
+  BIKJANG: '빅장 점수 판정',
   RESIGN: '기권',
   TIMEOUT: '시간패',
 }
@@ -175,7 +176,8 @@ const status = computed(() => {
     return `${how}: ${winner === 'CHO' ? '초' : '한'}가 이겼습니다.`
   }
   const whose = me ? (g.sideToMove === me ? '내 차례' : g.online ? '상대 차례' : 'AI 차례') : `${turn} 차례`
-  return g.check ? `장군! ${whose}` : whose
+  // 장군은 글자 없이 화면 흔들림으로만 알린다. 빅장은 몇 번째인지 보여 준다.
+  return g.bikjang ? `빅장 ${g.bikjangCount}/${g.bikjangLimit} · ${whose}` : whose
 })
 
 /** 채팅 상대. 같은 화면 2인 대국에는 채팅이 없다. */
@@ -196,7 +198,8 @@ const ongoing = computed(() => game.value?.result === 'ONGOING')
 
 async function start(options: StartOptions) {
   lastOptions.value = options
-  if (options.mode === 'ONLINE') return findMatch(options.choFormation)
+  resultOpen.value = false
+  if (options.mode === 'ONLINE') return findMatch(options.choFormation, options.baseSeconds ?? 600)
   leaveOnline()
   error.value = ''
   selected.value = null
@@ -233,6 +236,7 @@ function openDress() {
 
 /** 대국을 접고 로비로 돌아간다. 대회 대국이었으면 대회 화면으로 돌아간다. 진행 중인 온라인 대국에서는 쓰지 않는다. */
 function toLobby() {
+  resultOpen.value = false
   leaveOnline()
   game.value = null
   selected.value = null
@@ -252,7 +256,7 @@ async function resume(id: string) {
   }
 }
 
-async function findMatch(formation: Formation) {
+async function findMatch(formation: Formation, baseSeconds: number) {
   leaveOnline()
   error.value = ''
   selected.value = null
@@ -273,7 +277,7 @@ async function findMatch(formation: Formation) {
     if (m.gameId) void openOnline(m.gameId)
   })
   try {
-    const r = await api.match(formation)
+    const r = await api.match(formation, baseSeconds)
     if (r.status === 'MATCHED' && r.gameId) await openOnline(r.gameId)
   } catch (e) {
     searching.value = false
@@ -379,8 +383,33 @@ async function play(move: { from: SquareDto | null; to: SquareDto | null }) {
 const gradeNotice = ref<{ up: boolean; grade: string } | null>(null)
 let gradeTimer: ReturnType<typeof setTimeout> | undefined
 
+/** 승·패·무승부 팝업. 한 대국에 한 번만, 장군 흔들림이 끝난 뒤에 띄운다. */
+const resultOpen = ref(false)
+let resultShownFor: string | null = null
+const againLabel = computed(() => {
+  if (tournamentId.value) return '대회로 돌아가기'
+  if (!lastOptions.value) return null
+  return game.value?.online ? '새 상대 찾기' : '한 판 더'
+})
+
+function again() {
+  resultOpen.value = false
+  if (tournamentId.value) toLobby()
+  else if (lastOptions.value) void start(lastOptions.value)
+}
+
+function showResult() {
+  const id = game.value?.id
+  if (!id || resultShownFor === id) return
+  resultShownFor = id
+  setTimeout(() => {
+    if (game.value?.id === id && game.value.result !== 'ONGOING') resultOpen.value = true
+  }, 1100)
+}
+
 /** 끝난 대국을 목록에 올리고, 온라인 대국이면 바뀐 레이팅과 급수를 머리글에 반영한다. */
 async function gameEnded() {
+  showResult()
   recent.value?.refresh()
   if (!game.value?.online || !auth.token()) return
   const before = me.value
@@ -444,6 +473,15 @@ async function gameEnded() {
       이용이 정지된 계정이에요. 사유: {{ me.banReason }}<br />
       잘못된 정지라고 생각되면 운영자에게 문의해 주세요.
     </p>
+
+    <ResultPopup
+      v-if="game && resultOpen && !replayId"
+      :game="game"
+      :me="playerSide"
+      :again-label="againLabel"
+      @again="again"
+      @close="resultOpen = false"
+    />
 
     <ReplayView v-if="replayId" :key="replayId" :game-id="replayId" @close="replayId = null" />
 

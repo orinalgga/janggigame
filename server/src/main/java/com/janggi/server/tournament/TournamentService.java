@@ -4,6 +4,7 @@ import com.janggi.core.Formation;
 import com.janggi.core.GameResult;
 import com.janggi.server.game.GameDto;
 import com.janggi.server.game.GameService;
+import com.janggi.server.game.TimeControl;
 import com.janggi.server.match.MatchService;
 import com.janggi.server.record.GameRecord;
 import com.janggi.server.record.GameRecordRepository;
@@ -72,7 +73,7 @@ public class TournamentService {
     /** host는 회원이 연 개인 대회일 때 연 사람. prizePool은 우승 상금으로, 운영자나 연 사람이 미리 건 bonusPrize다. 참가비는 참가 비용으로 소모되고 상금에 들어가지 않는다. */
     public record SummaryDto(long id, String title, OffsetDateTime startsAt, Tournament.Status status,
             Tournament.Division division, Tournament.Kind kind, int repeatDays, PlayerRef host, int bonusPrize,
-            int baseSeconds, int incrementSeconds, int entryFee, int maxPlayers, int players, int prizePool,
+            int baseSeconds, int entryFee, int maxPlayers, int players, int prizePool,
             int currentRound, int totalRounds, PlayerRef winner, boolean joined, String prizeItem) {
     }
 
@@ -91,7 +92,7 @@ public class TournamentService {
      * 회원이 여는 개인 대회는 kind, division, repeatDays, both, prizeItem을 쓰지 않는다.
      */
     public record TournamentRequest(String title, String description, OffsetDateTime startsAt, Integer baseSeconds,
-            Integer incrementSeconds, Integer entryFee, Tournament.Division division, Boolean both,
+            Integer entryFee, Tournament.Division division, Boolean both,
             Tournament.Kind kind, Integer repeatDays, Integer bonusPrize, Integer maxPlayers, String prizeItem) {
     }
 
@@ -347,11 +348,10 @@ public class TournamentService {
         if (req.startsAt() == null || !req.startsAt().isAfter(now)) {
             throw new TournamentException("시작 시각은 지금보다 뒤여야 해요");
         }
-        int base = req.baseSeconds() == null ? 60 : req.baseSeconds();
-        int inc = req.incrementSeconds() == null ? 10 : req.incrementSeconds();
+        int base = req.baseSeconds() == null ? TimeControl.DEFAULT_BASE : req.baseSeconds();
         int fee = req.entryFee() == null ? 1 : req.entryFee();
-        if (base < 30 || base > 1800 || inc < 0 || inc > 60) {
-            throw new TournamentException("기본 시간은 30초~30분, 수마다 더하는 시간은 0~60초로 정해 주세요");
+        if (!TimeControl.BASE_CHOICES.contains(base)) {
+            throw new TournamentException("대국 시간은 1분, 5분, 10분 중에서 골라 주세요");
         }
         int maxFee = hosted ? HOST_MAX_FEE : 100;
         if (fee < 0 || fee > maxFee) {
@@ -378,7 +378,7 @@ public class TournamentService {
         if (prizeItem != null && ShopItem.byId(prizeItem).filter(ShopItem::reward).isEmpty()) {
             throw new TournamentException("우승 보상은 대회 보상 아바타 중에서 골라 주세요");
         }
-        t.edit(title, desc, req.startsAt(), base, inc, fee, size, division, kind, repeat, bonus);
+        t.edit(title, desc, req.startsAt(), base, fee, size, division, kind, repeat, bonus);
         t.prizeItem(prizeItem);
     }
 
@@ -537,7 +537,7 @@ public class TournamentService {
             queue.leave(a);
             queue.leave(b);
             GameDto game = games.createOnline(m.getChoUserId(), FORMATION, m.getHanUserId(), FORMATION,
-                    t.getBaseSeconds(), t.getIncrementSeconds());
+                    t.getBaseSeconds());
             m.game(java.util.UUID.fromString(game.id()));
             matches.save(m);
             Paired paired = new Paired(t.getId(), round, game.id());
@@ -628,7 +628,7 @@ public class TournamentService {
                         : users.findById(t.getHostId()).orElse(null), null);
         return new SummaryDto(t.getId(), t.getTitle(), t.getStartsAt(), t.getStatus(), t.getDivision(), t.getKind(),
                 t.getRepeatDays(), host, t.getBonusPrize(), t.getBaseSeconds(),
-                t.getIncrementSeconds(), t.getEntryFee(), t.getMaxPlayers(), list.size(), pool, t.getCurrentRound(),
+                t.getEntryFee(), t.getMaxPlayers(), list.size(), pool, t.getCurrentRound(),
                 totalRounds(t, list), winner, joined, t.getPrizeItem());
     }
 }

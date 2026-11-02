@@ -56,7 +56,7 @@ class TournamentFlowTest {
 
     private TournamentService.TournamentRequest req(String title, OffsetDateTime at, Integer bonus, Tournament.Kind kind,
             Integer repeat, Tournament.Division division) {
-        return new TournamentService.TournamentRequest(title, null, at, 60, 10, 1, division, false, kind, repeat, bonus,
+        return new TournamentService.TournamentRequest(title, null, at, 60, 1, division, false, kind, repeat, bonus,
                 16, "avatar.crown");
     }
 
@@ -176,7 +176,7 @@ class TournamentFlowTest {
     void divisionsAndBoth() {
         User admin = member("admin-d", 0);
         var made = tournaments.create(admin.getId(), new TournamentService.TournamentRequest("밤 리그", null,
-                OffsetDateTime.now().plusHours(1), null, null, null, null, true, null, null, null, null, null));
+                OffsetDateTime.now().plusHours(1), null, null, null, true, null, null, null, null, null));
         assertThat(made).extracting(TournamentService.SummaryDto::title)
                 .containsExactly("밤 리그 유단자 리그", "밤 리그 급 리그");
         User kyu = member("kyu", 5);
@@ -189,7 +189,7 @@ class TournamentFlowTest {
     void memberHostsAndCancelsWithRefund() {
         User host = member("host", 10);
         var d = tournaments.host(host.getId(), new TournamentService.TournamentRequest("내 대회", null,
-                OffsetDateTime.now().plusHours(2), 60, 5, 2, Tournament.Division.DAN, true, Tournament.Kind.REGULAR,
+                OffsetDateTime.now().plusHours(2), 60, 2, Tournament.Division.DAN, true, Tournament.Kind.REGULAR,
                 7, 6, 8, "avatar.crown"));
         // 회원 대회는 리그·반복을 쓰지 않는다.
         assertThat(d.summary().kind()).isEqualTo(Tournament.Kind.SPECIAL);
