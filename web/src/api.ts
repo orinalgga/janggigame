@@ -62,7 +62,7 @@ export interface ChatMessage {
   at: number
 }
 
-export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'RESIGN' | 'TIMEOUT' | 'DISCONNECT'
+export type EndReason = 'CHECKMATE' | 'BIKJANG' | 'MATERIAL' | 'RESIGN' | 'TIMEOUT' | 'DISCONNECT'
 
 /** rating과 grade는 대국을 시작할 때의 레이팅과 급수. */
 /** 캐릭터 차림. 모두 상점 상품 id이고 background는 배경 패다. */

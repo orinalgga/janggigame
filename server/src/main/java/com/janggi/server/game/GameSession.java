@@ -260,7 +260,10 @@ final class GameSession {
     }
 
     private static String reasonOf(GameState state) {
-        return state.isCheckmate() ? "CHECKMATE" : "BIKJANG";
+        if (state.isCheckmate()) {
+            return "CHECKMATE";
+        }
+        return state.isBikjangOver() ? "BIKJANG" : "MATERIAL";
     }
 
     private static GameResult winnerAgainst(Side loser) {

@@ -110,7 +110,7 @@ public final class Engine {
         if (++nodes % 1024 == 0 && System.currentTimeMillis() > deadline) {
             throw new Timeout();
         }
-        if (state.isBikjangOver()) {
+        if (state.isScoreDecided()) {
             return bikjangScore(state, ply);
         }
         if (depth <= 0) {
@@ -153,7 +153,7 @@ public final class Engine {
                 continue;
             }
             GameState child = state.next(m);
-            int score = child.isBikjangOver()
+            int score = child.isScoreDecided()
                     ? -bikjangScore(child, ply + 1)
                     : -quiescence(child, -beta, -alpha, ply + 1, depthLeft - 1);
             if (score >= beta) {
@@ -164,7 +164,7 @@ public final class Engine {
         return alpha;
     }
 
-    /** 빅장이 끝까지 이어지면 점수 판정으로 끝나므로 이기면 외통에 가까운 값, 지면 그 반대. */
+    /** 빅장이 끝까지 이어지거나 장·사만 남으면 점수 판정으로 끝나므로 이기면 외통에 가까운 값, 지면 그 반대. */
     private static int bikjangScore(GameState state, int ply) {
         Side me = state.sideToMove();
         int cmp = Double.compare(state.score(me), state.score(me.opponent()));

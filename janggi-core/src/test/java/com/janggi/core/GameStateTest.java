@@ -146,13 +146,38 @@ class GameStateTest {
 
     @Test
     void bikjangGoesToHanWhenScoresAreEqualBeforeBonus() {
-        // 양쪽 모두 장 + 사(3)라 기물 점수가 같고, 덤 1.5점으로 한이 이긴다.
-        GameState s = state(CHO, CHO, GENERAL, 3, 1, CHO, GUARD, 5, 0, HAN, GENERAL, 4, 8, HAN, GUARD, 5, 9);
+        // 양쪽 모두 장 + 사 + 병(졸)이라 기물 점수가 같고, 덤 1.5점으로 한이 이긴다.
+        GameState s = state(CHO, CHO, GENERAL, 3, 1, CHO, GUARD, 5, 0, CHO, SOLDIER, 0, 3,
+                HAN, GENERAL, 4, 8, HAN, GUARD, 5, 9, HAN, SOLDIER, 8, 6);
         GameState next = s.apply(Move.of(3, 1, 4, 1));
         for (int i = 1; i < GameState.BIKJANG_LIMIT; i++) {
             next = next.apply(Move.pass());
         }
         assertEquals(GameResult.HAN_WIN, next.result());
+    }
+
+    @Test
+    void onlyGeneralsAndGuardsLeftIsDecidedByScore() {
+        // 초는 장 + 사 둘(6점), 한은 장 + 사 하나(3 + 덤 1.5)라 초가 이긴다.
+        GameState s = state(CHO, CHO, GENERAL, 4, 1, CHO, GUARD, 3, 0, CHO, GUARD, 5, 0,
+                HAN, GENERAL, 3, 8, HAN, GUARD, 5, 9);
+        assertTrue(s.isOnlyGuardsLeft());
+        assertEquals(GameResult.CHO_WIN, s.result());
+        assertTrue(s.legalMoves().isEmpty());
+    }
+
+    @Test
+    void onlyGeneralsAndGuardsWithEqualPiecesGoesToHan() {
+        GameState s = state(CHO, CHO, GENERAL, 4, 1, CHO, GUARD, 3, 0, HAN, GENERAL, 3, 8, HAN, GUARD, 5, 9);
+        assertEquals(GameResult.HAN_WIN, s.result());
+    }
+
+    @Test
+    void oneAttackingPieceKeepsTheGameGoing() {
+        GameState s = state(CHO, CHO, GENERAL, 4, 1, CHO, GUARD, 3, 0,
+                HAN, GENERAL, 3, 8, HAN, SOLDIER, 0, 6);
+        assertFalse(s.isOnlyGuardsLeft());
+        assertEquals(GameResult.ONGOING, s.result());
     }
 
     @Test

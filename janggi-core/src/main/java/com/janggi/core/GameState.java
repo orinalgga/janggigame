@@ -115,13 +115,14 @@ public final class GameState {
     /**
      * 외통이면 둔 쪽이 이기고, 빅장이 {@link #BIKJANG_LIMIT}수 이어지면 점수가 높은 쪽이 이긴다.
      * 그 전에 빅장이 풀리면 대국은 이어진다. 둘이 겹치면 외통을 먼저 본다.
+     * 양쪽 모두 장과 사만 남으면 더 둘 수가 없으므로 바로 점수로 가린다.
      * 한의 덤 1.5점 때문에 점수가 같을 수 없지만, 같으면 무승부로 둔다.
      */
     public GameResult result() {
         if (isCheckmate()) {
             return sideToMove == Side.CHO ? GameResult.HAN_WIN : GameResult.CHO_WIN;
         }
-        if (isBikjangOver()) {
+        if (isScoreDecided()) {
             int cmp = Double.compare(score(Side.CHO), score(Side.HAN));
             return cmp > 0 ? GameResult.CHO_WIN : cmp < 0 ? GameResult.HAN_WIN : GameResult.DRAW;
         }
@@ -140,6 +141,27 @@ public final class GameState {
     /** 빅장이 끝까지 이어져 점수 판정으로 끝나는 국면인지. */
     public boolean isBikjangOver() {
         return bikjangCount >= BIKJANG_LIMIT && isBikjang();
+    }
+
+    /** 외통 말고 점수로 끝나는 국면인지: 빅장이 끝까지 이어졌거나, 양쪽 모두 공격할 알이 없다. */
+    public boolean isScoreDecided() {
+        return isBikjangOver() || isOnlyGuardsLeft();
+    }
+
+    /**
+     * 양쪽 모두 장과 사만 남았는지. 사는 궁성 밖으로 못 나가므로 누구도 외통을 만들 수 없다.
+     * 차·포·마·상·병(졸)이 하나라도 있으면 아직 대국이 이어진다.
+     */
+    public boolean isOnlyGuardsLeft() {
+        for (Side side : Side.values()) {
+            for (Square s : board.squaresOf(side)) {
+                PieceType t = board.get(s).type();
+                if (t != PieceType.GENERAL && t != PieceType.GUARD) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** 두 장이 같은 세로줄에서 사이에 아무것도 없이 마주 보는 상태(빅장). */
