@@ -565,6 +565,19 @@ export interface OnlineList {
   users: OnlineUser[]
 }
 
+/** 다른 회원의 프로필과 온라인 대국 전적. recent는 그 회원 쪽에서 본 최근 대국. */
+export interface Profile {
+  id: number
+  nickname: string
+  rating: number
+  grade: string
+  look: Look
+  wins: number
+  losses: number
+  draws: number
+  recent: GameSummary[]
+}
+
 export const api = {
   newGame: (choFormation: Formation, hanFormation: Formation, aiSide: Side | null, aiLevel: Level) =>
     request<GameDto>('/api/games', { choFormation, hanFormation, aiSide, aiLevel }),
@@ -581,6 +594,7 @@ export const api = {
   match: (formation: Formation, baseSeconds: number) => request<MatchStatus>('/api/match', { formation, baseSeconds }),
   cancelMatch: () => request<MatchStatus>('/api/match', undefined, 'DELETE'),
   online: () => request<OnlineList>('/api/online'),
+  profile: (id: number) => request<Profile>(`/api/users/${id}/profile`),
   /** nickname이 null이면 누구나 받을 수 있는 링크 초대를 만든다. */
   invite: (nickname: string | null, formation: Formation) => request<Invite>('/api/invites', { nickname, formation }),
   getInvite: (id: string) => request<Invite>(`/api/invites/${encodeURIComponent(id)}`),

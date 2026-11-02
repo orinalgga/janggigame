@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { api, type ChatMessage, type Look, type Side } from '../api'
 import type { Live } from '../live'
 import CharacterAvatar from './CharacterAvatar.vue'
+import { openProfile } from '../profile'
 
 const props = defineProps<{
   gameId: string
@@ -14,6 +15,8 @@ const props = defineProps<{
   live: Live | null
   /** 온라인 상대의 캐릭터 차림. 말풍선 옆에 얼굴로 보인다. 없으면 기본 얼굴. */
   opponentLook?: Look | null
+  /** 온라인 상대 회원 id. 얼굴을 누르면 전적 창이 열린다. */
+  opponentId?: number | null
   /** AI 대국이면 AI 캐릭터의 장기알 글자(卒·馬·車). */
   aiBadge?: string | null
 }>()
@@ -128,7 +131,15 @@ defineExpose({ push: add })
       @keydown.enter="toggle"
     >
       <span v-if="kind === 'ai' && aiBadge" class="face badge small" aria-hidden="true">{{ aiBadge }}</span>
-      <CharacterAvatar v-else-if="kind === 'online'" :look="opponentLook" head class="face small" />
+      <button
+        v-else-if="kind === 'online'"
+        type="button"
+        class="face-btn"
+        :aria-label="`${title} 전적 보기`"
+        @click.stop="openProfile(opponentId)"
+      >
+        <CharacterAvatar :look="opponentLook" head class="face small" />
+      </button>
       <span v-else class="dot" :class="kind" aria-hidden="true" />
       <b>{{ title }}</b>
       <span v-if="narrow && !open && latest" class="preview">{{ latest.text }}</span>
@@ -150,7 +161,9 @@ defineExpose({ push: add })
         <template v-if="m.side !== mySide || m.ai">
           <span v-if="continued(i)" class="face gap" aria-hidden="true" />
           <span v-else-if="m.ai" class="face badge" aria-hidden="true">{{ aiBadge ?? '將' }}</span>
-          <CharacterAvatar v-else :look="opponentLook" head class="face" />
+          <button v-else type="button" class="face-btn" :aria-label="`${m.nickname} 전적 보기`" @click="openProfile(opponentId)">
+            <CharacterAvatar :look="opponentLook" head class="face" />
+          </button>
         </template>
         <div class="body">
           <span v-if="(m.side !== mySide || m.ai) && !continued(i)" class="who">
@@ -326,6 +339,18 @@ header .muted {
   background: var(--surface-strong);
   box-shadow: 0 0 0 1px var(--border);
   overflow: hidden;
+}
+.face-btn {
+  flex: none;
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 0;
+}
+.face-btn:hover .face {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 .face.gap {
   height: 0;

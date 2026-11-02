@@ -22,14 +22,14 @@ public record GameSummaryDto(
         Side mySide,
         String opponentNickname) {
 
-    static GameSummaryDto from(GameRecord g, Long viewerId, String opponentNickname) {
+    public static GameSummaryDto from(GameRecord g, Long viewerId, String opponentNickname) {
         return new GameSummaryDto(g.getId().toString(), g.getAiSide(), g.getAiLevel(), g.getResult(),
                 g.getEndReason(), g.getMoveCount(), g.getStartedAt(), g.isOnline(), sideOf(g, viewerId),
                 opponentNickname);
     }
 
     /** 같은 회원이 양쪽에 다 있으면(같은 화면 2인) 어느 쪽인지 정할 수 없다. */
-    static Side sideOf(GameRecord g, Long viewerId) {
+    public static Side sideOf(GameRecord g, Long viewerId) {
         if (viewerId == null) {
             return null;
         }

@@ -6,6 +6,8 @@ import AdminView from './components/AdminView.vue'
 import LobbyView from './components/LobbyView.vue'
 import NicknameDialog from './components/NicknameDialog.vue'
 import NoticePopup from './components/NoticePopup.vue'
+import ProfileDialog from './components/ProfileDialog.vue'
+import { profileId } from './profile'
 import PlayerClocks from './components/PlayerClocks.vue'
 import ResultPopup from './components/ResultPopup.vue'
 import RankingBoard from './components/RankingBoard.vue'
@@ -361,6 +363,11 @@ const chatOpponentLook = computed(() => {
   if (!g?.online) return null
   return (mySide.value === 'CHO' ? g.han : g.cho)?.look ?? null
 })
+const chatOpponentId = computed(() => {
+  const g = game.value
+  if (!g?.online) return null
+  return (mySide.value === 'CHO' ? g.han : g.cho)?.id ?? null
+})
 const ongoing = computed(() => game.value?.result === 'ONGOING')
 
 /** 온라인 대국을 마지막으로 받은 때. 나간 사람의 남은 시간을 여기서부터 줄여 보여 준다. */
@@ -689,6 +696,7 @@ async function gameEnded() {
     </header>
 
     <NoticePopup :paused="!!game || nicknameOpen" />
+    <ProfileDialog v-if="profileId" :id="profileId" :key="profileId" @close="profileId = null" />
 
     <MegaphoneBar @open="megaphoneOpen = true" />
     <MegaphoneDialog v-if="megaphoneOpen" :me="me" @close="megaphoneOpen = false" />
@@ -809,6 +817,7 @@ async function gameEnded() {
           :title="chatTitle"
           :live="live"
           :opponent-look="chatOpponentLook"
+          :opponent-id="chatOpponentId"
           :ai-badge="persona?.badge ?? null"
         />
       </div>

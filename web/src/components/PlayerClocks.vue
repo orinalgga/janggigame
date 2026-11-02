@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import type { ClockDto, Player, Side } from '../api'
 import CharacterAvatar from './CharacterAvatar.vue'
+import { openProfile } from '../profile'
 
 const props = defineProps<{
   clock: ClockDto
@@ -74,7 +75,15 @@ const rows = computed(() =>
 <template>
   <div class="clocks">
     <div v-for="r in rows" :key="r.side" class="row" :class="[r.side.toLowerCase(), { running: r.running }]">
-      <CharacterAvatar :look="r.player?.look" class="figure" />
+      <button
+        type="button"
+        class="open"
+        :disabled="!r.player"
+        :aria-label="`${r.nickname} 전적 보기`"
+        @click="openProfile(r.player?.id)"
+      >
+        <CharacterAvatar :look="r.player?.look" class="figure" />
+      </button>
       <span class="name">
         <span class="who">
           <b class="side-mark">{{ r.side === 'CHO' ? '초' : '한' }}</b>
@@ -97,6 +106,17 @@ const rows = computed(() =>
 </template>
 
 <style scoped>
+.open {
+  flex: none;
+  padding: 0;
+  border: none;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+}
+.open:disabled {
+  cursor: default;
+}
 .clocks {
   display: flex;
   flex-direction: column;
