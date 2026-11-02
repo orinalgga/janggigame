@@ -201,6 +201,30 @@ export interface AdminUser {
   freeCoins: number
 }
 
+/** 관리자 기보 목록 한 줄. AI·비회원 쪽은 null. */
+export interface AdminGame {
+  id: string
+  startedAt: string
+  endedAt: string | null
+  online: boolean
+  aiSide: Side | null
+  aiLevel: Level | null
+  cho: { id: number; nickname: string } | null
+  han: { id: number; nickname: string } | null
+  result: Result
+  endReason: EndReason | null
+  moveCount: number
+  baseSeconds: number | null
+  incrementSeconds: number | null
+}
+
+export interface AdminGamePage {
+  games: AdminGame[]
+  page: number
+  totalPages: number
+  total: number
+}
+
 export interface AdminUserPage {
   users: AdminUser[]
   page: number
@@ -623,6 +647,12 @@ export const api = {
     coins: (id: number, amount: number, memo: string) =>
       request<AdminUser>(`/api/admin/users/${id}/coins`, { amount, memo }),
     orders: () => request<AdminOrder[]>('/api/admin/orders'),
+    games: (q: string, from: string, to: string, page: number) =>
+      request<AdminGamePage>(
+        `/api/admin/games?q=${encodeURIComponent(q)}&page=${page}` +
+          (from ? `&from=${from}` : '') +
+          (to ? `&to=${to}` : ''),
+      ),
     logs: () => request<AdminLog[]>('/api/admin/logs'),
     notices: () => request<Notice[]>('/api/admin/notices'),
     tournaments: () => request<TournamentSummary[]>('/api/admin/tournaments'),

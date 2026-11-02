@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { api, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem, type TournamentSummary } from '../api'
+import { api, type AdminGame, type AdminGamePage, type AdminLog, type AdminOrder, type AdminStats, type AdminUser, type AdminUserPage, type Notice, type ShopItem, type TournamentSummary } from '../api'
 import { REWARD_AVATARS, rewardTitle } from '../avatars'
+import { PERSONAS } from '../options'
+import ReplayView from './ReplayView.vue'
 import { BYOYOMI_LABEL, DIVISION, TIME_CHOICES, emptyInput, fromLocal as isoFrom, kindLabel, localIn, startLabel, timeControl } from '../tournaments'
 
 const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
-type Tab = 'stats' | 'users' | 'notices' | 'tournaments' | 'orders' | 'logs'
+type Tab = 'stats' | 'users' | 'games' | 'notices' | 'tournaments' | 'orders' | 'logs'
 const TABS: { value: Tab; label: string }[] = [
   { value: 'stats', label: '현황' },
   { value: 'users', label: '회원' },
+  { value: 'games', label: '기보' },
   { value: 'notices', label: '공지' },
   { value: 'tournaments', label: '대회' },
   { value: 'orders', label: '충전 내역' },
@@ -193,6 +196,42 @@ async function cancelTournament(t: TournamentSummary) {
   }
 }
 
+/** 모든 회원의 기보. 회원(닉네임·메일·번호)과 날짜로 찾는다. */
+const gameQuery = ref('')
+const gameFrom = ref('')
+const gameTo = ref('')
+const gamePage = ref<AdminGamePage | null>(null)
+/** 복기 중인 기보. 관리자 화면 안에서 열어 닫으면 목록·검색이 그대로 남는다. */
+const replaying = ref<AdminGame | null>(null)
+
+async function searchGames(p = 0) {
+  gamePage.value =
+    (await run(() => api.admin.games(gameQuery.value.trim(), gameFrom.value, gameTo.value, p))) ?? gamePage.value
+}
+
+const HOW: Record<string, string> = { CHECKMATE: '외통', BIKJANG: '빅장', MATERIAL: '점수', RESIGN: '기권', TIMEOUT: '시간', DISCONNECT: '끊김' }
+
+/** 한쪽 이름: 회원이면 닉네임, AI면 캐릭터 이름, 아니면 비회원. */
+function sideName(g: AdminGame, side: 'CHO' | 'HAN') {
+  const p = side === 'CHO' ? g.cho : g.han
+  if (p) return `${p.nickname} #${p.id}`
+  if (g.aiSide === side && g.aiLevel) return `${PERSONAS[g.aiLevel].name} (AI)`
+  return '비회원'
+}
+
+function gameKind(g: AdminGame) {
+  if (g.online) return g.baseSeconds != null ? `온라인 ${Math.round(g.baseSeconds / 60)}분` : '온라인'
+  if (g.aiLevel) return `AI ${PERSONAS[g.aiLevel].level}`
+  return '같은 화면 2인'
+}
+
+function gameResult(g: AdminGame) {
+  if (g.result === 'ONGOING') return '진행 중'
+  const how = HOW[g.endReason ?? 'CHECKMATE'] ?? ''
+  if (g.result === 'DRAW') return `${how} 무승부`
+  return `${how} ${g.result === 'CHO_WIN' ? '초' : '한'} 승`
+}
+
 async function loadOrders() {
   orders.value = (await run(api.admin.orders)) ?? orders.value
 }
@@ -202,6 +241,7 @@ function show(t: Tab) {
   notice.value = ''
   if (t === 'stats') void loadStats()
   if (t === 'users' && !page.value) void search()
+  if (t === 'games' && !gamePage.value) void searchGames()
   if (t === 'notices') void loadNotices()
   if (t === 'tournaments') void loadTournaments()
   if (t === 'orders') void loadOrders()
@@ -527,6 +567,59 @@ const cards = computed(() => {
       </ul>
     </div>
 
+    <div v-else-if="tab === 'games'">
+      <template v-if="replaying">
+        <p class="replay-head">
+          <b>초</b> {{ sideName(replaying, 'CHO') }} · <b>한</b> {{ sideName(replaying, 'HAN') }}<br />
+          <small>{{ fullDate(replaying.startedAt) }} · {{ gameKind(replaying) }} · {{ gameResult(replaying) }}</small>
+        </p>
+        <ReplayView :key="replaying.id" :game-id="replaying.id" @close="replaying = null" />
+      </template>
+      <template v-else>
+        <form class="search game-search" @submit.prevent="searchGames(0)">
+          <input v-model="gameQuery" placeholder="회원 닉네임, 메일, 번호(비우면 전체)" aria-label="기보 회원 검색" />
+          <input v-model="gameFrom" type="date" aria-label="시작 날짜" title="이 날부터" />
+          <input v-model="gameTo" type="date" aria-label="끝 날짜" title="이 날까지" />
+          <button type="submit" class="primary" :disabled="busy">검색</button>
+        </form>
+        <p v-if="gamePage" class="count">{{ gamePage.total.toLocaleString('ko-KR') }}판</p>
+        <div v-if="gamePage && gamePage.games.length" class="orders">
+          <table>
+            <thead>
+              <tr>
+                <th>시작 일시</th>
+                <th>초</th>
+                <th>한</th>
+                <th>종류</th>
+                <th>결과</th>
+                <th class="num">수</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="g in gamePage.games" :key="g.id">
+                <td class="when">{{ fullDate(g.startedAt) }}</td>
+                <td>{{ sideName(g, 'CHO') }}</td>
+                <td>{{ sideName(g, 'HAN') }}</td>
+                <td>{{ gameKind(g) }}</td>
+                <td>{{ gameResult(g) }}</td>
+                <td class="num">{{ g.moveCount }}</td>
+                <td><button type="button" class="ghost" :disabled="g.moveCount === 0" @click="replaying = g">복기</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="gamePage && gamePage.totalPages > 1" class="pager">
+          <button type="button" class="ghost" :disabled="busy || gamePage.page === 0" @click="searchGames(gamePage.page - 1)">이전</button>
+          <span>{{ gamePage.page + 1 }} / {{ gamePage.totalPages }}</span>
+          <button type="button" class="ghost" :disabled="busy || gamePage.page + 1 >= gamePage.totalPages" @click="searchGames(gamePage.page + 1)">
+            다음
+          </button>
+        </div>
+        <p class="note">날짜는 한국 시간 기준이고 끝 날짜도 포함해요. 진행 중인 대국도 지금까지 둔 수까지 복기할 수 있어요.</p>
+      </template>
+    </div>
+
     <div v-else-if="tab === 'logs'" class="orders">
       <p v-if="!logs.length && !busy" class="count">아직 기록이 없어요.</p>
       <table v-else>
@@ -671,6 +764,19 @@ small {
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+.game-search {
+  flex-wrap: wrap;
+}
+.game-search input:not([type='date']) {
+  flex: 1 1 220px;
+}
+.game-search input[type='date'] {
+  flex: 0 1 160px;
+}
+.replay-head {
+  margin: 0 0 10px;
+  line-height: 1.5;
 }
 .coin-confirm {
   margin: 4px 0 10px;
