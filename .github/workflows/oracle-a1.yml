@@ -1,12 +1,14 @@
 name: Oracle A1 VM
 
-# 오사카 A1(Always Free)은 자리가 자주 없어서, 생길 때까지 5분마다 만들기를 시도한다.
+# 오사카 A1(Always Free)은 자리가 자주 없어서, 생길 때까지 계속 만들기를 시도한다.
+# GitHub는 5분 예약을 몇 시간에 한 번만 돌릴 때가 많아서, 한 번 돌 때 안에서 1분마다 최대 약 5시간 반 동안 시도한다.
+# 예약은 매시간이고, 앞 실행이 돌고 있으면 뒤 실행은 기다린다(concurrency).
 # 만들어지면 VCN 보안 목록에 80·443을 열고, 이 워크플로를 스스로 끈다.
 # 필요한 저장소 Secret(값은 채팅이나 저장소에 올리지 않는다):
 #   OCI_USER_OCID, OCI_TENANCY_OCID, OCI_FINGERPRINT, OCI_PRIVATE_KEY(API 키 .pem 내용), OCI_SSH_PUBLIC_KEY
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "17 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -25,7 +27,7 @@ env:
 jobs:
   launch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
 
@@ -91,6 +93,10 @@ jobs:
           echo "subnet=$subnet"
           echo "image=$image"
 
+          deadline=$(( $(date +%s) + ${TRY_MINUTES:-330} * 60 ))
+          tries=0
+          while :; do
+          tries=$((tries + 1))
           set +e
           out=$(oci compute instance launch -c "$COMPARTMENT" --availability-domain "$ad" \
             --display-name "$VM_NAME" --shape VM.Standard.A1.Flex \
@@ -101,16 +107,22 @@ jobs:
             --query 'data.id' --raw-output 2>&1)
           code=$?
           set -e
-          if [ $code -ne 0 ]; then
-            if echo "$out" | grep -qiE 'out of (host )?capacity|TooManyRequests|LimitExceeded'; then
-              echo "아직 자리가 없다. 다음에 다시 시도한다."
-              echo "$out" | grep -iE 'message|code' | head -3
-              exit 0
-            fi
+          if [ $code -eq 0 ]; then break; fi
+          if ! echo "$out" | grep -qiE 'out of (host )?capacity|TooManyRequests|LimitExceeded|InternalError'; then
             echo "$out"
             exit 1
           fi
-          echo "만들었다: $out"
+          if [ $(( tries % 30 )) -eq 1 ]; then
+            echo "$(date -u +%H:%M) ${tries}번째: 아직 자리가 없다."
+            echo "$out" | grep -iE '"message"|"code"' | head -2
+          fi
+          if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "이번 실행에서 ${tries}번 시도했지만 자리가 없었다. 다음 예약 실행에서 이어 간다."
+            exit 0
+          fi
+          sleep 60
+          done
+          echo "만들었다 (${tries}번째): $out"
           echo "id=$out" >> "$GITHUB_OUTPUT"
 
       - name: 80·443 열기, 공인 IP 알리기, 워크플로 끄기
