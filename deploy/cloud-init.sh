@@ -26,6 +26,7 @@ IP=$(curl -fsS https://ifconfig.me)
 cat > .env <<EOF
 COMPOSE_PROFILES=prod
 JANGGI_API_HOST=$IP.sslip.io
+MEMORIAL_API_HOST=memorial.$IP.sslip.io
 JANGGI_WEB_BASE_URL=$WEB
 JANGGI_CORS_ALLOWED_ORIGINS=$WEB,https://localhost,capacitor://localhost
 JANGGI_JWT_SECRET=$(openssl rand -hex 32)

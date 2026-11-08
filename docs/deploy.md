@@ -78,6 +78,7 @@ nano .env
 |---|---|
 | `COMPOSE_PROFILES` | `prod` |
 | `JANGGI_API_HOST` | `<공인IP>.sslip.io` |
+| `MEMORIAL_API_HOST` | `memorial.<공인IP>.sslip.io` (같은 VM의 추모 앱, `orinalgga/memorial`의 docs/deploy.md) |
 | `JANGGI_WEB_BASE_URL` | `https://<프로젝트이름>.pages.dev` (3단계에서 정함) |
 | `JANGGI_CORS_ALLOWED_ORIGINS` | `https://<프로젝트이름>.pages.dev,https://localhost,capacitor://localhost` |
 | `JANGGI_JWT_SECRET` | 임의 문자열 32자 이상. `openssl rand -base64 48`로 만든다 |

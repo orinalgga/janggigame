@@ -3,3 +3,10 @@
 	encode gzip
 	reverse_proxy server:8080
 }
+
+# 같은 VM에 함께 올린 추모 앱(orinalgga/memorial). 추모 앱 서버가 이 도커 네트워크에 memorial-server로 붙는다.
+# 추모 앱이 떠 있지 않으면 이 주소만 502가 나고 장기 앱에는 영향이 없다.
+{$MEMORIAL_API_HOST} {
+	encode gzip
+	reverse_proxy memorial-server:8080
+}
