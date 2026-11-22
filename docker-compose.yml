@@ -38,6 +38,8 @@ services:
       JANGGI_API_HOST: ${JANGGI_API_HOST:-localhost}
       # 같은 VM의 추모 앱 주소(orinalgga/memorial docs/deploy.md).
       MEMORIAL_API_HOST: ${MEMORIAL_API_HOST:-memorial.localhost}
+      # 같은 VM의 게임 원소 난투 주소(orinalgga/Elemental docs/deploy.md).
+      ELEMENTAL_HOST: ${ELEMENTAL_HOST:-game.localhost}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
